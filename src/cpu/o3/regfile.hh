@@ -70,14 +70,41 @@ class PhysRegFile
   public:
     using IdRange = std::pair<PhysIds::iterator,
                               PhysIds::iterator>;
+
+    typedef std::vector<bool> BitVec;
+    typedef std::vector<BitVec> VecOfBitVec;
+
+    // Rutvik, SPT
+    enum class UntaintMethod {
+        NoUntaint,
+        ReachedVP,
+        FwdUntaint,
+        BwdUntaint,
+        ShadowL1,
+        STLFwd,
+        STLBwd,
+        DelayedShadowL1,
+        DelayedSTLFwd,
+        DelayedSTLBwd,
+    };
+
+    // Rutvik, SPT
+    typedef std::vector<UntaintMethod> UntaintMethodTable;
+
   private:
     /** Integer register file. */
     RegFile intRegFile;
     std::vector<PhysRegId> intRegIds;
 
+  private:
+    VecOfBitVec intRegTaintFile; // Rutvik, SPT
+    UntaintMethodTable intRegUntaintMethods; // Rutvik, SPT
+
     /** Floating point register file. */
     RegFile floatRegFile;
     std::vector<PhysRegId> floatRegIds;
+    VecOfBitVec floatRegTaintFile; // Rutvik, SPT
+    UntaintMethodTable floatRegUntaintMethods; // Rutvik, SPT
 
     /** Vector register file. */
     RegFile vectorRegFile;
@@ -86,6 +113,8 @@ class PhysRegFile
     /** Vector element register file. */
     RegFile vectorElemRegFile;
     std::vector<PhysRegId> vecElemIds;
+    VecOfBitVec vectorRegTaintFile; // Rutvik, SPT
+    UntaintMethodTable vectorRegUntaintMethods; // Rutvik, SPT
 
     /** Predicate register file. */
     RegFile vecPredRegFile;
@@ -98,6 +127,40 @@ class PhysRegFile
     /** Condition-code register file. */
     RegFile ccRegFile;
     std::vector<PhysRegId> ccRegIds;
+    VecOfBitVec ccRegTaintFile; // Rutvik, SPT
+    UntaintMethodTable ccRegUntaintMethods; // Rutvik, SPT
+
+    VecOfBitVec* getTaintFile(RegClassType regClass)
+    {
+        switch (regClass) {
+            case IntRegClass:
+                return &intRegTaintFile;
+            case FloatRegClass:
+                return &floatRegTaintFile;
+            case VecRegClass:
+                return &vectorRegTaintFile;
+            case CCRegClass:
+                return &ccRegTaintFile;
+            default:
+                return nullptr;
+        }
+    }
+
+    UntaintMethodTable* getUnaintMethodTable(RegClassType regClass)
+    {
+        switch (regClass) {
+            case IntRegClass:
+                return &intRegUntaintMethods;
+            case FloatRegClass:
+                return &floatRegUntaintMethods;
+            case VecRegClass:
+                return &vectorRegUntaintMethods;
+            case CCRegClass:
+                return &ccRegUntaintMethods;
+            default:
+                return nullptr;
+        }
+    }
 
     /** Misc Reg Ids */
     std::vector<PhysRegId> miscRegIds;
@@ -200,6 +263,108 @@ class PhysRegFile
           default:
             panic("Unsupported register class type %d.", type);
         }
+    }
+
+    /** Rutvik, SPT: Creates new empty BitVec of appropriate size */
+    static size_t taintVecSize(RegClassType regClass)
+    {
+        switch (regClass) {
+          case IntRegClass:
+          case FloatRegClass:
+          case CCRegClass:
+            return sizeof(RegVal);
+          case VecRegClass:
+            panic("asked for taintVecSize of Vec reg!\n");
+          default:
+            return 0;
+        }
+    }
+
+    static unsigned int taintVecAsInt(const BitVec& taintVec)
+    {
+        unsigned int x = 0;
+        std::for_each(taintVec.rbegin(), taintVec.rend(), [&](bool b){ x = (x << 1) | b; });
+        return x;
+    }
+
+    static unsigned int partialTaintVecAsInt(const BitVec& taintVec, uint8_t size, uint8_t offs)
+    {
+        unsigned int x = 0;
+        assert(size + offs < taintVec.size());
+        auto roffs = taintVec.size() - (size + offs);
+        std::for_each(taintVec.rbegin() + roffs, taintVec.rend() + roffs + size, [&](bool b){ x = (x << 1) | b; });
+        return x;
+    }
+
+    /** Rutvik, SPT: Reads taint */
+    const BitVec* readTaint(PhysRegIdPtr phys_reg)
+    {
+        VecOfBitVec* taintFile = getTaintFile(phys_reg->classValue());
+        if (!taintFile) {
+            return nullptr;
+        }
+        return &taintFile->at(phys_reg->index());
+    }
+
+    /** Rutvik, SPT: Sets taint */
+    void setTaint(PhysRegIdPtr phys_reg, bool taint)
+    {
+        VecOfBitVec* taintFile = getTaintFile(phys_reg->classValue());
+        if (!taintFile) return;
+        auto& bitVec = taintFile->at(phys_reg->index());
+        for (int i = 0; i < bitVec.size(); i++) {
+          bitVec.at(i) = phys_reg->is(InvalidRegClass) ? false : taint;
+        }
+    }
+
+    /** Rutvik, SPT: Sets taint */
+    void setPartialTaint(PhysRegIdPtr phys_reg, bool taint, uint8_t size, uint8_t offset = 0)
+    {
+        VecOfBitVec* taintFile = getTaintFile(phys_reg->classValue());
+        if (!taintFile) return;
+        auto& bitVec = taintFile->at(phys_reg->index());
+        assert(size + offset <= bitVec.size());
+        for (int i = 0; i < size; i++) {
+            bitVec.at(i + offset) = phys_reg->is(InvalidRegClass) ? false : taint;
+        }
+    }
+
+    /** Rutvik, SPT: Sets taint */
+    void setPartialTaintVec(PhysRegIdPtr phys_reg, const BitVec& taintVec, uint8_t size, uint8_t offset = 0)
+    {
+        VecOfBitVec* taintFile = getTaintFile(phys_reg->classValue());
+        if (!taintFile) return;
+        auto& bitVec = taintFile->at(phys_reg->index());
+        assert(taintVec.size() == bitVec.size());
+        assert(size + offset <= bitVec.size());
+        for (int i = 0; i < size; i++) {
+            bitVec.at(i + offset) = phys_reg->is(InvalidRegClass) ? false : taintVec.at(i + offset);
+        }
+    }
+
+    /** Rutvik, SPT: Get the reason for why a register was untainted */
+    UntaintMethod getUntaintMethod(PhysRegIdPtr phys_reg)
+    {
+        UntaintMethodTable* utMethodTable = getUnaintMethodTable(phys_reg->classValue());
+        if (!utMethodTable) return UntaintMethod::NoUntaint;
+        return utMethodTable->at(phys_reg->index());
+    }
+
+    /** Rutvik, SPT: Set the reason for why a register was untainted */
+    void setUntaintMethod(PhysRegIdPtr phys_reg, UntaintMethod utMethod)
+    {
+        UntaintMethodTable* utMethodTable = getUnaintMethodTable(phys_reg->classValue());
+        if (!utMethodTable) return;
+        if (utMethodTable->at(phys_reg->index()) != UntaintMethod::NoUntaint) return;
+        utMethodTable->at(phys_reg->index()) = utMethod;
+    }
+
+    /** Rutvik, SPT: Reset the reason for why a register was untainted back to NoUntaint */
+    void resetUntaintMethod(PhysRegIdPtr phys_reg)
+    {
+        UntaintMethodTable* utMethodTable = getUnaintMethodTable(phys_reg->classValue());
+        if (!utMethodTable) return;
+        utMethodTable->at(phys_reg->index()) = UntaintMethod::NoUntaint;
     }
 
     void

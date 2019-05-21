@@ -55,6 +55,7 @@
 #include "cpu/timebuf.hh"
 #include "enums/CommitPolicy.hh"
 #include "sim/probe/probe.hh"
+#include "cpu/o3/regfile.hh"
 
 namespace gem5
 {
@@ -91,6 +92,8 @@ class ThreadState;
 class Commit
 {
   public:
+    using BitVec = PhysRegFile::BitVec;
+
     /** Overall commit status. Used to determine if the CPU can deschedule
      * itself due to a lack of activity.
      */
@@ -303,6 +306,8 @@ class Commit
 
     /** Returns the thread ID to use based on an oldest instruction policy. */
     ThreadID oldestReady();
+
+    void handleSquashSignalFromROB(ThreadID tid, DynInstPtr &pendingMispInst);
 
   public:
     /** Reads the PC of a specific thread. */

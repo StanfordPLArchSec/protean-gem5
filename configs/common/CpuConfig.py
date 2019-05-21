@@ -47,7 +47,6 @@ isa_string_map = {
     ISA.MIPS: "Mips",
 }
 
-
 def config_etrace(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         # Assign the same file name to all cpus for now. This must be
@@ -82,3 +81,57 @@ def config_scheme(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         for cpu in cpu_list:
             cpu.speculationModel = options.speculation_model
+
+        print("**********")
+        print("info: Configure for DerivO3CPU. spt=%s; implicitFlow=%s; " \
+            "moreTransmitInsts=%s, disableUntaint=%s, fwdUntaint=%s, bwdUntaint=%s, " \
+            "idealUntaint=%s, enableShadowL1=%s, bottomlessShadowL1=%s, untaintRounds=%s" \
+            % (options.spt, options.configImpFlow,
+                str(options.moreTransmitInsts),
+                str(options.disableUntaint), str(options.fwdUntaint), str(options.bwdUntaint), str(options.idealUntaint),
+                str(options.enableShadowL1), str(options.bottomlessShadowL1),
+                str(options.untaint_rounds)))
+        print("**********")
+        for cpu in cpu_list:
+            cpu.spt = options.spt
+
+            if options.moreTransmitInsts:
+                cpu.moreTransmitInsts = options.moreTransmitInsts
+            else:
+                cpu.moreTransmitInsts = 0
+
+            if options.disableUntaint:
+                cpu.disableUntaint = options.disableUntaint;
+            else:
+                cpu.disableUntaint = False;
+
+            if options.fwdUntaint:
+                cpu.fwdUntaint = True;
+            else:
+                cpu.fwdUntaint = False;
+
+            if options.bwdUntaint:
+                cpu.bwdUntaint = True;
+            else:
+                cpu.bwdUntaint = False;
+
+            if options.idealUntaint:
+                cpu.idealUntaint = True;
+            else:
+                cpu.idealUntaint = False;
+
+            if options.enableShadowL1:
+                cpu.enableShadowL1 = True;
+            else:
+                cpu.enableShadowL1 = False;
+
+            if options.bottomlessShadowL1:
+                cpu.bottomlessShadowL1 = True;
+            else:
+                cpu.bottomlessShadowL1 = False;
+
+            cpu.untaintRounds = options.untaint_rounds
+
+            if len(str(options.configImpFlow)) != 0:
+                cpu.configImpFlow = options.configImpFlow
+            

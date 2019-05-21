@@ -711,6 +711,14 @@ class LSQ
     /** Same as above, but only for one thread. */
     void writebackStores(ThreadID tid);
 
+    /** [mengjia]
+     * attempt to update FenceDelay state for load insts
+     */
+    void updateVisibleState();
+    /** Same as above, but only for one thread. */
+    void updateVisibleState(ThreadID tid);
+
+
     /**
      * Squash instructions from a thread until the specified sequence number.
      */
@@ -890,6 +898,8 @@ class LSQ
     void cachePortBusy(bool is_load);
 
     RequestPort &getDataPort() { return dcachePort; }
+
+    bool isSTLPublic(const DynInstPtr& loadInst) const;
 
   protected:
     /** D-cache is blocked */

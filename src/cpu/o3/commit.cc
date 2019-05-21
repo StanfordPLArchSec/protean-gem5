@@ -64,6 +64,8 @@
 #include "debug/HtmCpu.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
+#include "debug/JY.hh"
+#include "debug/ShadowL1.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
 
@@ -781,7 +783,33 @@ Commit::commit()
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
+            // we must delay both branch and load squash if argsTainted
+            if (cpu->spt && cpu->configImpFlow == 2 &&
+                ((fromIEW->instCausingSquash[tid]->isArgsTainted() && !fromIEW->instCausingSquash[tid]->isUnsquashable()) ||
+                 (fromIEW->instCausingSquash[tid]->isLoad() && !cpu->isSTLPublic(fromIEW->instCausingSquash[tid])))) {
+                if (fromIEW->mispredictInst[tid]) {
+                    DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
+                            tid,
+                            fromIEW->instCausingSquash[tid]->seqNum,
+                            fromIEW->instCausingSquash[tid]->seqNum,
+                            fromIEW->instCausingSquash[tid]->pcState());
+                } else {
+                    DPRINTF(Commit, "[tid:%i]: (Lazy) A load mispredictInst [sn:%lli,0x%lx] PC %s is made pending.\n",
+                            tid,
+                            fromIEW->instCausingSquash[tid]->seqNum,
+                            fromIEW->instCausingSquash[tid]->seqNum,
+                            fromIEW->instCausingSquash[tid]->pcState());
+                }
+                fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
+                goto done;
+            }
+
             if (fromIEW->mispredictInst[tid]) {
+                DPRINTF(Commit, "[tid:%i]: A incoming squash [sn:%lli,0x%lx] PC %s can be resolved now\n",
+                        tid,
+                        fromIEW->mispredictInst[tid]->seqNum,
+                        fromIEW->mispredictInst[tid]->seqNum,
+                        fromIEW->mispredictInst[tid]->pcState());
                 DPRINTF(Commit,
                     "[tid:%i] Squashing due to branch mispred "
                     "PC:%#x [sn:%llu]\n",
@@ -832,11 +860,21 @@ Commit::commit()
                 if (toIEW->commitInfo[tid].mispredictInst->isUncondCtrl()) {
                      toIEW->commitInfo[tid].branchTaken = true;
                 }
-                ++stats.branchMispredicts;
             }
 
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
         }
+        else if (cpu->spt) {  // there is no squash signal comming
+            DynInstPtr resolvedPendingSquashInst = rob->getResolvedPendingSquashInst(tid);
+            if (resolvedPendingSquashInst &&
+                commitStatus[tid] != TrapPending &&
+                resolvedPendingSquashInst->seqNum <= youngestSeqNum[tid]){
+                resolvedPendingSquashInst->hasPendingSquash(false);
+                handleSquashSignalFromROB(tid, resolvedPendingSquashInst);
+            }
+        }
+
+    done:
 
         if (commitStatus[tid] == ROBSquashing) {
             num_squashing_threads++;
@@ -889,8 +927,73 @@ Commit::commit()
             toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
             wroteToTimeBuffer = true;
         }
-
     }
+}
+
+void
+Commit::handleSquashSignalFromROB(ThreadID tid, DynInstPtr &pendingMispInst)
+{
+    // only DDIFT has this mode
+    assert(cpu->spt);
+
+    DPRINTF(Commit, "[tid:%i]: (Lazy enabled) A pending squash [sn:%lli,0x%lx] PC %s can be resolved now\n",
+            tid,
+            pendingMispInst->seqNum,
+            pendingMispInst->seqNum,
+            pendingMispInst->pcState());
+
+    std::unique_ptr<PCStateBase> nextPC(pendingMispInst->pcState().clone());
+
+    if (pendingMispInst->isControl()) {
+        DPRINTF(Commit,
+            "[tid:%i]: (Lazy) Squashing due to branch mispred PC:%#x [sn:%i]\n",
+            tid,
+            pendingMispInst->pcState().instAddr(),
+            pendingMispInst->seqNum);
+        pendingMispInst->staticInst->advancePC(*nextPC);
+    } else if (pendingMispInst->isLoad()){
+        DPRINTF(Commit,
+            "[tid:%i]: (Lazy) Squashing due to order violation [sn:%i]\n",
+            tid, pendingMispInst->seqNum);
+    } else {
+        assert(0);
+    }
+
+
+    DPRINTF(Commit, "[tid:%i]: (Lazy) Redirecting to PC %#x\n",
+            tid, *nextPC);
+
+    commitStatus[tid] = ROBSquashing;
+
+    InstSeqNum squashed_inst = pendingMispInst->seqNum;
+
+    if (pendingMispInst->isLoad())
+        squashed_inst--;
+
+    youngestSeqNum[tid] = squashed_inst;
+
+    rob->squash(squashed_inst, tid);
+    changedROBNumEntries[tid] = true;
+
+    toIEW->commitInfo[tid].doneSeqNum = squashed_inst;
+    toIEW->commitInfo[tid].squash = true;
+    toIEW->commitInfo[tid].robSquashing = true;
+
+    if (pendingMispInst->isControl()){
+        toIEW->commitInfo[tid].mispredictInst = pendingMispInst;
+        toIEW->commitInfo[tid].branchTaken = pendingMispInst->pcState().branching();
+    } else
+        toIEW->commitInfo[tid].mispredictInst = NULL;
+
+    toIEW->commitInfo[tid].squashInst = rob->findInst(tid, squashed_inst);
+
+    if (toIEW->commitInfo[tid].mispredictInst) {
+        if (toIEW->commitInfo[tid].mispredictInst->isUncondCtrl()) {
+            toIEW->commitInfo[tid].branchTaken = true;
+        }
+    }
+
+    toIEW->commitInfo[tid].pc = std::move(nextPC);
 }
 
 void
@@ -1261,6 +1364,19 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         DPRINTF(Commit,
                 "[tid:%i] [sn:%llu] Return Instruction Committed PC %s \n",
                 tid, head_inst->seqNum, head_inst->pcState());
+    }
+
+    // [Rutvik, SPT] When a store is committed, we need to save the taint status of the source data
+    // so that we can access it later for the shadow L1
+    if (head_inst->isStore()) {
+        auto& sqEntryTaintVec = head_inst->sqIt->dataTaintVec();
+        // The reg taint vec may be null in some cases, like if this store doesn't actually store to memory (e.g., cda uop).
+        if (auto srcRegTaintVec = cpu->readTaintVec(head_inst->renamedSrcIdx(2))) {
+            assert(sqEntryTaintVec.size() >= srcRegTaintVec->size());
+            for (int i = 0; i < sqEntryTaintVec.size(); i++) {
+                sqEntryTaintVec.at(i) = i < srcRegTaintVec->size() ? srcRegTaintVec->at(i) : false;
+            }
+        }
     }
 
     // Update the commit rename map

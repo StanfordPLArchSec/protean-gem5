@@ -320,6 +320,53 @@ CPU::CPU(const BaseO3CPUParams &params)
 
     // [TPE, STT, SPT] Set speculation model.
     speculationModel = params.speculationModel;
+
+    /*** [Jiyong,DDIFT] ***/
+    const std::string _configImpFlow = params.configImpFlow;
+    spt = params.spt;
+    moreTransmitInsts = params.moreTransmitInsts;
+    cprintf("spt = %d, moreTransmitInsts = %d\n", spt, moreTransmitInsts);
+
+    // NHM-FIXME: Convert to enum.
+    if (_configImpFlow.compare("Eager") == 0) {
+        panic("Eager unsupported\n");
+    } else if (_configImpFlow.compare("Lazy") == 0) {
+        configImpFlow = 2;
+        cprintf("implicit flow handling: Lazy\n");
+    } else if (_configImpFlow.compare("Ignore") == 0){
+        configImpFlow = 0;
+        cprintf("implicit flow handline: Ignore\n");
+    } else {
+        if (spt) {
+            cprintf("ERROR: spt = 1, with unknown implicit flow handling scheme\n");
+            exit(1);
+        }
+    }
+
+    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
+    if (moreTransmitInsts != 0)
+        assert(spt);
+
+    // [Rutvik, SPT] Setting up some parameters
+    disableUntaint = params.disableUntaint;
+    fwdUntaint = params.fwdUntaint && !disableUntaint;
+    bwdUntaint = params.bwdUntaint && params.fwdUntaint && !disableUntaint;
+    idealUntaint = params.idealUntaint && !disableUntaint;
+    enableShadowL1 = params.enableShadowL1 && !disableUntaint;
+    bottomlessShadowL1 = params.bottomlessShadowL1 && enableShadowL1;
+    untaintRounds = params.untaintRounds;
+
+    std::cout << "Disable untainting? " << (disableUntaint ? "yes" : "no") << std::endl;
+    if (!disableUntaint)
+        std::cout << "Perform forward untainting? " << (fwdUntaint ? "yes" : "no") << std::endl;
+    if (!disableUntaint)
+        std::cout << "Perform backward untainting? " << (bwdUntaint ? "yes" : "no") << std::endl;
+    if (!disableUntaint)
+        std::cout << "Perform ideal untainting? " << (idealUntaint ? "yes" : "no") << std::endl;
+    std::cout << "Shadow L1 enabled? " << (enableShadowL1 ? "yes" : "no") << std::endl;
+    if (enableShadowL1)
+        std::cout << "Shadow L1 bottomless? " << (bottomlessShadowL1 ? "yes" : "no") << std::endl;
+    std::cout << "Untaint Rounds = " << untaintRounds << std::endl;
 }
 
 void
@@ -341,6 +388,29 @@ CPU::regProbePoints()
 
 CPU::CPUStats::CPUStats(CPU *cpu)
     : statistics::Group(cpu),
+      ADD_STAT(TotalUntaints, statistics::units::Count::get(), "Total number of times a register went from tainted to untainted"),
+      ADD_STAT(VPUntaints, statistics::units::Count::get(), "Secret-dependent operand reg untainted b/c a transmit reached the VP"),
+      ADD_STAT(FwdUntaints, statistics::units::Count::get(), "Reg untainted b/c of fwd untaint propagation"),
+      ADD_STAT(BwdUntaints, statistics::units::Count::get(), "Reg untainted b/c of bwd untaint propagation"),
+      ADD_STAT(SL1Untaints, statistics::units::Count::get(), "Load dest reg untainted b/c of the shadow L1"),
+      ADD_STAT(DelayedSL1Untaints, statistics::units::Count::get(),
+               "Load dest reg untainted b/c of the shadow L1 (but had to wait until STLPublic)"),
+      ADD_STAT(STLFwdUntaints, statistics::units::Count::get(), "Load dest reg untainted b/c of STL fwding"),
+      ADD_STAT(STLBwdUntaints, statistics::units::Count::get(), "Store src reg untainted b/c of STL fwding"),
+      ADD_STAT(DelayedSTLFwdUntaints, statistics::units::Count::get(),
+               "Load dest reg untainted b/c of STL fwding (but had to wait until STLPublic)"),
+      ADD_STAT(DelayedSTLBwdUntaints, statistics::units::Count::get(),
+               "Store src reg untainted b/c of STL fwding (but had to wait until STLPublic)"),
+      ADD_STAT(SL1UntaintedHit, statistics::units::Count::get(),
+               "A hit in the shadow L1 that returns untainted data"),
+      ADD_STAT(SL1TaintedHit, statistics::units::Count::get(), "A hit in the shadow L1 that returns tainted data"),
+      ADD_STAT(DelayedSL1UntaintedHit, statistics::units::Count::get(),
+               "A hit in the shadow L1 that returns untainted data (but had to wait until STLPublic)"),
+      ADD_STAT(DelayedSL1TaintedHit, statistics::units::Count::get(),
+               "A hit in the shadow L1 that returns tainted data (but had to wait until STLPublic)"),
+      ADD_STAT(SL1Miss, statistics::units::Count::get(), "A miss in the shadow L1 (which always returns tainted data)"),
+      ADD_STAT(DelayedSL1Miss, statistics::units::Count::get(),
+               "A miss in the shadow L1 (which always returns tainted data, had to wait until STLPublic)"),
       ADD_STAT(timesIdled, statistics::units::Count::get(),
                "Number of times that the entire CPU went into an idle state "
                "and unscheduled itself"),
@@ -1480,6 +1550,77 @@ CPU::htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
     if (!iew.ldstQueue.getDataPort().sendTimingReq(abort_pkt)) {
         panic("HTM abort signal was not sent to the memory subsystem.");
     }
+}
+
+/** [Rutvik, SPT] Read taint bit of a given register */
+bool
+CPU::readTaint(PhysRegIdPtr phys_reg) {
+    const BitVec* bitVec = regFile.readTaint(phys_reg);
+    if (!bitVec) return false;
+    return std::any_of(bitVec->begin(), bitVec->end(), [](bool b){ return b; });
+}
+
+/** [Rutvik, SPT] Read taint vec of a given register */
+const typename PhysRegFile::BitVec*
+CPU::readTaintVec(PhysRegIdPtr phys_reg) {
+    return regFile.readTaint(phys_reg);
+}
+
+/** [Rutvik, SPT] Read taint bit of part of a given register */
+bool
+CPU::readPartialTaint(PhysRegIdPtr phys_reg, uint8_t size, uint8_t offset) {
+    const BitVec* bitVec = regFile.readTaint(phys_reg);
+    if (!bitVec) return false;
+    assert(size + offset <= bitVec->size());
+    return std::any_of(bitVec->begin() + offset, bitVec->begin() + offset + size, [](bool b){ return b; });
+}
+
+/** [Rutvik, SPT] Set taint bit of given register */
+void
+CPU::setTaint(PhysRegIdPtr phys_reg, bool taint) {
+    regFile.setTaint(phys_reg, taint);
+}
+
+/** [Rutvik, SPT] Set taint bit of part of a given register given another a taint status */
+void
+CPU::setPartialTaint(PhysRegIdPtr phys_reg, bool taint, uint8_t size, uint8_t offset) {
+    regFile.setPartialTaint(phys_reg, taint, size, offset);
+}
+
+/** [Rutvik, SPT] Set taint bit of part of a given register given another taint vec */
+void
+CPU::setPartialTaintVec(PhysRegIdPtr phys_reg, const BitVec& taintVec, uint8_t size, uint8_t offset) {
+    regFile.setPartialTaintVec(phys_reg, taintVec, size, offset);
+}
+
+/** [Jiyong, Rutvik, SPT] Untaint when a memory transmitter passes VP */
+void
+CPU::untaintMemTransmit(DynInstPtr inst) {
+    // must be a transmiter with tainted args
+    assert(inst->isMemTransmit());
+    assert(inst->isUnsquashable());
+    assert(inst->isArgsTainted());
+
+    if (inst->isSquashed()) return;
+
+    auto taintedSrcRegPairs = inst->getTaintedSrcRegs();
+
+    // [Rutvik, SPT] Stat collection stuff
+    cpuStats.TotalUntaints += inst->numTaintedAddrRegs();
+    cpuStats.VPUntaints += inst->numTaintedAddrRegs();
+
+    // Untaint the instruction's src regs
+    inst->setAddrTaint(false);
+}
+
+/** [Rutvik, SPT] Untaint when a non-memory transmitter passes VP */
+void
+CPU::untaintOtherTransmit(DynInstPtr inst) {
+    if (inst->isSquashed() ||
+        moreTransmitInsts == 0 ||
+        !inst->isOtherTransmit())
+        return;
+    inst->setArgsTaint(false);
 }
 
 } // namespace o3

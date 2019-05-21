@@ -238,6 +238,13 @@ class InstructionQueue
     /** Wakes all dependents of a completed instruction. */
     int wakeDependents(const DynInstPtr &completed_inst);
 
+    /** [Jiyong,DDIFT] do a scan of instList and wake readyToIssue insts **/
+    /** Used because wakeDependents cannot set readyToIssue if argsTainted **/
+    void wakeUntaintInsts();
+
+    /* [Rutvik, SPT] Untaint non-mem transmitters that have reached the VP */
+    void updateVisibleState();
+
     /** Adds a ready memory instruction to the ready list. */
     void addReadyMemInst(const DynInstPtr &ready_inst);
 

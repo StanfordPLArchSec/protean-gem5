@@ -57,6 +57,8 @@
 #include "sim/eventq.hh"
 #include "sim/probe/probe.hh"
 
+#include <list>
+
 namespace gem5
 {
 
@@ -576,6 +578,45 @@ class Fetch
         /** Rate of how often fetch was idle. */
         statistics::Formula idleRate;
     } fetchStats;
+
+    /*** [Jiyong,DDIFT] for delay branch predictor squash **/
+  public:
+    class DelayedSquashReq 
+    {
+      public:
+        /** constructs an empty Req **/
+        DelayedSquashReq();
+
+        DynInstPtr      misp_inst;
+
+        InstSeqNum      doneSeqNum;
+
+        std::unique_ptr<PCStateBase> pc;
+
+        bool            branchTaken;
+    };
+
+    // struct used to delay squash
+    class DelayedSquashReqList 
+    {
+      public:
+
+        // queues for delayed squashes
+        std::list<DelayedSquashReq> delayedSquashes[MaxThreads];
+
+        // push a element
+        void insert(ThreadID tid, DelayedSquashReq&& req);
+
+        // clean squashed squashes
+        void squashReqs(ThreadID tid, InstSeqNum seqNum);
+
+        bool empty(ThreadID tid)
+        {
+            return delayedSquashes[tid].empty();
+        }
+    };
+
+    DelayedSquashReqList delayedSquashReqList;
 };
 
 } // namespace o3

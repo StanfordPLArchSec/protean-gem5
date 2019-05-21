@@ -51,9 +51,14 @@
 #include "debug/HtmCpu.hh"
 #include "debug/IEW.hh"
 #include "debug/LSQUnit.hh"
+#include "debug/JY.hh"
+#include "debug/ShadowL1.hh"
 #include "debug/O3PipeView.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "debug/JY.hh"
+#include "debug/ShadowL1.hh"
+#include "cpu/o3/regfile.hh"
 
 namespace gem5
 {
@@ -182,9 +187,80 @@ LSQUnit::completeDataAccess(PacketPtr pkt)
                 completeStore(request->instruction()->sqIt);
             }
         } else if (inst->isStore()) {
+            // [Rutvik, SPT] Shadow L1: Handling stores
+            if (cpu->enableShadowL1) {
+                const BitVec& taintVec = inst->sqIt->dataTaintVec();
+                auto storeAddr = pkt->getAddr();
+                auto storeSize = pkt->getSize();
+                auto storeOffs = inst->getSrcRegSizeAndOffs(2).second;
+                assert(storeOffs + storeSize <= taintVec.size());
+                for (int i = 0; i < storeSize; i++) {
+                    Addr a = storeAddr + i;
+                    cpu->shadowL1[a] = taintVec.at(i + storeOffs);
+                }
+            }
+
             // This is a regular store (i.e., not store conditionals and
             // atomics), so it can complete without writing back
             completeStore(request->instruction()->sqIt);
+        }
+
+        // [Rutvik, SPT] Shadow L1: Handling loads
+        if (cpu->enableShadowL1 && inst->isLoad() && !inst->isDummyLoad) {
+            if (isSTLPublic(inst)) {
+                auto loadAddr = pkt->getAddr();
+                auto loadSize = pkt->getSize();
+                auto loadDestOffs = inst->getDestRegSizeAndOffs(0).second;
+                BitVec ldDestTaintVec(pkt->getSize(), false);
+                if (const BitVec* taint_vec = inst->destIdxTaintVec(0))
+                    ldDestTaintVec = *taint_vec;
+                assert(loadDestOffs + loadSize <= ldDestTaintVec.size());
+                BitVec newTaintVec(ldDestTaintVec);
+
+                bool shadowL1DataTainted = false;
+                bool anyMisses = false;
+
+                for (int i = 0; i < loadSize; i++) {
+                    Addr a = loadAddr + i;
+                    if (cpu->shadowL1.find(a) == cpu->shadowL1.end()) {
+                        cpu->shadowL1.insert({a, true});
+                        anyMisses = true;
+                    }
+                    shadowL1DataTainted |= cpu->shadowL1[a];
+                    bool newTaint = cpu->shadowL1[a] && ldDestTaintVec.at(i + loadDestOffs);
+                    cpu->shadowL1[a] = newTaint;
+                    newTaintVec.at(i + loadDestOffs) = newTaint;
+                }
+
+                if (anyMisses) {
+                    cpu->cpuStats.SL1Miss++;
+                }
+                else if (shadowL1DataTainted) {
+                    cpu->cpuStats.SL1TaintedHit++;
+                }
+                else {
+                    cpu->cpuStats.SL1UntaintedHit++;
+                }
+
+                bool loadDestOldTaint = inst->isDestIdxTainted(0);
+
+                inst->setDestIdxTaintVec(0, newTaintVec);
+
+                bool loadDestNewTaint = inst->isDestIdxTainted(0);
+
+                // [Rutvik, SPT] Stat collection stuff
+                if (loadDestOldTaint && !loadDestNewTaint) {
+                    cpu->cpuStats.TotalUntaints++;
+                    cpu->cpuStats.SL1Untaints++;
+                    cpu->setUntaintMethod(inst->renamedDestIdx(0), UntaintMethod::ShadowL1);
+                }
+
+                inst->waitForSTLPublic = false;
+            }
+            else {
+                inst->waitForSTLPublic = true;
+                inst->fwdFromTaintedSt = false;
+            }
         }
     }
 }
@@ -255,6 +331,8 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
     : statistics::Group(parent),
       ADD_STAT(forwLoads, statistics::units::Count::get(),
                "Number of loads that had data forwarded from stores"),
+      ADD_STAT(taintedForwLoads, statistics::units::Count::get(),
+               "Number of tainted loads that had data forwarded from stores"),
       ADD_STAT(squashedLoads, statistics::units::Count::get(),
                "Number of loads squashed"),
       ADD_STAT(ignoredResponses, statistics::units::Count::get(),
@@ -392,6 +470,7 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     store_inst->lqIdx = loadQueue.tail() + 1;
     assert(store_inst->lqIdx > 0);
     store_inst->lqIt = loadQueue.end();
+    assert(store_inst->lqIdx == loadQueue.tail() + 1);
 
     storeQueue.back().set(store_inst);
 }
@@ -437,6 +516,17 @@ LSQUnit::checkSnoop(PacketPtr pkt)
         cpu->thread[x]->noSquashFromTC = true;
         tc->getIsaPtr()->handleLockedSnoop(pkt, cacheBlockMask);
         cpu->thread[x]->noSquashFromTC = no_squash;
+    }
+
+    // [Rutvik, SPT] Shadow L1: Handling evictions
+    if (cpu->enableShadowL1 && !cpu->bottomlessShadowL1) {
+        auto pktAddr = pkt->getAddr();
+        auto pktSize = pkt->getSize();
+        DPRINTF(ShadowL1, "[%06lx] Evicting addr range %lx..%lx from shadow L1\n",
+                (uint64_t) cpu->curCycle(), pktAddr, pktAddr + pktSize - 1);
+        for (Addr a = pktAddr; a < pktAddr + pktSize; a++) {
+            cpu->shadowL1.erase(a);
+        }
     }
 
     if (loadQueue.empty())
@@ -520,7 +610,7 @@ LSQUnit::checkViolations(typename LoadQueue::iterator& loadIt,
      */
     while (loadIt != loadQueue.end()) {
         DynInstPtr ld_inst = loadIt->instruction();
-        if (!ld_inst->effAddrValid() || ld_inst->strictlyOrdered()) {
+        if (!ld_inst->effAddrValid() || ld_inst->strictlyOrdered() || ld_inst->fenceDelay()) {
             ++loadIt;
             continue;
         }
@@ -608,7 +698,7 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
         return NoFault;
     }
 
-    if (inst->isTranslationDelayed() && load_fault == NoFault)
+    if ((inst->isTranslationDelayed() || inst->fenceDelay()) && load_fault == NoFault)
         return load_fault;
 
     if (load_fault != NoFault && inst->translationCompleted() &&
@@ -1087,6 +1177,17 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
 
         if (inst->fault == NoFault) {
             // Complete access to copy data to proper place.
+            DPRINTF(LSQUnit, "Completing instruction [sn:%lli] access at addr %lx\n",
+                    inst->seqNum, pkt->getAddr());
+
+            // Rutvik, SPT: writeback forwarded data
+            if (inst->fwdFromTaintedSt) {
+                ++stats.forwLoads;
+                ++stats.taintedForwLoads;
+                assert(cpu->spt && cpu->configImpFlow != 0);
+                memcpy(inst->memData, inst->stFwdData, inst->stFwdDataSize);
+            }
+
             inst->completeAcc(pkt);
         } else {
             // If the instruction has an outstanding fault, we cannot complete
@@ -1322,8 +1423,6 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     load_entry.setRequest(request);
     assert(load_inst);
 
-    assert(!load_inst->isExecuted());
-
     // Make sure this isn't a strictly ordered load
     // A bit of a hackish way to get strictly ordered accesses to work
     // only if they're at the head of the LSQ and are ready to commit
@@ -1453,6 +1552,34 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;
 
+                load_inst->stFwdIdx = store_it._idx;
+                load_inst->stFwdIt = store_it;
+                load_inst->stFwdSeqNum = store_it->instruction()->seqNum;
+
+                if (cpu->spt && cpu->configImpFlow != 0 && !isSTLPublic(load_inst)) {
+                    load_inst->waitForSTLPublic = true;
+                    load_inst->isDummyLoad = true;
+                    load_inst->fwdFromTaintedSt = true;
+
+                    // Allocate memory if this is the first time a load is issued.
+                    if (!load_inst->stFwdData) {
+                        load_inst->stFwdData = new uint8_t[request->mainReq()->getSize()];
+                        load_inst->stFwdDataSize = request->mainReq()->getSize();
+                    }
+                    if (store_it->isAllZeros())
+                        memset(load_inst->stFwdData, 0, request->mainReq()->getSize());
+                    else
+                        memcpy(load_inst->stFwdData,
+                               store_it->data() + shift_amt, request->mainReq()->getSize());
+
+                    DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
+                            "addr %#x\n", store_it._idx, request->getVaddr());
+                    DPRINTF(LSQUnit, "Still need dummy load to hide tainted address of store");
+
+                    // Writeback is deferred until dummy load writes back
+                    break;
+                }
+
                 // Allocate memory if this is the first time a load is issued.
                 if (!load_inst->memData) {
                     load_inst->memData =
@@ -1501,6 +1628,48 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                         data_pkt->req->getVaddr() : 0lu,
                       data_pkt->getAddr(),
                       load_inst->getHtmTransactionUid());
+                }
+
+                auto forwardingStore = store_it->instruction();
+                auto size = load_inst->effSize;
+
+                const BitVec* stSrcTaintVec = forwardingStore->argsIdxTaintVec(2);
+                assert(stSrcTaintVec != nullptr);
+                auto stSrcOffs = forwardingStore->getSrcRegSizeAndOffs(2).second;
+                assert(stSrcOffs + size + shift_amt <= stSrcTaintVec->size());
+                BitVec newStSrcTaintVec(*stSrcTaintVec);
+
+                const BitVec* ldDestTaintVec = load_inst->destIdxTaintVec(0);
+                assert(ldDestTaintVec != nullptr);
+                auto ldDestOffs = load_inst->getDestRegSizeAndOffs(0).second;
+                assert(ldDestOffs + size <= ldDestTaintVec->size());
+                BitVec newLdDestTaintVec(*ldDestTaintVec);
+
+                for (int i = 0; i < size; i++) {
+                    bool newTaint = ldDestTaintVec->at(i + ldDestOffs) && stSrcTaintVec->at(i + stSrcOffs + shift_amt);
+                    newStSrcTaintVec.at(i + stSrcOffs + shift_amt) = newTaint;
+                    newLdDestTaintVec.at(i + ldDestOffs) = newTaint;
+                }
+
+                bool loadDestOldTaint = load_inst->isDestIdxTainted(0);
+                bool storeSrcOldTaint = forwardingStore->isArgsIdxTainted(2);
+
+                load_inst->setDestIdxTaintVec(0, newLdDestTaintVec);
+                forwardingStore->setArgsIdxTaintVec(2, newStSrcTaintVec);
+
+                bool loadDestNewTaint = load_inst->isDestIdxTainted(0);
+                bool storeSrcNewTaint = forwardingStore->isArgsIdxTainted(2);
+
+                // [Rutvik, SPT] Stat collection stuff
+                if (loadDestOldTaint && !loadDestNewTaint) {
+                    cpu->cpuStats.TotalUntaints++;
+                    cpu->cpuStats.STLFwdUntaints++;
+                    cpu->setUntaintMethod(load_inst->renamedDestIdx(0), UntaintMethod::STLFwd);
+                }
+                if (storeSrcOldTaint && !storeSrcNewTaint) {
+                    cpu->cpuStats.TotalUntaints++;
+                    cpu->cpuStats.STLBwdUntaints++;
+                    cpu->setUntaintMethod(forwardingStore->renamedSrcIdx(2), UntaintMethod::STLBwd);
                 }
 
                 if (request->isAnyOutstandingRequest()) {
@@ -1591,11 +1760,12 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     // @todo We should account for cache port contention
     // and arbitrate between loads and stores.
 
-    // if we the cache is not blocked, do cache access
     request->buildPackets();
     request->sendPacketToCache();
-    if (!request->isSent())
+    if (!request->isSent()) {
+        load_inst->fwdFromTaintedSt = false;
         iewStage->blockMemInst(load_inst);
+    }
 
     return NoFault;
 }
@@ -1603,8 +1773,6 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 Fault
 LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
 {
-    assert(storeQueue[store_idx].valid());
-
     DPRINTF(LSQUnit, "Doing write to store idx %i, addr %#x | storeHead:%i "
             "[sn:%llu]\n",
             store_idx - 1, request->req()->getPaddr(), storeQueue.head() - 1,
@@ -1645,6 +1813,216 @@ LSQUnit::getStoreHeadSeqNum()
         return storeQueue.front().instruction()->seqNum;
     else
         return 0;
+}
+
+bool
+LSQUnit::isSTLPublic(const DynInstPtr& loadInst) const
+{
+    if (loadInst->sqIt == storeQueue.end())
+        return true;
+
+    if (loadInst->isAddrTainted())
+        return false;
+
+    for (auto store_it = loadInst->sqIt;
+         store_it != storeQueue.end() && store_it->instruction();
+         ++store_it) {
+        if (store_it->instruction()->isAddrTainted())
+            return false;
+    }
+    return true;
+}
+
+// [SafeSpec] update FenceDelay State
+/*** [Jiyong, Rutvik, SPT] Update logic for SPT ***/
+void
+LSQUnit::updateFenceDelays()
+{
+    // Iterate over all the loads and update their fenceDelay states accordingly
+    for (auto load_it = loadQueue.begin();
+         load_it != loadQueue.end() && load_it->instruction();
+         ++load_it) {
+        const DynInstPtr& inst = load_it->instruction();
+
+        // Skip over executed or committed loads
+        if (inst->isExecuted() || inst->isCommitted())
+            continue;
+
+        if (cpu->spt) {
+            // fence (fenceDelay flag is effective)
+            // [Jiyong, Rutvik, SPT] Stall transmitters with tainted arguments
+            if (!inst->isUnsquashable()) {
+
+                inst->fenceDelay(inst->isAddrTainted()); // TAINT LIFECYCLE: inst marked as delayed
+
+            } else {
+
+                assert(inst->isUnsquashable());
+                if (inst->isArgsTainted()) {
+                    if (!cpu->disableUntaint) {
+                        // TAINT LIFECYCLE: load has reached VP and is thus untainted
+                        cpu->untaintMemTransmit(inst);
+                    }
+                }
+
+                inst->fenceDelay(false);
+            }
+        } else {
+            // unsafe
+            inst->setUnsquashable();
+            inst->fenceDelay(false);
+        }
+    }
+
+    for (auto store_it = storeQueue.begin();
+         store_it != storeQueue.end() && store_it->instruction();
+         ++store_it) {
+        const DynInstPtr& inst = store_it->instruction();
+
+        if (cpu->spt) {
+            if (!inst->isUnsquashable()) {
+                inst->fenceDelay(inst->isAddrTainted()); // TAINT LIFECYCLE: inst marked as delayed
+            }
+            else {
+                if (inst->isArgsTainted()) {
+                    if (!cpu->disableUntaint) {
+                        // TAINT LIFECYCLE: store has reached VP and is thus untainted
+                        cpu->untaintMemTransmit(inst);
+                    }
+                }
+
+                inst->fenceDelay(false);
+            }
+        }
+        else {
+            inst->fenceDelay(false);
+        }
+    }
+}
+
+void
+LSQUnit::propagateUntaint()
+{
+    auto load_it = loadQueue.begin();
+    while (load_it != loadQueue.end() && load_it->instruction()) {
+        const DynInstPtr& loadInst = load_it->instruction();
+
+        if (loadInst->isSquashed() ||
+            loadInst->isCommitted() ||
+            !isSTLPublic(loadInst))
+        {
+            ++load_it;
+            continue;
+        }
+
+        if (loadInst->waitForSTLPublic && !loadInst->fwdFromTaintedSt) {
+            const BitVec* ldDestTaintVec = loadInst->destIdxTaintVec(0);
+            assert(ldDestTaintVec != nullptr);
+            BitVec newTaintVec(*ldDestTaintVec);
+            Addr loadAddr = loadInst->physEffAddr;
+            int loadSize = loadInst->effSize;
+            auto loadDestOffs = loadInst->getDestRegSizeAndOffs(0).second;
+            assert(loadDestOffs + loadSize <= ldDestTaintVec->size());
+
+            bool shadowL1DataTainted = false;
+            bool anyMisses = false;
+
+            for (int i = 0; i < loadSize; i++) {
+                Addr a = loadAddr + i;
+                if (cpu->shadowL1.find(a) == cpu->shadowL1.end()) {
+                    cpu->shadowL1.insert({a, true});
+                    anyMisses = true;
+                }
+                shadowL1DataTainted |= cpu->shadowL1[a];
+                bool newTaint = cpu->shadowL1[a] && ldDestTaintVec->at(i + loadDestOffs);
+                cpu->shadowL1[a] = newTaint;
+                newTaintVec.at(i + loadDestOffs) = newTaint;
+            }
+
+            if (anyMisses) {
+                cpu->cpuStats.DelayedSL1Miss++;
+            }
+            else if (shadowL1DataTainted) {
+                cpu->cpuStats.DelayedSL1TaintedHit++;
+            }
+            else {
+                cpu->cpuStats.DelayedSL1UntaintedHit++;
+            }
+
+            bool loadDestOldTaint = loadInst->isDestIdxTainted(0);
+
+            loadInst->setDestIdxTaintVec(0, newTaintVec);
+
+            bool loadDestNewTaint = loadInst->isDestIdxTainted(0);
+
+            // [Rutvik, SPT] Stat collection stuff
+            if (loadDestOldTaint && !loadDestNewTaint) {
+                cpu->cpuStats.TotalUntaints++;
+                cpu->cpuStats.DelayedSL1Untaints++;
+                cpu->setUntaintMethod(loadInst->renamedDestIdx(0), UntaintMethod::DelayedShadowL1);
+            }
+
+            loadInst->waitForSTLPublic = false;
+        }
+        else if (loadInst->stFwdIdx != -1 &&
+                 loadInst->stFwdIt->instruction() &&
+                 loadInst->stFwdSeqNum == loadInst->stFwdIt->instruction()->seqNum &&
+                 !loadInst->stFwdIt->completed()) {
+            const DynInstPtr& storeInst = loadInst->stFwdIt->instruction();
+            int shiftAmt = loadInst->effAddr - storeInst->effAddr;
+            auto size = loadInst->effSize;
+
+            const BitVec* stSrcTaintVec = storeInst->argsIdxTaintVec(2);
+            assert(stSrcTaintVec != nullptr);
+            auto stSrcOffs = storeInst->getSrcRegSizeAndOffs(2).second;
+            assert(stSrcOffs + size + shiftAmt <= stSrcTaintVec->size());
+            BitVec newStSrcTaintVec(*stSrcTaintVec);
+
+            const BitVec* ldDestTaintVec = loadInst->destIdxTaintVec(0);
+            assert(ldDestTaintVec != nullptr);
+            auto ldDestOffs = loadInst->getDestRegSizeAndOffs(0).second;
+            assert(ldDestOffs + size <= ldDestTaintVec->size());
+            BitVec newLdDestTaintVec(*ldDestTaintVec);
+
+            for (int i = 0; i < size; i++) {
+                bool newTaint = ldDestTaintVec->at(i + ldDestOffs) && stSrcTaintVec->at(i + shiftAmt + stSrcOffs);
+                newStSrcTaintVec.at(i + shiftAmt + stSrcOffs) = newTaint;
+                newLdDestTaintVec.at(i + ldDestOffs) = newTaint;
+            }
+
+            bool loadDestOldTaint = loadInst->isDestIdxTainted(0);
+            bool storeSrcOldTaint = storeInst->isArgsIdxTainted(2);
+
+            loadInst->setDestIdxTaintVec(0, newLdDestTaintVec);
+            storeInst->setArgsIdxTaintVec(2, newStSrcTaintVec);
+
+            bool loadDestNewTaint = loadInst->isDestIdxTainted(0);
+            bool storeSrcNewTaint = storeInst->isArgsIdxTainted(2);
+
+            // [Rutvik, SPT] Stat collection stuff
+            if (loadDestOldTaint && !loadDestNewTaint) {
+                cpu->cpuStats.TotalUntaints++;
+                cpu->cpuStats.DelayedSTLFwdUntaints++;
+                cpu->setUntaintMethod(loadInst->renamedDestIdx(0), UntaintMethod::DelayedSTLFwd);
+            }
+            if (storeSrcOldTaint && !storeSrcNewTaint) {
+                cpu->cpuStats.TotalUntaints++;
+                cpu->cpuStats.DelayedSTLBwdUntaints++;
+                cpu->setUntaintMethod(storeInst->renamedSrcIdx(2), UntaintMethod::DelayedSTLBwd);
+            }
+        }
+
+        ++load_it;
+    }
+}
+
+void
+LSQUnit::updateVisibleState()
+{
+    updateFenceDelays();
+    if (!cpu->disableUntaint) {
+        propagateUntaint();
+    }
 }
 
 } // namespace o3

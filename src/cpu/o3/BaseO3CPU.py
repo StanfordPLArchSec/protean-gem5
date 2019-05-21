@@ -196,3 +196,15 @@ class BaseO3CPU(BaseCPU):
     speculationModel = Param.SpeculationModel(
         "Futuristic", "[TPE, STT, SPT] Speculation model"
     )
+
+    # [SPT]
+    spt = Param.Bool(False, "[SPT] Enable SPT")
+    configImpFlow = Param.String('Ignore', "How to handle implicit flow")
+    moreTransmitInsts = Param.Int(0, "More transmit instruction types")
+    disableUntaint = Param.Bool(False, "Whether to disable untainting")
+    fwdUntaint = Param.Bool(False, "Whether to perform forward untainting")
+    bwdUntaint = Param.Bool(False, "Whether to perform backward untainting")
+    idealUntaint = Param.Bool(False, "Whether to perform ideal untainting")
+    enableShadowL1 = Param.Bool(False, "Whether to enable the shadow L1 cache")
+    bottomlessShadowL1 = Param.Bool(False, "Whether the shadow L1 cache is bottomless, i.e. ignores evictions")
+    untaintRounds = Param.Int(1, "Untaint rounds per cycle")

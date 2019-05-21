@@ -57,6 +57,7 @@
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
+#include "debug/JY.hh"
 
 namespace gem5
 {
@@ -428,6 +429,9 @@ IEW::squashDueToBranch(const DynInstPtr& inst, ThreadID tid)
         inst->staticInst->advancePC(*toCommit->pc[tid]);
 
         toCommit->mispredictInst[tid] = inst;
+        toCommit->instCausingSquash[tid] = inst;
+
+        // the mispredicted instr itself should not be squashed
         toCommit->includeSquashInst[tid] = false;
 
         wroteToTimeBuffer = true;
@@ -453,6 +457,7 @@ IEW::squashDueToMemOrder(const DynInstPtr& inst, ThreadID tid)
         toCommit->squashedSeqNum[tid] = inst->seqNum;
         set(toCommit->pc[tid], inst->pcState());
         toCommit->mispredictInst[tid] = NULL;
+        toCommit->instCausingSquash[tid] = inst;
 
         // Must include the memory violator in the squash.
         toCommit->includeSquashInst[tid] = true;
@@ -1173,6 +1178,23 @@ IEW::executeInsts()
             } else if (inst->isLoad()) {
                 // Loads will mark themselves as executed, and their writeback
                 // event adds the instruction to the queue to commit
+
+                // [SafeSpec] a lifetime of a load
+                // always let it translate --> translation not complete, defer
+                // if !loadInExec, need to check whether there
+                // is a virtual fence ahead
+                // --> if existing virtual fence, defer
+                if (inst->fenceDelay()) {
+                    DPRINTF(IEW, "Deferring load due to virtual fence.\n");
+                    instQueue.deferMemInst(inst); // TAINT LIFECYCLE: inst has been delayed
+
+                    DPRINTF(JY, "A load [sn:%lli] is delayed at cycle %lld. PC: %s; instr: %s\n",
+                            inst->seqNum, cpu->curCycle(), inst->pcState(),
+                            inst->staticInst->disassemble(inst->pcState().instAddr()));
+
+                    continue;
+                }
+
                 fault = ldstQueue.executeLoad(inst);
 
                 if (inst->isTranslationDelayed() &&
@@ -1189,6 +1211,17 @@ IEW::executeInsts()
                     inst->fault = NoFault;
                 }
             } else if (inst->isStore()) {
+                if (inst->fenceDelay()) {
+                    DPRINTF(IEW, "Deferring store due to virtual fence.\n");
+                    instQueue.deferMemInst(inst); // TAINT LIFECYCLE: inst has been delayed
+
+                    DPRINTF(JY, "A store [sn:%lli] is delayed at cycle %lld. PC: %s; instr: %s\n",
+                            inst->seqNum, cpu->curCycle(), inst->pcState(),
+                            inst->staticInst->disassemble(inst->pcState().instAddr()));
+
+                    continue;
+                }
+
                 fault = ldstQueue.executeStore(inst);
 
                 if (inst->isTranslationDelayed() &&
@@ -1417,6 +1450,9 @@ IEW::tick()
         checkSignalsAndUpdate(tid);
         dispatch(tid);
     }
+
+    ldstQueue.updateVisibleState();
+    instQueue.updateVisibleState();
 
     if (exeStatus != Squashing) {
         executeInsts();

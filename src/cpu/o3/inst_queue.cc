@@ -1148,7 +1148,7 @@ InstructionQueue::getDeferredMemInstToExecute()
 {
     for (ListIt it = deferredMemInsts.begin(); it != deferredMemInsts.end();
          ++it) {
-        if ((*it)->translationCompleted() || (*it)->isSquashed()) {
+        if ((*it)->translationCompleted() || (*it)->isSquashed() || (*it)->fenceDelay()) {
             DynInstPtr mem_inst = std::move(*it);
             deferredMemInsts.erase(it);
             return mem_inst;
@@ -1427,6 +1427,14 @@ InstructionQueue::addToProducers(const DynInstPtr &new_inst)
 void
 InstructionQueue::addIfReady(const DynInstPtr &inst)
 {
+    if (cpu->spt && cpu->moreTransmitInsts && !inst->readyToIssue_UT() && inst->readyToIssue()) {
+        if (!inst->isInStallList()) {
+            inst->addToStallList();
+            delayedIssueQueue[inst->threadNumber].push_back(inst);
+        }
+        return;
+    }
+
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
     if (inst->readyToIssue()) {
@@ -1613,6 +1621,15 @@ InstructionQueue::wakeDelayedIssueInsts()
             }
         }
     }
+}
+
+void
+InstructionQueue::updateVisibleState()
+{
+    for (ThreadID tid : *activeThreads)
+        for (const DynInstPtr& inst : instList[tid])
+            if (inst->isOtherTransmit() && inst->isUnsquashable())
+                cpu->untaintOtherTransmit(inst);
 }
 
 } // namespace o3

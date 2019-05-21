@@ -60,8 +60,11 @@
 #include "cpu/timebuf.hh"
 #include "debug/HtmCpu.hh"
 #include "debug/LSQUnit.hh"
+#include "debug/JY.hh"
+#include "debug/ShadowL1.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
+#include "cpu/o3/regfile.hh"
 
 namespace gem5
 {
@@ -148,6 +151,7 @@ class LSQUnit
 
     class SQEntry : public LSQEntry
     {
+        using BitVec = PhysRegFile::BitVec;
       private:
         /** The store data. */
         char _data[MaxDataBytes];
@@ -162,11 +166,13 @@ class LSQUnit
          * style instructs (ARM DC ZVA; ALPHA WH64)
          */
         bool _isAllZeros = false;
+        BitVec _dataTaintVec;
 
       public:
         static constexpr size_t DataSize = sizeof(_data);
         /** Constructs an empty store queue entry. */
         SQEntry()
+            : _dataTaintVec(sizeof(_data), false)
         {
             std::memset(_data, 0, DataSize);
         }
@@ -192,6 +198,8 @@ class LSQUnit
         const bool& isAllZeros() const { return _isAllZeros; }
         char* data() { return _data; }
         const char* data() const { return _data; }
+        const BitVec& dataTaintVec() const { return _dataTaintVec; }
+        BitVec& dataTaintVec() { return _dataTaintVec; }
         /** @} */
     };
     using LQEntry = LSQEntry;
@@ -207,6 +215,8 @@ class LSQUnit
   public:
     using LoadQueue = CircularQueue<LQEntry>;
     using StoreQueue = CircularQueue<SQEntry>;
+    using BitVec = PhysRegFile::BitVec;
+    using UntaintMethod = PhysRegFile::UntaintMethod;
 
   public:
     /** Constructs an LSQ unit. init() must be called prior to use. */
@@ -276,6 +286,18 @@ class LSQUnit
 
     /** Writes back stores. */
     void writebackStores();
+
+    /** [Jiyong, Rutvik, SPT] Updates the fenceDelay status of all loads. */
+    void updateFenceDelays();
+
+    /** [Rutvik, SPT] Propagates untaints through the LSQ. */
+    void propagateUntaint();
+
+    /** [mengjia] Update Visbible State.
+     * In the mode defence relying on fence: setup fenceDelay state.
+     * In the mode defence relying on invisibleSpec:
+     * setup readyToExpose*/
+    void updateVisibleState();
 
     /** Completes the data access that has been returned from the
      * memory system. */
@@ -452,6 +474,7 @@ class LSQUnit
     LoadQueue loadQueue;
 
   private:
+
     /** The number of places to shift addresses in the LSQ before checking
      * for dependency violations
      */
@@ -516,6 +539,9 @@ class LSQUnit
         /** Total number of loads forwaded from LSQ stores. */
         statistics::Scalar forwLoads;
 
+        /** Total number of loads forwaded from LSQ stores. */
+        statistics::Scalar taintedForwLoads;
+
         /** Total number of squashed loads. */
         statistics::Scalar squashedLoads;
 
@@ -541,6 +567,8 @@ class LSQUnit
     } stats;
 
   public:
+    bool isSTLPublic(const DynInstPtr& loadInst) const;
+
     /** Executes the load at the given index. */
     Fault read(LSQRequest *request, ssize_t load_idx);
 

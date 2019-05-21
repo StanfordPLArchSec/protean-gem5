@@ -90,6 +90,8 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
     for (phys_reg = 0; phys_reg < numPhysicalIntRegs; phys_reg++) {
         intRegIds.emplace_back(*reg_classes.at(IntRegClass),
                 phys_reg, flat_reg_idx++);
+        intRegTaintFile.emplace_back(sizeof(RegVal), false);
+        intRegUntaintMethods.push_back(UntaintMethod::NoUntaint);
     }
 
     // The next batch of the registers are the floating-point physical
@@ -97,6 +99,8 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
     for (phys_reg = 0; phys_reg < numPhysicalFloatRegs; phys_reg++) {
         floatRegIds.emplace_back(*reg_classes.at(FloatRegClass),
                 phys_reg, flat_reg_idx++);
+        floatRegTaintFile.emplace_back(sizeof(RegVal), false);
+        floatRegUntaintMethods.push_back(UntaintMethod::NoUntaint);
     }
 
     // The next batch of the registers are the vector physical
@@ -104,6 +108,8 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
     for (phys_reg = 0; phys_reg < numPhysicalVecRegs; phys_reg++) {
         vecRegIds.emplace_back(*reg_classes.at(VecRegClass), phys_reg,
                 flat_reg_idx++);
+        vectorRegTaintFile.push_back(BitVec(0, false));
+        vectorRegUntaintMethods.push_back(UntaintMethod::NoUntaint);
     }
     // The next batch of the registers are the vector element physical
     // registers; put them onto the vector free list.
@@ -131,6 +137,8 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
     for (phys_reg = 0; phys_reg < numPhysicalCCRegs; phys_reg++) {
         ccRegIds.emplace_back(*reg_classes.at(CCRegClass), phys_reg,
                 flat_reg_idx++);
+        ccRegTaintFile.emplace_back(sizeof(RegVal), false);
+        ccRegUntaintMethods.push_back(UntaintMethod::NoUntaint);
     }
 
     // Misc regs have a fixed mapping but still need PhysRegIds.

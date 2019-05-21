@@ -78,6 +78,10 @@ class MemOp : public X86MicroopBase
     const uint8_t dataSize;
     const uint8_t addressSize;
     const RegIndex foldOBit, foldABit;
+
+    // Rutvik, SPT
+    virtual uint8_t getDataSize() const { return dataSize; }
+    virtual uint8_t getAddrSize() const { return addressSize; }    
 };
 
 /**

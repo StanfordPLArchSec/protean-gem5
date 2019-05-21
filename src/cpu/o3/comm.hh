@@ -101,6 +101,7 @@ struct IEWStruct
     DynInstPtr insts[MaxWidth];
     DynInstPtr mispredictInst[MaxThreads];
     Addr mispredPC[MaxThreads];
+    DynInstPtr instCausingSquash[MaxThreads];
     InstSeqNum squashedSeqNum[MaxThreads];
     std::unique_ptr<PCStateBase> pc[MaxThreads];
 

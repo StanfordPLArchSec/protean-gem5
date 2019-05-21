@@ -52,6 +52,7 @@
 #include "cpu/o3/limits.hh"
 #include "cpu/reg_class.hh"
 #include "enums/SMTQueuePolicy.hh"
+#include "cpu/o3/regfile.hh"
 
 namespace gem5
 {
@@ -73,6 +74,9 @@ class ROB
   public:
     typedef std::pair<RegIndex, RegIndex> UnmapInfo;
     typedef typename std::list<DynInstPtr>::iterator InstIt;
+
+    using BitVec = PhysRegFile::BitVec;
+    using UntaintMethod = PhysRegFile::UntaintMethod;
 
     /** Possible ROB statuses. */
     enum Status
@@ -271,6 +275,13 @@ class ROB
      */
     size_t countInsts(ThreadID tid);
 
+    // [Rutvik, SPT] Propagate untaint forwards and backwards
+    bool propagateUntaint(ThreadID tid);
+
+    // find a instr in a rob list which has a pending squash, but is not argTaintewhich has a pending squash, but is not argTainted
+    // which means that we should execute this squash
+    DynInstPtr getResolvedPendingSquashInst(ThreadID tid);
+
   private:
     /** Reset the ROB state */
     void resetState();
@@ -292,6 +303,12 @@ class ROB
 
     /** ROB List of Instructions */
     std::list<DynInstPtr> instList[MaxThreads];
+
+  public:
+
+    std::list<DynInstPtr> * getFullInstList() { return &instList[0]; }
+
+  private:
 
     /** Number of instructions that can be squashed in a single cycle. */
     unsigned squashWidth;
@@ -344,6 +361,9 @@ class ROB
         // The number of rob_writes
         statistics::Scalar writes;
     } stats;
+
+  public:
+    DynInstPtr getInstFromDestReg(PhysRegIdPtr targetReg);  
 };
 
 } // namespace o3

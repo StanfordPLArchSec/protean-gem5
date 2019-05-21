@@ -46,6 +46,9 @@
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
+#include "cpu/op_class.hh"
+#include "cpu/o3/regfile.hh"
+#include "arch/x86/regs/int.hh"
 
 namespace gem5
 {
@@ -69,6 +72,8 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
     instFlags[RecordResult] = true;
     instFlags[Predicate] = true;
     instFlags[MemAccPredicate] = true;
+    /*** [Jiyong,DDIFT] ***/
+    instFlags[HasPendingSquash] = false;
 
 #ifndef NDEBUG
     ++cpu->instcount;
@@ -90,6 +95,11 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
     cpu->snList.insert(seqNum);
 #endif
 
+    destTaintBcastMask = BitVec(numDestRegs(), false);
+    argsTaintBcastMask = BitVec(numSrcRegs(), false);
+
+    instFlags[ReleasedByFwdUntaint] = false;
+    instFlags[ReleasedByBwdUntaint] = false;
 }
 
 DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
@@ -254,6 +264,9 @@ DynInst::~DynInst()
     delete [] memData;
     delete traceData;
     fault = NoFault;
+
+    if (stFwdData)
+      delete [] stFwdData;
 
 #ifndef NDEBUG
     --cpu->instcount;
@@ -498,6 +511,308 @@ DynInst::isSpeculationPrimitive() const
       default:
         panic("unreachable!\n");
     }
+}
+
+/*** [Jiyong,DDIFT] ***/
+bool
+DynInst::readyToIssue_UT() const
+{
+    bool ret = status[CanIssue];
+    if (isOtherTransmit()) {
+        ret = ret && !isArgsTainted();
+    }
+    return ret;
+}
+
+std::pair<uint8_t, uint8_t>
+DynInst::getDestRegSizeAndOffs(int i) const
+{
+    auto archReg = destRegIdx(i);
+    bool isIntReg = archReg.classValue() == IntRegClass;
+    bool intFoldBit = archReg.index() & X86ISA::IntFoldBit;
+    uint8_t size = isIntReg ? staticInst->getDataSize() : 8;
+    uint8_t offset = isIntReg && intFoldBit ? 1 : 0;
+    return std::make_pair(size, offset);
+}
+
+bool
+DynInst::isDestTainted() const
+{
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (isDestIdxTainted(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+DynInst::isDestIdxTainted(int i) const
+{
+    auto szAndOffs = getDestRegSizeAndOffs(i);
+    auto size = szAndOffs.first;
+    auto offs = szAndOffs.second;
+
+    return cpu->readPartialTaint(renamedDestIdx(i), size, offs);
+}
+
+const typename PhysRegFile::BitVec*
+DynInst::destIdxTaintVec(int i) const
+{
+    return cpu->readTaintVec(renamedDestIdx(i));
+}
+
+void
+DynInst::setDestTaint(bool f)
+{
+    for (int i = 0; i < numDestRegs(); i++) {
+        auto szAndOffs = getDestRegSizeAndOffs(i);
+        cpu->setPartialTaint(renamedDestIdx(i), f, szAndOffs.first, szAndOffs.second);
+    }
+}
+
+void
+DynInst::setDestIdxTaintVec(int i, const BitVec& taintVec)
+{
+    auto szAndOffs = getDestRegSizeAndOffs(i);
+    cpu->setPartialTaintVec(renamedDestIdx(i), taintVec, szAndOffs.first, szAndOffs.second);
+}
+
+std::pair<uint8_t, uint8_t>
+DynInst::getSrcRegSizeAndOffs(int i) const
+{
+    auto archReg = srcRegIdx(i);
+    bool isIntReg = archReg.classValue() == IntRegClass;
+    bool intFoldBit = archReg.index() & X86ISA::IntFoldBit;
+    uint8_t offset = isIntReg && intFoldBit ? 1 : 0;
+    uint8_t size = 0;
+    if (isIntReg) {
+        if (isLoad()) {
+            size = (i == 2) ? getDestRegSizeAndOffs(0).first : staticInst->getAddrSize();
+        }
+        else if (isStore()) {
+            size = (i == 2) ? staticInst->getDataSize() : staticInst->getAddrSize();
+        }
+        else {
+            size = staticInst->getDataSize();
+        }
+    }
+    else {
+        size = 8;
+    }
+    return std::make_pair(size, offset);
+}
+
+bool
+DynInst::isArgsTainted() const
+{
+    if (isLoad() || isStore()) return isAddrTainted();
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if (isArgsIdxTainted(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+DynInst::isArgsIdxTainted(int i) const
+{
+    auto szAndOffs = getSrcRegSizeAndOffs(i);
+    auto size = szAndOffs.first;
+    auto offs = szAndOffs.second;
+    return cpu->readPartialTaint(renamedSrcIdx(i), size, offs);
+}
+
+const typename PhysRegFile::BitVec*
+DynInst::argsIdxTaintVec(int i) const
+{
+    if (isStore() && isCommitted() && i == 2)
+        return &sqIt->dataTaintVec();
+    return cpu->readTaintVec(renamedSrcIdx(i));
+}
+
+void
+DynInst::setArgsTaint(bool f)
+{
+    for (int i = 0; i < numSrcRegs(); i++) {
+        setArgsIdxTaint(i, f);
+    }
+}
+
+void
+DynInst::setArgsIdxTaint(int i, bool taint)
+{
+    auto szAndOffs = getSrcRegSizeAndOffs(i);
+    auto size = szAndOffs.first;
+    auto offs = szAndOffs.second;
+
+    if (isStore() && i == 2) {
+        BitVec& bitVec = sqIt->dataTaintVec();
+        assert(size + offs <= bitVec.size());
+        for (int i = 0; i < size; i++) {
+            bitVec.at(i + offs) = taint;
+        }
+    }
+
+    if (!isCommitted()) {
+        cpu->setPartialTaint(renamedSrcIdx(i), taint, size, offs);
+    }
+}
+
+void
+DynInst::setArgsIdxTaintVec(int i, const BitVec& taintVec)
+{
+    auto szAndOffs = getSrcRegSizeAndOffs(i);
+    auto size = szAndOffs.first;
+    auto offs = szAndOffs.second;
+
+    if (isStore() && i == 2) {
+        BitVec& bitVec = sqIt->dataTaintVec();
+        assert(size + offs <= bitVec.size());
+        for (int i = 0; i < size; i++) {
+            bitVec.at(i + offs) = taintVec.at(i + offs);
+        }
+    }
+
+    if (!isCommitted()) {
+        cpu->setPartialTaintVec(renamedSrcIdx(i), taintVec, size, offs);
+    }
+}
+
+bool
+DynInst::isNonCCDestTainted() const
+{
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (renamedDestIdx(i)->classValue() == CCRegClass) continue;
+        if (isDestIdxTainted(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+DynInst::isAddrTainted() const
+{
+    if (!isMemRef()) return false;
+    if (isCommitted()) return false;
+    bool addrTainted = false;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if ((isStore() || (isLoad() && numSrcRegs() == 4)) && i == 2) continue;
+        addrTainted |= isArgsIdxTainted(i);
+    }
+    return addrTainted;
+}
+
+void
+DynInst::setAddrTaint(bool b)
+{
+    if (!isMemRef()) return;
+    if (isCommitted()) return;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if ((isStore() || (isLoad() && numSrcRegs() == 4)) && i == 2) continue;
+        setArgsIdxTaint(i, b);
+        cpu->setUntaintMethod(renamedSrcIdx(i), UntaintMethod::ReachedVP);
+    }
+}
+
+unsigned int
+DynInst::numTaintedDestRegs()
+{
+    unsigned int counter = 0;
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (isDestIdxTainted(i)) counter++;
+    }
+    return counter;
+}
+
+unsigned int
+DynInst::numTaintedSrcRegs()
+{
+    unsigned int counter = 0;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if (isArgsIdxTainted(i)) counter++;
+    }
+    return counter;
+}
+
+unsigned int
+DynInst::numTaintedAddrRegs()
+{
+    if (!isMemRef()) return 0;
+    if (isCommitted()) return 0;
+    unsigned int counter = 0;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if ((isStore() || (isLoad() && numSrcRegs() == 4)) && i == 2) continue;
+        if (isArgsIdxTainted(i)) counter++;
+    }
+    return counter;
+}
+
+std::vector<std::pair<RegId, PhysRegIdPtr>>
+DynInst::getTaintedSrcRegs()
+{
+    std::vector<std::pair<RegId, PhysRegIdPtr>> taintedRegs;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if (isArgsIdxTainted(i)) {
+            taintedRegs.push_back(std::make_pair(srcRegIdx(i), renamedSrcIdx(i)));
+        }
+    }
+    return taintedRegs;
+}
+
+std::vector<std::pair<RegId, PhysRegIdPtr>>
+DynInst::getUntaintedSrcRegs()
+{
+    std::vector<std::pair<RegId, PhysRegIdPtr>> untaintedRegs;
+    for (int i = 0; i < numSrcRegs(); i++) {
+        if (!isArgsIdxTainted(i)) {
+            untaintedRegs.push_back(std::make_pair(srcRegIdx(i), renamedSrcIdx(i)));
+        }
+    }
+    return untaintedRegs;
+}
+
+std::vector<std::pair<RegId, PhysRegIdPtr>>
+DynInst::getTaintedDestRegs()
+{
+    std::vector<std::pair<RegId, PhysRegIdPtr>> taintedRegs;
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (isDestIdxTainted(i)) {
+            taintedRegs.push_back(std::make_pair(destRegIdx(i), renamedDestIdx(i)));
+        }
+    }
+    return taintedRegs;
+}
+
+std::vector<std::pair<RegId, PhysRegIdPtr>>
+DynInst::getUntaintedDestRegs()
+{
+    std::vector<std::pair<RegId, PhysRegIdPtr>> untaintedRegs;
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (!isDestIdxTainted(i)) {
+            untaintedRegs.push_back(std::make_pair(destRegIdx(i), renamedDestIdx(i)));
+        }
+    }
+    return untaintedRegs;
+}
+
+bool
+DynInst::setsCCRegs() const
+{
+    for (int i = 0; i < numDestRegs(); i++) {
+        if (renamedDestIdx(i)->classValue() == CCRegClass) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void
+DynInst::fenceDelay(bool f)
+{
+    instFlags[ReadyToExpose] = f;
 }
 
 } // namespace o3

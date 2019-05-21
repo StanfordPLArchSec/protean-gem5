@@ -68,6 +68,9 @@ class RegOpBase : public X86MicroopBase
   public:
     const uint8_t dataSize;
     const RegIndex foldOBit;
+
+    // Rutvik, SPT
+    virtual uint8_t getDataSize() const { return dataSize; }  
 };
 
 template <typename ...Operands>

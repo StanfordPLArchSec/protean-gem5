@@ -303,4 +303,5 @@ if args.wait_gdb:
 CpuConfig.config_scheme(CPUClass, system.cpu, args)
 
 root = Root(full_system=False, system=system)
+
 Simulation.run(args, root, system, FutureClass)

@@ -93,6 +93,9 @@ class MediaOpBase : public X86MicroopBase
   public:
     uint8_t getSrcSize() const { return srcSize; }
     uint8_t getDestSize() const { return destSize; }
+
+    // Rutvik, SPT
+    virtual uint8_t getDataSize() const { return getSrcSize(); }    
 };
 
 } // namespace X86ISA

@@ -47,6 +47,7 @@
 #include <deque>
 #include <list>
 #include <string>
+#include <optional>
 
 #include "base/refcnt.hh"
 #include "base/trace.hh"
@@ -58,6 +59,7 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
 #include "cpu/o3/lsq_unit.hh"
+#include "cpu/o3/regfile.hh"
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
 #include "cpu/static_inst.hh"
@@ -140,6 +142,9 @@ class DynInst : public ExecContext, public RefCounted
     /** InstRecord that tracks this instructions. */
     trace::InstRecord *traceData = nullptr;
 
+    using BitVec = PhysRegFile::BitVec;
+    using UntaintMethod = PhysRegFile::UntaintMethod;
+
   protected:
     enum Status
     {
@@ -168,7 +173,7 @@ class DynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
-        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
+        InStallList,             /// [SPT] instruction is ready to issue(regsReady) but argsTainted
         NumStatus
     };
 
@@ -190,6 +195,18 @@ class DynInst : public ExecContext, public RefCounted
         HtmFromTransaction,
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
+        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
+        // [SafeSpec] indicate the load is legal to be visible
+        ReadyToExpose,      // FenceDelay AND arguments are ready
+        OnlyWaitForFence,
+        // [Jiyong,DDIFT] The following are DDIFT flags
+        IsDestTainted,
+        IsArgsTainted,
+        HasExplicitFlow,
+        HasImplicitFlow,
+        HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
+        ReleasedByFwdUntaint, // set to true if this instruction was a transmit that was able to exec early by backward untainting
+        ReleasedByBwdUntaint, // set to true if this instruction was a transmit that was able to exec early by backward untainting
         MaxFlags
     };
 
@@ -357,6 +374,16 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t sqIdx = -1;
     typename LSQUnit::SQIterator sqIt;
 
+    // [Rutvik, SPT] Store-to-load forwarding stuff
+    int16_t stFwdIdx = -1;
+    LSQUnit::SQIterator stFwdIt;
+    InstSeqNum stFwdSeqNum = 0;
+
+    bool fwdFromTaintedSt = false;
+    uint8_t *stFwdData = nullptr;
+    int stFwdDataSize = 0;
+    bool waitForSTLPublic = false;
+    bool isDummyLoad = false;
 
     /////////////////////// TLB Miss //////////////////////
     /**
@@ -381,8 +408,57 @@ class DynInst : public ExecContext, public RefCounted
     bool memOpDone() const { return instFlags[MemOpDone]; }
     void memOpDone(bool f) { instFlags[MemOpDone] = f; }
 
+    bool fenceDelay() const { return instFlags[ReadyToExpose]; }
+    void fenceDelay(bool f);
+
+    /*** [Jiyong, Rutvik, SPT] ***/
+
+    bool isReleasedByFwdUntaint() const { return instFlags[ReleasedByFwdUntaint]; }
+    void isReleasedByFwdUntaint(bool f) { instFlags[ReleasedByFwdUntaint] = f; }
+
+    bool isReleasedByBwdUntaint() const { return instFlags[ReleasedByBwdUntaint]; }
+    void isReleasedByBwdUntaint(bool f) { instFlags[ReleasedByBwdUntaint] = f; }
+
+    bool isDestTainted() const;
+    const BitVec* destIdxTaintVec(int i) const;
+    bool isDestIdxTainted(int i) const;
+    void setDestTaint(bool f);
+    void setDestIdxTaintVec(int i, const BitVec& taintVec);
+
+    bool isArgsTainted() const;
+    bool isArgsIdxTainted(int i) const;
+    const BitVec* argsIdxTaintVec(int i) const;
+    void setArgsTaint(bool f);
+    void setArgsIdxTaint(int i, bool taint);
+    void setArgsIdxTaintVec(int i, const BitVec& taintVec);
+
+    unsigned int numTaintedDestRegs();
+    unsigned int numTaintedSrcRegs();
+    unsigned int numTaintedAddrRegs();
+
+    BitVec destTaintBcastMask;
+    BitVec argsTaintBcastMask;
+
+    std::vector<std::pair<RegId, PhysRegIdPtr>> getTaintedSrcRegs();
+    std::vector<std::pair<RegId, PhysRegIdPtr>> getUntaintedSrcRegs();
+    std::vector<std::pair<RegId, PhysRegIdPtr>> getTaintedDestRegs();
+    std::vector<std::pair<RegId, PhysRegIdPtr>> getUntaintedDestRegs();
+
+    // Note: These are meant for loads and stores, use isArgsTainted for all other instructions
+    bool isAddrTainted() const;
+    void setAddrTaint(bool b);
+
+    bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
+    void hasPendingSquash(bool f) { instFlags[HasPendingSquash] = f; }
+
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }
+
+    std::pair<uint8_t, uint8_t> getDestRegSizeAndOffs(int i) const;
+    std::pair<uint8_t, uint8_t> getSrcRegSizeAndOffs(int i) const;
+
+    bool isNonCCDestTainted() const;
+    bool setsCCRegs() const;
 
 
     ////////////////////////////////////////////
@@ -559,6 +635,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isCondCtrl()     const { return staticInst->isCondCtrl(); }
     bool isUncondCtrl()   const { return staticInst->isUncondCtrl(); }
     bool isSerializing()  const { return staticInst->isSerializing(); }
+
     bool
     isSerializeBefore() const
     {
@@ -569,6 +646,27 @@ class DynInst : public ExecContext, public RefCounted
     {
         return staticInst->isSerializeAfter() || status[SerializeAfter];
     }
+
+    // [Jiyong, DDIFT] The following are DDIFT status
+    // Instruction is an access instruction (root of taint)
+    bool isAccess() const { return staticInst->isLoad(); }
+    // Instruction is a transmit instruction (has to be made invisible)
+    bool isMemTransmit() const { return staticInst->isLoad() || staticInst->isStore(); }
+    bool isOtherTransmit() const {
+        if (cpu->moreTransmitInsts == 1) {
+            if (opClass() == IntDivOp   ||
+                opClass() == FloatDivOp ||
+                opClass() == FloatSqrtOp)
+            return true;
+        }
+        else if (cpu->moreTransmitInsts == 2) {
+            if (opClass() == IntDivOp ||
+                isFloating())
+                return true;
+        }
+        return false;
+    }
+
     bool isSquashAfter() const { return staticInst->isSquashAfter(); }
     bool isFullMemBarrier()   const { return staticInst->isFullMemBarrier(); }
     bool isReadBarrier() const { return staticInst->isReadBarrier(); }
@@ -736,7 +834,7 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns whether or not this instruction is completed. */
     bool isCompleted() const { return status[Completed]; }
 
-    /** Marks the result as ready. */
+    /** Marks the result as ready. */   // never used
     void setResultReady() { status.set(ResultReady); }
 
     /** Returns whether or not the result is ready. */
@@ -748,8 +846,17 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns whether or not this instruction is ready to issue. */
     bool readyToIssue() const { return status[CanIssue]; }
 
+    /*** [Jiyong,DDIFT] for measuring more transmit instruction types ***/
+    bool readyToIssue_UT() const;
+
     /** Clears this instruction being able to issue. */
     void clearCanIssue() { status.reset(CanIssue); }
+
+    void addToStallList() { status.set(InStallList); }
+
+    void removeFromStallList() { status.reset(InStallList); }
+
+    bool isInStallList() const { return status[InStallList]; }
 
     /** Sets this instruction as issued from the IQ. */
     void setIssued() { status.set(Issued); }
@@ -773,7 +880,13 @@ class DynInst : public ExecContext, public RefCounted
     void clearCanCommit() { status.reset(CanCommit); }
 
     /** Returns whether or not this instruction is ready to commit. */
-    bool readyToCommit() const { return status[CanCommit]; }
+    /***** [Jiyong,DDIFT] add hasPendingSquash here ******/
+    bool readyToCommit() const {
+        return  status[CanCommit] &&
+                (!instFlags[HasPendingSquash] ||
+                 (instFlags[HasPendingSquash] && status[Squashed])
+                ); }
+    bool checkCanCommit() const { return status[CanCommit]; }
 
     void setAtCommit() { status.set(AtCommit); }
 

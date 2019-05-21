@@ -945,6 +945,8 @@ Rename::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             // ownership hazard in SMT CPU, we delay the freelist update
             // until they are indeed squashed in the commit stage.
             freeingInProgress[tid].push_back(hb_it->newPhysReg);
+
+            cpu->resetUntaintMethod(hb_it->newPhysReg);
         }
 
         // Notify potential listeners that the register mapping needs to be
@@ -1000,6 +1002,8 @@ Rename::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
         // the old one.
         if (hb_it->newPhysReg != hb_it->prevPhysReg) {
             freeList->addReg(hb_it->prevPhysReg);
+
+            cpu->resetUntaintMethod(hb_it->newPhysReg);
         }
 
         ++stats.committedMaps;
@@ -1132,6 +1136,9 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
                             rename_result.second);
 
         ++stats.renamedOperands;
+
+        // [Rutvik, SPT] When an inst is renamed, its dest regs start out with a clean slate
+        cpu->setTaint(rename_result.first, false);
     }
 }
 

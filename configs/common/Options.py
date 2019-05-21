@@ -699,6 +699,30 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[TPE, STT, SPT] Speculation model",
     )
 
+    # [Jiyong,DDIFT] add options for DDIFT configurations
+    parser.add_argument("--spt", action = "store_true",
+            help="Whether using DDIFT as an optimization for InvisiSpec.")
+    parser.add_argument("--configImpFlow", default="Lazy", action="store", 
+            choices=["Ignore", "Lazy", "Eager"],
+            help="implicit flow handling mechanism")
+    parser.add_argument("--moreTransmitInsts", default=None, action="store", type=int,
+            help="Include more transmit instruction types.")
+    # [Rutvik, SPT] add options for SPT experiments
+    parser.add_argument("--disableUntaint", default=False, action="store", type=int,
+            help="Whether to disable untainting")
+    parser.add_argument("--fwdUntaint", default=None, action="store", type=int,
+            help="Whether to perform forward untainting")
+    parser.add_argument("--bwdUntaint", default=None, action="store", type=int,
+            help="Whether to perform backward untainting")
+    parser.add_argument("--idealUntaint", default=1, action="store", type=int,
+            help="Whether to perform ideal untainting")
+    parser.add_argument("--enableShadowL1", default=None, action="store", type=int,
+            help="Whether to use the shadow L1 cache")
+    parser.add_argument("--bottomlessShadowL1", default=None, action="store", type=int,
+            help="Whether the shadow L1 cache is bottomless, i.e. whether it ignores evictions")
+    parser.add_argument("--untaint-rounds", default=3, action="store", type=int,
+            help="A free variable to be used for whatever")
+
 
 def addSEOptions(parser):
     # Benchmark options

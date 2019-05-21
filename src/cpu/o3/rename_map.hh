@@ -126,6 +126,23 @@ class SimpleRenameMap
     }
 
     /**
+     * [Rutvik]
+     * Get the architectural register mapped to a given physical register.
+     * @param phys_reg The physical register to look up.
+     * @return The architectural register that currently maps to it.
+     */
+    RegId reverseLookup(const PhysRegId& phys_reg) const
+    {
+        for (int i = 0; i < map.size(); i++) {
+            if (*map[i] == phys_reg) {
+                return RegId(phys_reg.regClass(), i);
+            }
+        }
+        return RegId(phys_reg.regClass(), std::numeric_limits<RegIndex>::max());
+    }
+
+
+    /**
      * Update rename map with a specific mapping.  Generally used to
      * roll back to old mappings on a squash.
      * @param arch_reg The architectural register to remap.
@@ -235,6 +252,16 @@ class UnifiedRenameMap
             return regFile->getMiscRegId(arch_reg.index());
         }
         return renameMaps[reg_class].lookup(arch_reg);
+    }
+
+    /**
+     * [Rutvik]
+     * @param phys_reg The physical register to look up.
+     * @return The architectural register that currently maps to it.
+     */
+    RegId reverseLookup(const PhysRegId& phys_reg) const
+    {
+        return renameMaps[phys_reg.classValue()].reverseLookup(phys_reg);
     }
 
     /**
