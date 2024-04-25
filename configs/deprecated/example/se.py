@@ -238,6 +238,14 @@ if ObjectList.is_kvm_cpu(CPUClass) or ObjectList.is_kvm_cpu(FutureClass):
 
 for process in multiprocesses:
     process.maxStackSize = args.max_stack_size
+
+if CPUClass is X86PinCPU or FutureClass is X86PinCPU:
+    if buildEnv["USE_X86_ISA"]:
+        system.m5ops_base = 0xFFFF0000
+        for process in multiprocesses:
+            process.pinInSE = True
+    else:
+        fatal("PinCPU can only be used in SE mode with x86")
         
 # Sanity check
 if args.simpoint_profile:
