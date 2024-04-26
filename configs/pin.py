@@ -56,8 +56,6 @@ from m5.util import (
 
 from gem5.isas import ISA
 
-addToPath("../../")
-
 from common import (
     CacheConfig,
     CpuConfig,
@@ -219,9 +217,6 @@ system.cpu_clk_domain = SrcClockDomain(
 if args.elastic_trace_en:
     CpuConfig.config_etrace(CPUClass, system.cpu, args)
 
-# for cpu in system.cpu:
-#     cpu.usePerf = True
-
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
 for cpu in system.cpu:
@@ -236,9 +231,6 @@ if ObjectList.is_kvm_cpu(CPUClass) or ObjectList.is_kvm_cpu(FutureClass):
             process.kvmInSE = True
     else:
         fatal("KvmCPU can only be used in SE mode with x86")
-
-for process in multiprocesses:
-    process.maxStackSize = args.max_stack_size
 
 if CPUClass is X86PinCPU or FutureClass is X86PinCPU:
     if buildEnv["USE_X86_ISA"]:
@@ -256,6 +248,8 @@ if args.simpoint_profile:
         fatal("SimPoint generation not supported with more than one CPUs")
 
 for i in range(np):
+    system.cpu[i].countInsts = True
+
     if args.smt:
         system.cpu[i].workload = multiprocesses
     elif len(multiprocesses) == 1:
@@ -310,8 +304,6 @@ system.workload = SEWorkload.init_compatible(mp0_path)
 
 if args.wait_gdb:
     system.workload.wait_for_remote_gdb = True
-
-CpuConfig.config_scheme(CPUClass, system.cpu, args)
 
 root = Root(full_system=False, system=system)
 Simulation.run(args, root, system, FutureClass)
