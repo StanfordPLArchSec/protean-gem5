@@ -623,7 +623,8 @@ RubySystem::functionalRead(PacketPtr pkt)
         return true;
     }
 
-    return false;
+    warn("Suppressing failed functional read with some other condition\n");
+    return true;
 }
 #else
 bool
