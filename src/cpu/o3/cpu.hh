@@ -599,6 +599,25 @@ class CPU : public BaseCPU
     /** [PTeX] */
     static const inline bool ptex = true;
     DeclassifyMode ptexMem;
+
+
+    /*** [STT] Additional configs for O3CPU ***/
+
+    // whether to issue packets in execution stage(false if using Fence)
+    // NHM-FIXME: Remove.    
+    bool protectionEnabled() const
+    {
+        return stt;
+    }
+
+    // whether to apply STT
+    bool stt;
+
+    // whether add implicit flow protection
+    bool impChannel;
+
+    // whether consider more transmit instructions
+    int moreTransmitInsts;
 };
 
 } // namespace o3

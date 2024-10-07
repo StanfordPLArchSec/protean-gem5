@@ -202,3 +202,7 @@ class BaseO3CPU(BaseCPU):
     ptexMem = Param.DeclassifyMode(
         "ShadowL1", "[PTeX] Memory declassification implementation",
     )
+    # [STT] STT configurations
+    stt = Param.Bool(False, "Apply STT protection mechanism")
+    implicitChannel = Param.Bool(False, "If handling implicit channel")
+    moreTransmitInsts = Param.Int(0, "More transmit instruction types")
