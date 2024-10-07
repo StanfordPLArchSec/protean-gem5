@@ -62,7 +62,8 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
       _flatDestIdx(arrays.flatDestIdx), _destIdx(arrays.destIdx),
       _prevDestIdx(arrays.prevDestIdx), _srcIdx(arrays.srcIdx),
       _readySrcIdx(arrays.readySrcIdx), _srcProt(arrays.srcProt),
-      _destProt(arrays.destProt), macroop(_macroop)
+      _destProt(arrays.destProt), _argProducers(arrays.argProducers),
+      macroop(_macroop)
 {
     std::fill(_readySrcIdx, _readySrcIdx + (numSrcs() + 7) / 8, 0);
 
@@ -95,10 +96,6 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
 #ifdef GEM5_DEBUG
     cpu->snList.insert(seqNum);
 #endif
-
-    // [Jiyong,STT] set argProducers to nullptr
-    for (auto &inst : argProducers)
-        inst = nullptr;
 }
 
 DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
@@ -181,8 +178,12 @@ DynInst::operator new(size_t count, Arrays &arrays)
         roundUp(src_prot + src_prot_size, alignof(Protection));
     size_t dest_prot_size = sizeof(*arrays.destProt) * num_dests;
 
+    uintptr_t arg_producers =
+        roundUp(dest_prot + dest_prot_size, alignof(DynInstPtr));
+    size_t arg_producers_size = sizeof(*arrays.argProducers) * num_srcs;
+
     // Figure out how much space we need in total.
-    size_t total_size = dest_prot + dest_prot_size;
+    size_t total_size = arg_producers + arg_producers_size;
 
     // Actually allocate it.
     uint8_t *buf = (uint8_t *)::operator new(total_size);
@@ -195,6 +196,7 @@ DynInst::operator new(size_t count, Arrays &arrays)
     arrays.readySrcIdx = (uint8_t *)(buf + ready_src_idx);
     arrays.srcProt = (Protection *)(buf + src_prot);
     arrays.destProt = (Protection *)(buf + dest_prot);
+    arrays.argProducers = (DynInstPtr *)(buf + arg_producers);
 
     // Initialize all the extra components.
     new (arrays.flatDestIdx) RegId[num_dests];
@@ -204,6 +206,7 @@ DynInst::operator new(size_t count, Arrays &arrays)
     new (arrays.readySrcIdx) uint8_t[roundUp(num_srcs, 8) / 8];
     new (arrays.srcProt) Protection[num_srcs];
     new (arrays.destProt) Protection[num_dests];
+    new (arrays.argProducers) DynInstPtr[num_srcs];
 
     return buf;
 }
