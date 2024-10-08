@@ -284,6 +284,7 @@ let {{
             self.firstArgument = True
             self.useStackSize = False
             self.memoryInst = False
+            self.noProt = False
 
         def addToDisassembly(self, code):
             if not self.firstArgument:

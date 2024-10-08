@@ -250,8 +250,12 @@ CPU::CPU(const BaseO3CPUParams &params)
                 // Note that we can't use the rename() method because we don't
                 // want special treatment for the zero register at this point
                 PhysRegIdPtr phys_reg = freeList.getReg(type);
-                renameMap[tid].setEntry(id, phys_reg);
-                commitRenameMap[tid].setEntry(id, phys_reg);
+                // [PTeX] All registers are unprotected at startup.
+                // PTEX-TODO: If we add register protection type as
+                // architectural state, may need to restore here.
+                const RenameEntry rename_entry(phys_reg, Unprotected);
+                renameMap[tid].setEntry(id, rename_entry);
+                commitRenameMap[tid].setEntry(id, rename_entry);
             }
         }
     }
@@ -320,6 +324,9 @@ CPU::CPU(const BaseO3CPUParams &params)
 
     // [TPE, STT, SPT] Set speculation model.
     speculationModel = params.speculationModel;
+
+    // [PTeX] Set PTeX enable and PTeX memory implementation.
+    ptexMem = params.ptexMem;
 }
 
 void
@@ -384,6 +391,9 @@ CPU::tick()
     iew.tick();
 
     commit.tick();
+
+    for (SafeSpeculationUnit& SSU : iew.instQueue.safeSpecUnit)
+        SSU.tick();
 
     // Now advance the time buffers
     timeBuffer.advance();
@@ -613,7 +623,8 @@ CPU::insertThread(ThreadID tid)
             type = (RegClassType)(type + 1)) {
         for (auto &id: *regClasses.at(type)) {
             PhysRegIdPtr phys_reg = freeList.getReg(type);
-            renameMap[tid].setEntry(id, phys_reg);
+            // [PTeX] Initialize all registers to unprotected at startup.
+            renameMap[tid].setEntry(id, RenameEntry(phys_reg, Unprotected));
             scoreboard.setReg(phys_reg);
         }
     }
@@ -1077,7 +1088,7 @@ RegVal
 CPU::getArchReg(const RegId &reg, ThreadID tid)
 {
     const RegId flat = reg.flatten(*isa[tid]);
-    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat);
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat).physReg;
     return regFile.getReg(phys_reg);
 }
 
@@ -1085,7 +1096,7 @@ void
 CPU::getArchReg(const RegId &reg, void *val, ThreadID tid)
 {
     const RegId flat = reg.flatten(*isa[tid]);
-    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat);
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat).physReg;
     regFile.getReg(phys_reg, val);
 }
 
@@ -1093,7 +1104,7 @@ void *
 CPU::getWritableArchReg(const RegId &reg, ThreadID tid)
 {
     const RegId flat = reg.flatten(*isa[tid]);
-    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat);
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat).physReg;
     return regFile.getWritableReg(phys_reg);
 }
 
@@ -1101,7 +1112,7 @@ void
 CPU::setArchReg(const RegId &reg, RegVal val, ThreadID tid)
 {
     const RegId flat = reg.flatten(*isa[tid]);
-    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat);
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat).physReg;
     regFile.setReg(phys_reg, val);
 }
 
@@ -1109,7 +1120,7 @@ void
 CPU::setArchReg(const RegId &reg, const void *val, ThreadID tid)
 {
     const RegId flat = reg.flatten(*isa[tid]);
-    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat);
+    PhysRegIdPtr phys_reg = commitRenameMap[tid].lookup(flat).physReg;
     regFile.setReg(phys_reg, val);
 }
 

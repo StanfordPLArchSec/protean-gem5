@@ -60,6 +60,9 @@ class CommitPolicy(ScopedEnum):
 class SpeculationModel(ScopedEnum):
     vals = ["None", "Ctrl", "CtrlSt", "Futuristic", "AtRet"]
 
+class DeclassifyMode(ScopedEnum):
+    vals = ["None", "ShadowL1", "ShadowMem"]
+
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
     cxx_class = "gem5::o3::CPU"
@@ -195,4 +198,7 @@ class BaseO3CPU(BaseCPU):
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
     speculationModel = Param.SpeculationModel(
         "Futuristic", "[TPE, STT, SPT] Speculation model"
+    )
+    ptexMem = Param.DeclassifyMode(
+        "ShadowL1", "[PTeX] Memory declassification implementation",
     )

@@ -56,6 +56,7 @@
 #include "cpu/o3/limits.hh"
 #include "cpu/o3/mem_dep_unit.hh"
 #include "cpu/o3/store_set.hh"
+#include "cpu/o3/safe_spec_unit.hh"
 #include "cpu/op_class.hh"
 #include "cpu/timebuf.hh"
 #include "enums/SMTQueuePolicy.hh"
@@ -298,6 +299,9 @@ class InstructionQueue
      *  between instructions.
      */
     MemDepUnit memDepUnit[MaxThreads];
+public:
+    SafeSpeculationUnit safeSpecUnit[MaxThreads];
+private:
 
     /** The queue to the execute stage.  Issued instructions will be written
      *  into it.

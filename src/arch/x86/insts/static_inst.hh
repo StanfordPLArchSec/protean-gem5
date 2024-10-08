@@ -121,7 +121,10 @@ class X86StaticInst : public StaticInst
     // Constructor.
     X86StaticInst(const char *mnem, ExtMachInst _machInst, OpClass __opClass) :
         StaticInst(mnem, __opClass), machInst(_machInst)
-    {}
+    {
+        if (machInst.ptex_prot)
+            setFlag(IsPTeXProtected);
+    }
 
     std::string generateDisassembly(
             Addr pc, const loader::SymbolTable *symtab) const override;

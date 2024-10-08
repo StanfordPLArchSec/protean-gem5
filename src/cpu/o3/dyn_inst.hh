@@ -63,6 +63,7 @@
 #include "cpu/static_inst.hh"
 #include "cpu/translation.hh"
 #include "debug/HtmCpu.hh"
+#include "cpu/ptex.hh"
 
 namespace gem5
 {
@@ -92,6 +93,8 @@ class DynInst : public ExecContext, public RefCounted
         PhysRegIdPtr *prevDestIdx;
         PhysRegIdPtr *srcIdx;
         uint8_t *readySrcIdx;
+        Protection *srcProt;
+        Protection *destProt;
     };
 
     static void *operator new(size_t count, Arrays &arrays);
@@ -239,6 +242,15 @@ class DynInst : public ExecContext, public RefCounted
     // Whether or not the source register is ready, one bit per register.
     uint8_t *_readySrcIdx;
 
+    // [PTeX] The protection of source registers.
+    Protection *_srcProt;
+
+    // [PTeX] The protection of destination registers.
+    // NOTE: There may be a mixture of protected/unprotected registers
+    // even if the macro-op has a PROT prefix, because special registers
+    // aren't protected.
+    Protection *_destProt;
+
   public:
     size_t numSrcs() const { return _numSrcs; }
     size_t numDests() const { return _numDests; }
@@ -269,9 +281,10 @@ class DynInst : public ExecContext, public RefCounted
 
     // Set the renamed dest register id.
     void
-    renamedDestIdx(int idx, PhysRegIdPtr phys_reg_id)
+    renamedDestIdx(int idx, const RenameEntry& rename_entry)
     {
-        _destIdx[idx] = phys_reg_id;
+        _destIdx[idx] = rename_entry.physReg;
+        _destProt[idx] = rename_entry.prot;
     }
 
     // Returns the physical register index of the previous physical
@@ -297,9 +310,10 @@ class DynInst : public ExecContext, public RefCounted
     }
 
     void
-    renamedSrcIdx(int idx, PhysRegIdPtr phys_reg_id)
+    renamedSrcIdx(int idx, PhysRegIdPtr phys_reg_id, Protection prot)
     {
         _srcIdx[idx] = phys_reg_id;
+        _srcProt[idx] = prot;
     }
 
     bool
@@ -463,12 +477,12 @@ class DynInst : public ExecContext, public RefCounted
      *  the previous physical register that the logical register mapped to.
      */
     void
-    renameDestReg(int idx, PhysRegIdPtr renamed_dest,
-                  PhysRegIdPtr previous_rename)
+    renameDestReg(int idx, const RenameEntry& renamed_dest,
+                  const RenameEntry& previous_rename)
     {
         renamedDestIdx(idx, renamed_dest);
-        prevDestIdx(idx, previous_rename);
-        if (renamed_dest->isPinned())
+        prevDestIdx(idx, previous_rename.physReg);
+        if (renamed_dest.physReg->isPinned())
             setPinnedRegsRenamed();
     }
 
@@ -477,9 +491,9 @@ class DynInst : public ExecContext, public RefCounted
      *  @todo: add in whether or not the source register is ready.
      */
     void
-    renameSrcReg(int idx, PhysRegIdPtr renamed_src)
+    renameSrcReg(int idx, PhysRegIdPtr renamed_src, Protection prot)
     {
-        renamedSrcIdx(idx, renamed_src);
+        renamedSrcIdx(idx, renamed_src, prot);
     }
 
     /** Dumps out contents of this BaseDynInst. */
@@ -588,6 +602,14 @@ class DynInst : public ExecContext, public RefCounted
     bool isHtmCancel() const { return staticInst->isHtmCancel(); }
     bool isHtmCmd() const { return staticInst->isHtmCmd(); }
 
+    // [PTeX]
+    bool hasProtPrefix() const { return staticInst->hasProtPrefix(); }
+    Protection computeDestProtection(unsigned dest_idx) const;
+    Protection outputProtection() const;
+    Protection inputProtection() const;
+    Protection loadProtection() const;
+    Protection storeProtection() const;
+
     uint64_t
     getHtmTransactionUid() const override
     {
@@ -694,6 +716,12 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Returns the logical register index of the i'th source register. */
     const RegId& srcRegIdx(int i) const { return staticInst->srcRegIdx(i); }
+
+    /** [PTeX] Get the source register's protection. */
+    Protection srcProt(unsigned i) const;
+
+    /** [PTeX] Get the destination register's protection. */
+    Protection destProt(unsigned i) const;
 
     /** Return the size of the instResult queue. */
     uint8_t resultSize() { return instResult.size(); }

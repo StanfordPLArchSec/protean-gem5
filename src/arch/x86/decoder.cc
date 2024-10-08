@@ -65,6 +65,7 @@ Decoder::doResetState()
 
     emi.modRM = 0;
     emi.sib = 0;
+    emi.ptex_prot = false;
 
     if (instBytes->si) {
         return FromCacheState;
@@ -199,12 +200,16 @@ Decoder::doPrefixState(uint8_t nextByte)
         emi.legacy.addr = true;
         break;
         // Segment override prefixes
+      case SSOverride:
+        if (ptex) {
+            emi.ptex_prot = true;
+            break;
+        }
       case CSOverride:
       case DSOverride:
       case ESOverride:
       case FSOverride:
       case GSOverride:
-      case SSOverride:
         DPRINTF(Decoder, "Found segment override.\n");
         emi.legacy.seg = prefix;
         break;

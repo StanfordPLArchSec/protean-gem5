@@ -439,6 +439,10 @@ LSQUnit::checkSnoop(PacketPtr pkt)
         cpu->thread[x]->noSquashFromTC = no_squash;
     }
 
+    // [PTeX] Evict memory from declmem.
+    for (SafeSpeculationUnit& SSU : iewStage->instQueue.safeSpecUnit)
+        SSU.evictRange(pkt->getAddr(), pkt->getSize());
+
     if (loadQueue.empty())
         return;
 
@@ -734,6 +738,11 @@ LSQUnit::commitLoad()
                     inst->lastWakeDependents - inst->firstIssue));
     }
 
+    // [PTeX] Update Safe Spec Unit
+    // PTEX-TODO: Add stats.
+    if (inst->loadProtection() == Unprotected)
+        iewStage->instQueue.safeSpecUnit[inst->threadNumber].setDeclassified(inst);
+
     loadQueue.front().clear();
     loadQueue.pop_front();
 }
@@ -826,6 +835,28 @@ LSQUnit::writebackStores()
 
         DynInstPtr inst = storeWBIt->instruction();
         LSQRequest* request = storeWBIt->request();
+
+
+
+
+        SafeSpeculationUnit& SSU = iewStage->instQueue.safeSpecUnit[inst->threadNumber];
+        // PTEX-TODO: Why would we ever get a store here?
+        // PTEX-TODO: Add back in stats.
+        if (!inst->staticInst->isPrefetch()) {
+            switch (inst->storeProtection()) {
+              case Unprotected:
+                SSU.setDeclassified(inst);
+                break;
+
+              case Protected:
+                {
+                    // PTEX-TODO: Should remove boolean on setClassified.
+                    [[maybe_unused]] const bool success = SSU.setClassified(inst);
+                    panic_if(!success, "Expected setClassified to always succeed\n");
+                }
+                break;
+            }
+        }
 
         // Process store conditionals or store release after all previous
         // stores are completed

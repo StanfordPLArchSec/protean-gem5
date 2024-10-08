@@ -39,7 +39,7 @@ def macroop POP_R {
     .adjust_env oszIn64Override
 
     ld t1, ss, [1, t0, rsp], addressSize=ssz
-    addi rsp, rsp, dsz, dataSize=ssz
+    addi rsp, rsp, dsz, dataSize=ssz, noProt=True
     mov reg, reg, t1
 };
 
@@ -49,7 +49,7 @@ def macroop POP_M {
 
     ld t1, ss, [1, t0, rsp], addressSize=ssz
     cda seg, sib, disp
-    addi rsp, rsp, dsz, dataSize=ssz
+    addi rsp, rsp, dsz, dataSize=ssz, noProt=True
     st t1, seg, sib, disp
 };
 
@@ -60,13 +60,13 @@ def macroop POP_P {
     rdip t7
     ld t1, ss, [1, t0, rsp], addressSize=ssz
     cda seg, sib, disp
-    addi rsp, rsp, dsz, dataSize=ssz
+    addi rsp, rsp, dsz, dataSize=ssz, noProt=True
     st t1, seg, riprel, disp
 };
 
 def macroop POP_REAL_S {
     ld t1, ss, [1, t0, rsp], addressSize=ssz, dataSize=2
-    addi rsp, rsp, dsz, dataSize=ssz
+    addi rsp, rsp, dsz, dataSize=ssz, noProt=True
     wrsel sr, t1
     mov t1, t0, t1, dataSize=2
     slli t1, t1, 4, dataSize=8
@@ -78,7 +78,7 @@ def macroop PUSH_R {
     .adjust_env oszIn64Override
 
     st reg, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop PUSH_I {
@@ -87,7 +87,7 @@ def macroop PUSH_I {
 
     limm t1, imm
     st t1, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop PUSH_M {
@@ -96,7 +96,7 @@ def macroop PUSH_M {
 
     ld t1, seg, sib, disp
     st t1, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop PUSH_P {
@@ -106,13 +106,13 @@ def macroop PUSH_P {
     rdip t7
     ld t1, seg, riprel, disp
     st t1, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop PUSH_S {
     rdsel t1, sr
     st t1, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop PUSHA {
@@ -128,7 +128,7 @@ def macroop PUSHA {
     st rbp, ss, [1, t0, rsp], "6 * -env.dataSize", addressSize=ssz
     st rsi, ss, [1, t0, rsp], "7 * -env.dataSize", addressSize=ssz
     st rdi, ss, [1, t0, rsp], "8 * -env.dataSize", addressSize=ssz
-    subi rsp, rsp, "8 * env.dataSize", dataSize=ssz
+    subi rsp, rsp, "8 * env.dataSize", dataSize=ssz, noProt=True
 };
 
 def macroop POPA {
@@ -142,7 +142,7 @@ def macroop POPA {
     ld rbx, ss, [1, t0, rsp], "4 * env.dataSize", addressSize=ssz
     ld rdx, ss, [1, t0, rsp], "5 * env.dataSize", addressSize=ssz
     ld rcx, ss, [1, t0, rsp], "6 * env.dataSize", addressSize=ssz
-    addi rsp, rsp, "8 * env.dataSize", dataSize=ssz
+    addi rsp, rsp, "8 * env.dataSize", dataSize=ssz, noProt=True
 };
 
 def macroop LEAVE {
@@ -152,7 +152,7 @@ def macroop LEAVE {
     mov t1, t1, rbp
     ld rbp, ss, [1, t0, t1], addressSize=ssz
     mov rsp, rsp, t1, dataSize=ssz
-    addi rsp, rsp, dsz, dataSize=ssz
+    addi rsp, rsp, dsz, dataSize=ssz, noProt=True
 };
 
 def macroop ENTER_I_I {
@@ -169,7 +169,7 @@ def macroop ENTER_I_I {
 
     # Push rbp.
     st rbp, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 
     # Save the stack pointer for later
     mov t6, t6, rsp
@@ -186,7 +186,7 @@ def macroop ENTER_I_I {
 topOfLoop:
     ld t5, ss, [dsz, t4, rbp], addressSize=ssz
     st t5, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 
     # If we're not done yet, loop
     subi t4, t4, 1, dataSize=8
@@ -196,10 +196,10 @@ topOfLoop:
 bottomOfLoop:
     # Push the old rbp onto the stack
     st t6, ss, [1, t0, rsp], "-env.dataSize", addressSize=ssz
-    subi rsp, rsp, dsz, dataSize=ssz
+    subi rsp, rsp, dsz, dataSize=ssz, noProt=True
 
 skipLoop:
-    sub rsp, rsp, t2, dataSize=ssz
+    sub rsp, rsp, t2, dataSize=ssz, noProt=True
     mov rbp, rbp, t6
 };
 """

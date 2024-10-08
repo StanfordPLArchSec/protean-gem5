@@ -68,6 +68,7 @@
 #include "cpu/simple_thread.hh"
 #include "cpu/timebuf.hh"
 #include "enums/SpeculationModel.hh"
+#include "enums/DeclassifyMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 
@@ -594,6 +595,10 @@ class CPU : public BaseCPU
 
     /** [TPE, STT, SPT] Speculation model. */
     SpeculationModel speculationModel;
+
+    /** [PTeX] */
+    static const inline bool ptex = true;
+    DeclassifyMode ptexMem;
 };
 
 } // namespace o3
