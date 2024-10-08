@@ -343,10 +343,12 @@ let {{
         invalidate_srcs = ""
         op_class = "IntAluOp"
 
-        def __init__(self, *ops, flags=None, dataSize="env.dataSize"):
+        def __init__(self, *ops, flags=None, dataSize="env.dataSize", noProt=False, zeroIdiom=False):
             self.ops = list(map(str, ops))
             self.flags = flags
             self.dataSize = dataSize
+            self.noProt = noProt
+            self.zeroIdiom = zeroIdiom
             if flags is None:
                 self.ext = 0
             else:
@@ -369,6 +371,16 @@ let {{
             op_iter = iter(self.ops)
             ops = list([Type(op_iter).ctor_args() for Type in operand_types])
             op_args = ', '.join(ops)
+            if self.noProt:
+                microFlags.append("IsPTeXUnprotectedOverride")
+            micro_flags_text = self.microFlagsText(microFlags)
+
+            # Handle zero idioms
+            if self.mnemonic == "xor":
+                zero_idiom_cond = f"{ops[1]}.index == {ops[2]}.index"
+                zero_idiom_flags = f"({zero_idiom_cond} ? 1ULL : 0ULL) << StaticInst::IsZeroIdiom"
+                micro_flags_text = f"({micro_flags_text}) | ({zero_idiom_flags})"
+
             if self.big_code != "":
                 className = self.className
                 if is_imm:
@@ -384,7 +396,7 @@ let {{
                     '''
                 allocator = allocString % {
                     "class_name" : className,
-                    "flags" : self.microFlagsText(microFlags),
+                    "flags" : micro_flags_text,
                     "op_args" : op_args,
                     "dataSize" : self.dataSize,
                     "ext" : self.ext}
@@ -396,7 +408,7 @@ let {{
                 allocator = '''new %(class_name)s(machInst, macrocodeBlock,
                         %(flags)s, %(dataSize)s, %(ext)s, %(op_args)s)''' % {
                     "class_name" : className,
-                    "flags" : self.microFlagsText(microFlags),
+                    "flags" : micro_flags_text,
                     "op_args" : op_args,
                     "dataSize" : self.dataSize,
                     "ext" : self.ext}
@@ -407,8 +419,8 @@ let {{
         abstract = True
 
         def __init__(self, dest, src1, src2, flags=None,
-                dataSize="env.dataSize"):
-            super().__init__(dest, src1, src2, flags=flags, dataSize=dataSize)
+                     dataSize="env.dataSize", noProt=False):
+            super().__init__(dest, src1, src2, flags=flags, dataSize=dataSize, noProt=noProt)
 
     class LogicRegOp(BasicRegOp):
         abstract = True
@@ -463,10 +475,10 @@ let {{
     class RdRegOp(RegOp):
         operand_types = (FoldedDestOp, FoldedSrc1Op)
         abstract = True
-        def __init__(self, dest, src1=None, dataSize="env.dataSize"):
+        def __init__(self, dest, src1=None, **kwargs):
             if not src1:
                 src1 = dest
-            super().__init__(dest, src1, dataSize=dataSize)
+            super().__init__(dest, src1, **kwargs)
 
     class WrRegOp(RegOp):
         operand_types = (FoldedSrc1Op, Op2)
@@ -1227,6 +1239,10 @@ let {{
 
     class Rdip(RdRegOp):
         code = 'DestReg = NRIP - CSBase;'
+
+        def __init__(self, *ops, **kwargs):
+            # Rdip outputs are always unprotected.
+            super().__init__(*ops, **kwargs, noProt=True)
 
     class Ruflags(RdRegOp):
         code = 'DestReg = ccFlagBits | cfofBits | dfBit | ecfBit | ezfBit;'

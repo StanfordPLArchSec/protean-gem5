@@ -92,4 +92,16 @@ StaticInst::advancePC(ThreadContext *tc) const
     tc->pcState(*pc);
 }
 
+bool
+StaticInst::hasProtPrefix() const
+{
+    return flags[IsPTeXProtected] && !flags[IsPTeXUnprotectedOverride];
+}
+
+bool
+StaticInst::destPartial(unsigned dest_idx) const
+{
+    return !destRegIdx(dest_idx).isFlat();
+}
+
 } // namespace gem5

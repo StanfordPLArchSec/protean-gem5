@@ -35,7 +35,7 @@ if env['CONF']['BUILD_ISA']:
     SimObject('FuncUnitConfig.py', sim_objects=[])
     SimObject('BaseO3CPU.py', sim_objects=['BaseO3CPU'], enums=[
         'SMTFetchPolicy', 'SMTQueuePolicy', 'CommitPolicy',
-        'SpeculationModel'])
+        'SpeculationModel', 'DeclassifyMode'])
 
     Source('comm.cc')
     Source('commit.cc')
@@ -58,6 +58,8 @@ if env['CONF']['BUILD_ISA']:
     Source('store_set.cc')
     Source('thread_context.cc')
     Source('thread_state.cc')
+    Source('safe_spec_unit.cc') # PTEX-TODO: Rename + consolidate.
+    Source('declassification_table.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
@@ -71,10 +73,12 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('Scoreboard')
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
+    DebugFlag('PTeX')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',
-        'DynInst', 'O3CPU', 'Activity', 'Scoreboard', 'Writeback' ])
+        'DynInst', 'O3CPU', 'Activity', 'Scoreboard', 'Writeback',
+        'PTeX'])
 
     SimObject('BaseO3Checker.py', sim_objects=['BaseO3Checker'])
     Source('checker.cc')

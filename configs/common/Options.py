@@ -699,6 +699,14 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[TPE, STT, SPT] Speculation model",
     )
 
+    # [PTeX] PTeX Options
+    parser.add_argument(
+        "--ptex-mem",
+        choices=["None", "ShadowL1", "ShadowMem"],
+        default="ShadowL1",
+        help="[PTeX] Memory declassification method",
+    )
+
 
 def addSEOptions(parser):
     # Benchmark options

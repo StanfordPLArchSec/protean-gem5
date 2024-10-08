@@ -189,6 +189,14 @@ let {{
             operand_types = map(resolve_dual, self.operand_types)
             if is_imm:
                 className += "Imm"
+            micro_flags_text = self.microFlagsText(microFlags)
+
+            # Handle zero idioms
+            if self.mnemonic == "mxor":
+                zero_idiom_cond = f"{self.args[1]}.index == {self.args[2]}.index"
+                zero_idiom_flags = f"({zero_idiom_cond} ? 1ULL : 0ULL) << StaticInst::IsZeroIdiom"
+                micro_flags_text = f"({micro_flags_text}) | ({zero_idiom_flags})"
+
             arg_iter = iter(self.args)
             args = list([Type(arg_iter).ctor_args() for Type in operand_types])
             ext_args = [str(self.ext)] + args
@@ -196,7 +204,7 @@ let {{
                     %(flags)s, %(srcSize)s, %(destSize)s, %(ext_args)s)
             ''' % {
                 "class_name" : className,
-                "flags" : self.microFlagsText(microFlags),
+                "flags" : micro_flags_text,
                 "srcSize" : self.srcSize,
                 "destSize" : self.destSize,
                 "ext_args" : ", ".join(ext_args)

@@ -124,6 +124,11 @@ InstructionQueue::InstructionQueue(CPU *cpu_ptr, IEW *iew_ptr,
         memDepUnit[tid].setIQ(this);
     }
 
+    // [LLSCT] Initialize Safe Speculation Unit (SSU)
+    for (ThreadID tid = 0; tid < MaxThreads; ++tid) {
+        safeSpecUnit[tid].init(cpu, params, tid);
+    }
+
     resetState();
 
     //Figure out resource sharing policy

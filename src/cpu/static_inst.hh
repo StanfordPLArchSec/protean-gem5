@@ -394,6 +394,11 @@ class StaticInst : public RefCounted, public StaticInstFlags
      * buffer if there wasn't enough space.
      */
     virtual size_t asBytes(void *buf, size_t max_size) { return 0; }
+
+    // [PTeX]
+    bool hasProtPrefix() const;
+    bool isZeroIdiom() const { return flags[IsZeroIdiom]; }
+    virtual bool destPartial(unsigned dest_idx) const;
 };
 
 } // namespace gem5

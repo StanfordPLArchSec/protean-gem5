@@ -46,6 +46,7 @@
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/PTeX.hh"
 
 namespace gem5
 {
@@ -59,7 +60,8 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
       _numSrcs(arrays.numSrcs), _numDests(arrays.numDests),
       _flatDestIdx(arrays.flatDestIdx), _destIdx(arrays.destIdx),
       _prevDestIdx(arrays.prevDestIdx), _srcIdx(arrays.srcIdx),
-      _readySrcIdx(arrays.readySrcIdx), macroop(_macroop)
+      _readySrcIdx(arrays.readySrcIdx), _srcProt(arrays.srcProt),
+      _destProt(arrays.destProt), macroop(_macroop)
 {
     std::fill(_readySrcIdx, _readySrcIdx + (numSrcs() + 7) / 8, 0);
 
@@ -162,10 +164,18 @@ DynInst::operator new(size_t count, Arrays &arrays)
     uintptr_t ready_src_idx =
         roundUp(src_idx + src_idx_size, alignof(uint8_t));
     size_t ready_src_idx_size =
-        sizeof(*arrays.readySrcIdx) * ((num_srcs + 7) / 8);
+        sizeof(*arrays.readySrcIdx) * roundUp(num_srcs, 8) / 8;
+
+    uintptr_t src_prot =
+        roundUp(ready_src_idx + ready_src_idx_size, alignof(Protection));
+    size_t src_prot_size = sizeof(*arrays.srcProt) * num_srcs;
+
+    uintptr_t dest_prot =
+        roundUp(src_prot + src_prot_size, alignof(Protection));
+    size_t dest_prot_size = sizeof(*arrays.destProt) * num_dests;
 
     // Figure out how much space we need in total.
-    size_t total_size = ready_src_idx + ready_src_idx_size;
+    size_t total_size = dest_prot + dest_prot_size;
 
     // Actually allocate it.
     uint8_t *buf = (uint8_t *)::operator new(total_size);
@@ -176,13 +186,17 @@ DynInst::operator new(size_t count, Arrays &arrays)
     arrays.prevDestIdx = (PhysRegIdPtr *)(buf + prev_dest_idx);
     arrays.srcIdx = (PhysRegIdPtr *)(buf + src_idx);
     arrays.readySrcIdx = (uint8_t *)(buf + ready_src_idx);
+    arrays.srcProt = (Protection *)(buf + src_prot);
+    arrays.destProt = (Protection *)(buf + dest_prot);
 
     // Initialize all the extra components.
     new (arrays.flatDestIdx) RegId[num_dests];
     new (arrays.destIdx) PhysRegIdPtr[num_dests];
     new (arrays.prevDestIdx) PhysRegIdPtr[num_dests];
     new (arrays.srcIdx) PhysRegIdPtr[num_srcs];
-    new (arrays.readySrcIdx) uint8_t[num_srcs];
+    new (arrays.readySrcIdx) uint8_t[roundUp(num_srcs, 8) / 8];
+    new (arrays.srcProt) Protection[num_srcs];
+    new (arrays.destProt) Protection[num_dests];
 
     return buf;
 }
@@ -498,6 +512,88 @@ DynInst::isSpeculationPrimitive() const
       default:
         panic("unreachable!\n");
     }
+}
+
+Protection
+DynInst::srcProt(unsigned src_idx) const
+{
+    assert(src_idx < numSrcs());
+    return _srcProt[src_idx];
+}
+
+Protection
+DynInst::destProt(unsigned dest_idx) const
+{
+    assert(dest_idx < numDests());
+    return _destProt[dest_idx];
+}
+
+Protection
+DynInst::inputProtection() const
+{
+    if (staticInst->isZeroIdiom())
+        return Unprotected;
+
+    for (size_t src_idx = 0; src_idx < numSrcs(); ++src_idx)
+        if (!srcRegIdx(src_idx).is(InvalidRegClass) &&
+            srcProt(src_idx) == Protected)
+            return Protected;
+
+    // No sources, so unprotected.
+    return Unprotected;
+}
+
+Protection
+DynInst::outputProtection() const
+{
+    for (size_t dest_idx = 0; dest_idx < numDests(); ++dest_idx)
+        if (!destRegIdx(dest_idx).is(InvalidRegClass) &&
+            destProt(dest_idx) == Unprotected)
+            return Unprotected;
+    return Protected;
+}
+
+Protection
+DynInst::loadProtection() const
+{
+    panic_if(!isLoad(), "Expected load!\n");
+    return outputProtection();
+}
+
+Protection
+DynInst::storeProtection() const
+{
+    panic_if(!isStore(), "Expected store!\n");
+    return inputProtection();
+}
+
+Protection
+DynInst::computeDestProtection(unsigned dest_idx) const
+{
+    // All outputs of PROT-prefixed instructions are protected.
+    if (hasProtPrefix())
+        return Protected;
+
+    const RegId &dest_reg = destRegIdx(dest_idx);
+
+    // If the instruction partially writes to an output register,
+    // then conservatively mark that output protected if was already protected.
+    if (staticInst->destPartial(dest_idx)) {
+        bool any = false;
+        for (int src_idx = 0; src_idx < numSrcs(); ++src_idx) {
+            if (srcRegIdx(src_idx) == dest_reg) {
+                any = true;
+                if (srcProt(src_idx) == Protected)
+                    return Protected;
+            }
+        }
+        if (!any) {
+            DPRINTF(PTeX, "WARNING: PTEX: didn't find implicit src for partial dest %s in %s!\n",
+                    dest_reg, staticInst->disassemble(pcState().instAddr()));
+        }
+    }
+
+    return Unprotected;
 }
 
 } // namespace o3

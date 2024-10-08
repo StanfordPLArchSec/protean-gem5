@@ -356,6 +356,9 @@ class Decoder : public InstDecoder
 
     StaticInstPtr fetchRomMicroop(
             MicroPC micropc, StaticInstPtr curMacroop) override;
+
+  private:
+    static inline constexpr bool ptex = true;
 };
 
 } // namespace X86ISA
