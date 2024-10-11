@@ -146,6 +146,7 @@ def macroop MOVZX_B_R_R {
 };
 
 def macroop MOVZX_B_R_M {
+    limm t1, 0, dataSize=8
     ld t1, seg, sib, disp, dataSize=1
     zexti reg, t1, 7
 };
