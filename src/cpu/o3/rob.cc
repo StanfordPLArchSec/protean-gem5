@@ -207,6 +207,7 @@ ROB::insertInst(const DynInstPtr &inst)
     ThreadID tid = inst->threadNumber;
 
     /*** [Jiyong,STT] add logic for setting argProducers ***/
+    // TPT-FIXME: This can be optimized.
     for (auto prevInstIt = instList[tid].begin(); prevInstIt != instList[tid].end(); prevInstIt++){
         // find matched physical reg between prev instr and inst
         DynInstPtr prevInst = (*prevInstIt);
@@ -673,6 +674,7 @@ ROB::compute_taint()
             continue;
 
         bool prev_implicit_flow = false;
+        bool prev_taint_primitive = false;
 
         for (DynInstPtr &inst : instList[tid]) {
             explicit_flow(tid, inst);
@@ -683,8 +685,13 @@ ROB::compute_taint()
             inst->isArgsTainted(inst->hasExplicitFlow());
 
             inst->isDestTainted(inst->isArgsTainted());
-            if (inst->isAccess() && !inst->isUnsquashable()) {
+
+            if (!prev_taint_primitive)
+              inst->setNoPrevTaintPrimitive();
+
+            if (inst->isTaintPrimitive()) {
                 inst->isDestTainted(true);
+                prev_taint_primitive = true;
             }
         }
     }

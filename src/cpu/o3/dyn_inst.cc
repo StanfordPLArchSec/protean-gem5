@@ -632,5 +632,62 @@ DynInst::computeDestProtection(unsigned dest_idx) const
     return Unprotected;
 }
 
+bool
+DynInst::isAccess() const
+{
+    return staticInst->isLoad() && loadProtection() == Unprotected;
+}
+
+bool
+DynInst::isMemTaintPrimitive() const
+{
+    assert(isLoad());
+    if (isUnsquashable())
+        return false;
+
+    switch (cpu->tptMode) {
+      case TPTMode::None:
+        // Treat all speculative loads as taint primitives (vanilla STT).
+        return true;
+        
+      case TPTMode::Naive:
+        // Naively treat all unprotected loads as taint primitives.
+        return loadProtection() == Unprotected;
+
+      case TPTMode::YRoT:
+        return loadProtection() == Unprotected &&
+          !(readUnprotectedMem() && noPrevTaintPrimitive());
+
+      case TPTMode::Ideal:
+        // It's a taint primitive if it read from protected memory.
+        // If the load hasn't executed yet, then it's possibly a taint primitive.
+        // This flag isn't set until the load has been observed to read from
+        // unprotected memory.
+        return loadProtection() == Unprotected && !readUnprotectedMem();
+
+      default: panic("unreachable!\n");
+    }
+}
+
+bool
+DynInst::isRegTaintPrimitive() const
+{
+    assert(!isLoad());
+    return
+        !isUnsquashable() &&
+        outputProtection() == Unprotected &&
+        inputProtection() == Protected;
+}
+
+bool
+DynInst::isTaintPrimitive() const
+{
+    if (isLoad()) {
+        return isMemTaintPrimitive();
+    } else {
+        return isRegTaintPrimitive();
+    }
+}
+
 } // namespace o3
 } // namespace gem5

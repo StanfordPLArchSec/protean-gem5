@@ -172,8 +172,7 @@ class DynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
-        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
-        InStallList,    // [STT] instruction is ready to issue(regsReady) but argsTainted
+        InStallList,             /// [STT] instruction is ready to issue(regsReady) but argsTainted
         NumStatus
     };
 
@@ -196,14 +195,17 @@ class DynInst : public ExecContext, public RefCounted
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
         ReadyToExpose,
+        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
         // [Jiyong,STT] The following are STT flags
-        IsUnsquashable,     // a instr is not squashable. In InvisiSpec it's equal to readyToExpose. In STT it's not since access instr is always readyToExpose and readyToExpose == !isArgsTainted
         IsDestTainted,
         IsArgsTainted,
         IsAddrTainted,
         HasExplicitFlow,
         HasImplicitFlow,
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
+        // [TPT]
+        ReadUnprotectedMem,      /// [TPT] An unprotected load read from unprotected memory.
+        NoPrevTaintPrimitive,    /// [TPT] Is there an older taint primitive? Used for YRoT stuff.
         MaxFlags
     };
 
@@ -630,7 +632,8 @@ class DynInst : public ExecContext, public RefCounted
     }
 
     // [Jiyong,STT] The following are STT status
-    bool isAccess() const { return staticInst->isLoad(); }                /// Instruction is an access instruction(root of taint)
+    /// Instruction is an access instruction(root of taint)    
+    bool isAccess() const;
 
     bool isSquashAfter() const { return staticInst->isSquashAfter(); }
     bool isFullMemBarrier()   const { return staticInst->isFullMemBarrier(); }
@@ -1284,6 +1287,19 @@ class DynInst : public ExecContext, public RefCounted
 
     /** [TPE, STT, SPT] Is this instruction a speculation primitive? */
     bool isSpeculationPrimitive() const;
+
+    /** [TPT] Is this instruction an r-taint or m-taint primitive? */
+    bool isTaintPrimitive() const;
+    bool isMemTaintPrimitive() const;
+    bool isRegTaintPrimitive() const;
+
+    /** [TPT] Did a load read unprotected memory? */
+    bool readUnprotectedMem() const { return instFlags[ReadUnprotectedMem]; }
+    void setReadUnprotectedMem() { instFlags[ReadUnprotectedMem] = true; }
+
+    /** [TPT] Is this the youngest taint primitive? */
+    bool noPrevTaintPrimitive() const { return instFlags[NoPrevTaintPrimitive]; }
+    void setNoPrevTaintPrimitive() { instFlags[NoPrevTaintPrimitive] = true; }
 };
 
 } // namespace o3

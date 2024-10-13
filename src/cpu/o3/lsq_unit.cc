@@ -1565,6 +1565,12 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // Don't need to do anything special for split loads.
                 ++stats.forwLoads;
 
+                // [TPT] For now, let's just say all unprotected loads forwarding
+                // from stores are m-taint primitives.
+                // Thus, we won't do the following:
+                // if (cpu->tpt && load_inst->loadProtection() == Unprotected)
+                //     load_inst->setReadUnprotectedMem();
+
                 return NoFault;
             } else if (
                     coverage == AddrRangeCoverage::PartialAddrRangeCoverage) {
@@ -1610,6 +1616,16 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     // If there's no forwarding case, then go access memory
     DPRINTF(LSQUnit, "Doing memory access for inst [sn:%lli] PC %s\n",
             load_inst->seqNum, load_inst->pcState());
+
+    // [TPT] Is this a mem taint primitive?
+    if (cpu->tpt && load_inst->loadProtection() == Unprotected) {
+        SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
+        if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
+            warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
+        const Protection mem_prot = SSU.checkDeclassified(load_inst) ? Unprotected : Protected; // PTEX-FIXME: Should return protection type.
+        if (mem_prot == Unprotected)
+            load_inst->setReadUnprotectedMem();
+    }
 
     // Allocate memory if this is the first time a load is issued.
     if (!load_inst->memData) {

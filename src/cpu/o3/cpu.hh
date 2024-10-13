@@ -69,6 +69,7 @@
 #include "cpu/timebuf.hh"
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
+#include "enums/TPTMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 
@@ -601,23 +602,18 @@ class CPU : public BaseCPU
     DeclassifyMode ptexMem;
 
 
-    /*** [STT] Additional configs for O3CPU ***/
+    // [TPT] Enable TPT.
+    bool tpt;
+    const bool &stt = tpt;
 
-    // whether to issue packets in execution stage(false if using Fence)
-    // NHM-FIXME: Remove.    
-    bool protectionEnabled() const
-    {
-        return stt;
-    }
-
-    // whether to apply STT
-    bool stt;
-
-    // whether add implicit flow protection
+    // [TPT] whether add implicit flow protection
     bool impChannel;
 
-    // whether consider more transmit instructions
+    // [TPT] whether consider more transmit instructions
     int moreTransmitInsts;
+
+    // [TPT] Operating mode.
+    TPTMode tptMode;
 };
 
 } // namespace o3
