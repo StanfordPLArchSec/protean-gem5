@@ -108,6 +108,7 @@ system = System(
     mem_ranges=[AddrRange(args.mem_size)],
     cache_line_size=args.cacheline_size,
 )
+cpu = system.cpu[0]
 
 # Create a top-level voltage domain
 system.voltage_domain = VoltageDomain(voltage=args.sys_voltage)
@@ -135,8 +136,7 @@ if args.elastic_trace_en:
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
-for cpu in system.cpu:
-    cpu.clk_domain = system.cpu_clk_domain
+cpu.clk_domain = system.cpu_clk_domain
 
 system.kvm_vm = KvmVM()
 system.m5ops_base = max(0xFFFF0000, Addr(args.mem_size).getValue())
@@ -146,9 +146,8 @@ process.kvmInSE = True
 process.maxStackSize = args.max_stack_size
 
 # NHM-FIXME
-for i in range(np):
-    system.cpu[i].workload = process
-    system.cpu[i].createThreads()
+cpu.workload = process
+cpu.createThreads()
 
 # NHM-FIXME
 MemClass = Simulation.setMemClass(args)
@@ -160,5 +159,33 @@ config_filesystem(system, args)
 
 system.workload = SEWorkload.init_compatible(mp0_path)
 
+# Parse checkpoints file.
+checkpoints = []
+with open(args.take_checkpoints) as f:
+    for line in f:
+        line = line.strip()
+        if len(line) == 0 or line.startswith('#'):
+            continue
+        tokens = line.split()
+        assert len(tokens) == 2
+        inst_count = int(tokens[0])
+        name = tokens[1]
+        checkpoints.append((name, inst_count))
+
 root = Root(full_system=False, system=system)
-Simulation.run(args, root, system, CPUClass)
+# Simulation.run(args, root, system, CPUClass)
+
+cpu.simpoint_start_insts = [inst_count for _, inst_count in checkpoints]
+m5.instantiate()
+
+for name, inst_count in checkpoints:
+    print(name, inst_count)
+    cpu.max_insts_any_thread = inst_count
+    exit_event = m5.simulate()
+    exit_cause = exit_event.getCause()
+    if exit_cause != "simpoint starting point found":
+        print(f"Unexpected exit cause: {exit_cause}", file = sys.stderr)
+        exit(1)
+    path = os.path.join(args.checkpoint_dir, name)
+    m5.checkpoint(path)
+    m5.stats.dump()
