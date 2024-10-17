@@ -43,6 +43,8 @@
 import argparse
 import os
 import sys
+import json
+import types
 
 from common import (
     CacheConfig,
@@ -77,7 +79,7 @@ def get_process(cmd: str, args: list) -> Process:
     # Clear out the environment.
     process.env = []
 
-    process.cmd = " ".join(cmd, *args)
+    process.cmd = [cmd, *args]
 
     return process
 
@@ -87,6 +89,9 @@ Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
+parser.add_argument("--simpoints-json", required = True, help = "Path to SimPoint JSON file under cpt/*")
+parser.add_argument("--simpoints-warmup", type = int, required = True, help = "Warmup period, in instructions")
+parser.add_argument("--test", action = "store_true")
 
 args = parser.parse_args()
 
@@ -159,33 +164,38 @@ config_filesystem(system, args)
 
 system.workload = SEWorkload.init_compatible(mp0_path)
 
+if args.test:
+    root = Root(full_system=False, system=system)
+    m5.instantiate()
+    m5.simulate()
+    exit(0)
+
 # Parse checkpoints file.
-checkpoints = []
-with open(args.take_checkpoints) as f:
-    for line in f:
-        line = line.strip()
-        if len(line) == 0 or line.startswith('#'):
-            continue
-        tokens = line.split()
-        assert len(tokens) == 2
-        inst_count = int(tokens[0])
-        name = tokens[1]
-        checkpoints.append((name, inst_count))
+simpoints = None
+with open(args.simpoints_json) as f:
+    simpoints = json.load(f)
+    simpoints = [types.SimpleNamespace(**simpoint) for simpoint in simpoints]
+    simpoints.sort(key = lambda simpoint: simpoint.inst_range[0])
 
 root = Root(full_system=False, system=system)
 # Simulation.run(args, root, system, CPUClass)
 
-cpu.simpoint_start_insts = [inst_count for _, inst_count in checkpoints]
+def get_simpoint_start_inst(simpoint: dict) -> int:
+    return max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
+
+cpu.simpoint_start_insts = [
+    get_simpoint_start_inst(simpoint) for simpoint in simpoints
+]
+print('cpu.simpoint_start_insts:', *cpu.simpoint_start_insts, file = sys.stderr)
 m5.instantiate()
 
-for name, inst_count in checkpoints:
-    print(name, inst_count)
-    cpu.max_insts_any_thread = inst_count
+for simpoint in simpoints:
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
     if exit_cause != "simpoint starting point found":
         print(f"Unexpected exit cause: {exit_cause}", file = sys.stderr)
         exit(1)
-    path = os.path.join(args.checkpoint_dir, name)
+    # path = os.path.join(args.checkpoint_dir, name)
+    path = f'cpt.{simpoint.name}'
     m5.checkpoint(path)
     m5.stats.dump()
