@@ -168,7 +168,6 @@ class DynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
-        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
         NumStatus
     };
 
@@ -190,6 +189,7 @@ class DynInst : public ExecContext, public RefCounted
         HtmFromTransaction,
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
+        Unsquashable,          /// [TPE, STT, SPT] Instruction is nonspeculative.
         MaxFlags
     };
 
