@@ -12,6 +12,7 @@
 #include "pin.H"
 #include "ops.hh"
 #include "bbv.hh"
+#include "f2i.hh"
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
@@ -929,7 +930,8 @@ main(int argc, char *argv[])
     if (enable_inst_count.Value())
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
 
-    if (!bbv_register())
+    if (!bbv_register() ||
+        !f2i_register())
         return EXIT_FAILURE;
 
     INS_AddInstrumentFunction(Instruction, nullptr);
