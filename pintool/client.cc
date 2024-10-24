@@ -25,7 +25,7 @@ static KNOB<std::string> mem_path(KNOB_MODE_WRITEONCE, "pintool", "mem_path", ""
 static KNOB<bool> enable_inst_count(KNOB_MODE_WRITEONCE, "pintool", "inst_count", "1", "enable instruction counting");
 static KNOB<bool> enable_trace(KNOB_MODE_WRITEONCE, "pintool", "trace", "0", "enable instruction tracing");
 static KNOB<std::string> bbv_path(KNOB_MODE_WRITEONCE, "pintool", "bbv_path", "", "BBV output path (empty string to disable)");
-static KNOB<uint64_t> bbv_interval(KNOB_MODE_WRITEONCE, "pintool", "bbv_interval", "0", "BBV interval size, in instructions");
+static KNOB<uint64_t> bbv_interval(KNOB_MODE_WRITEONCE, "pintool", "bbv_interval_dontuse", "0", "BBV interval size, in instructions");
 
 static CONTEXT user_ctx;
 static CONTEXT saved_kernel_ctx;
@@ -33,7 +33,6 @@ static std::unordered_set<ADDRINT> kernel_pages;
 static ADDRINT virtual_vsyscall_base = 0;
 static ADDRINT physical_vsyscall_base = 0;
 static uint64_t inst_count = 0;
-static BBVTrace bbv_trace;
 
 constexpr bool enable_pc_hist = false;
 
@@ -730,26 +729,6 @@ Instruction_Trace(INS ins, void *)
 }
 
 
-static void
-Handle_Trace_BBV(BBVBlock *block)
-{
-    block->increment();
-}
-
-
-static void
-Instrument_Trace_BBV(TRACE trace, void *)
-{
-    if (IsKernelCode(trace))
-        return;
-    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        BBVBlock *block = bbv_trace.block(BBL_Address(bbl));
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) Handle_Trace_BBV,
-                       IARG_PTR, block,
-                       IARG_END);
-    }
-}
-
 static RingBuffer<ADDRINT, 16> pc_hist(0);
 
 static void
@@ -949,9 +928,10 @@ main(int argc, char *argv[])
     INS_AddInstrumentFunction(Instruction_Vsyscall, nullptr);
     if (enable_inst_count.Value())
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
-    if (enable_bbv()) {
-        TRACE_AddInstrumentFunction(Instrument_Trace_BBV, nullptr);
-    }
+
+    if (!bbv_register())
+        return EXIT_FAILURE;
+
     INS_AddInstrumentFunction(Instruction, nullptr);
     INS_AddInstrumentFunction(Instrument_Instruction_PinOps, nullptr);
     PIN_AddFiniFunction(Fini, nullptr);
