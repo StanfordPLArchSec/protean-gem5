@@ -39,6 +39,12 @@ constexpr bool enable_pc_hist = false;
 
 static uint64_t pinops_count = 0;
 
+std::ofstream &
+log()
+{
+    return log_;
+}
+
 static bool
 enable_bbv()
 {
@@ -49,7 +55,7 @@ static ADDRINT getpage(ADDRINT addr) {
     return addr & ~(ADDRINT) 0xFFF;
 }
 
-static bool
+bool
 IsKernelCode(ADDRINT pc)
 {
     // FIXME: Don't hard-code.
@@ -58,13 +64,13 @@ IsKernelCode(ADDRINT pc)
     return kernel_pages.count(getpage(pc)) != 0;
 }
 
-static bool
+bool
 IsKernelCode(INS ins)
 {
     return IsKernelCode(INS_Address(ins));
 }
 
-static bool
+bool
 IsKernelCode(TRACE trace)
 {
     return IsKernelCode(TRACE_Address(trace));

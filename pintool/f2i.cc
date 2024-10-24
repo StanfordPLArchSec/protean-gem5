@@ -7,6 +7,8 @@
 #include <iostream>
 #include <set>
 
+#include "client.hh"
+
 static const char *prog = "functoinst";
 
 static KNOB<bool> EnableF2I(KNOB_MODE_WRITEONCE, "pintool", "f2i", "0", "enable function-to-instruction (f2i) conversion tool");
@@ -37,7 +39,9 @@ static void advance_func_count() {
   assert(func_count_cur < func_count_tgt);
 }
 
-static void DynamicRoutine() {
+static void
+DynamicCall()
+{
   ++func_count_cur;
   if (func_count_cur == func_count_tgt) {
     emit_func_to_inst(func_count_cur, inst_count);
@@ -45,10 +49,11 @@ static void DynamicRoutine() {
   }
 }
 
-static void StaticRoutine(RTN rtn, void *) {
-  RTN_Open(rtn);
-  RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR) DynamicRoutine, IARG_END);
-  RTN_Close(rtn);
+static void
+StaticCall(INS ins, void *)
+{
+    if (INS_IsCall(ins) && !IsKernelCode(ins))
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) DynamicCall, IARG_END);
 }
 
 static void DynamicBlock(ADDRINT num_insts) {
@@ -56,8 +61,10 @@ static void DynamicBlock(ADDRINT num_insts) {
 }
 
 static void StaticTrace(TRACE trace, void *) {
-  for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
-    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) DynamicBlock, IARG_ADDRINT, BBL_NumIns(bbl), IARG_END);
+    if (IsKernelCode(trace))
+        return;
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) DynamicBlock, IARG_ADDRINT, BBL_NumIns(bbl), IARG_END);
 }
 
 static void Fini(int32_t exit_code, void *) {
@@ -104,7 +111,7 @@ f2i_register()
   }
   assert(func_count_tgt);
 
-  RTN_AddInstrumentFunction(StaticRoutine, nullptr);
+  INS_AddInstrumentFunction(StaticCall, nullptr);
   TRACE_AddInstrumentFunction(StaticTrace, nullptr);
   PIN_AddFiniFunction(Fini, nullptr);
 

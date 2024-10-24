@@ -1,7 +1,11 @@
+#include "bbv.hh"
+
 #include <fstream>
 #include <iostream>
 #include <map>
-#include "pin.H"
+#include <pin.H>
+
+#include "client.hh"
 
 static KNOB<bool> EnableBBV(KNOB_MODE_WRITEONCE, "pintool", "bbv", "0", "enable BBV tracing");
 static KNOB<std::string> OutputFile(KNOB_MODE_WRITEONCE, "pintool", "bbv-out", "", "specify output BBV file");
@@ -66,23 +70,34 @@ static void HandleBlock(Block *block) {
     }
 }
 
-static void DynamicRoutine() {
+static void
+DynamicCall()
+{
     ++func_count_end;
 }
 
-static void StaticRoutine(RTN rtn, void *) {
-    RTN_Open(rtn);
-    RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR) DynamicRoutine, IARG_END);
-    RTN_Close(rtn);
+static void
+StaticCall(INS ins, void *)
+{
+    if (INS_IsCall(ins) && !IsKernelCode(ins))
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) DynamicCall, IARG_END);
 }
 
 static void Trace(TRACE trace, void *) {
+    if (IsKernelCode(trace))
+        return;
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         assert(BBL_Original(bbl));
         const ADDRINT addr = BBL_Address(bbl);
 
         const auto it = blocks.emplace(addr, Block(++next_block_id, bbl)).first;
-        const Block &block = it->second;
+        Block &block = it->second;
+        if (block.size != BBL_NumIns(bbl)) {
+            log() << "BBV: warning: block size for instruction address 0x" << std::hex
+                  << addr << " changed from " << std::dec << block.size << " to " << BBL_NumIns(bbl)
+                  << std::endl;
+            block.size = BBL_NumIns(bbl);
+        }
         assert(block.size == BBL_NumIns(bbl));
 
         BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) HandleBlock, IARG_ADDRINT, &block, IARG_END);
@@ -115,7 +130,7 @@ bbv_register()
     }
     interval_size = IntervalSize.Value();
 
-    RTN_AddInstrumentFunction(StaticRoutine, nullptr);
+    INS_AddInstrumentFunction(StaticCall, nullptr);
     TRACE_AddInstrumentFunction(Trace, nullptr);
     PIN_AddFiniFunction(Fini, nullptr);
 
