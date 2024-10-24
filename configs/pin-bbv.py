@@ -96,6 +96,8 @@ parser.add_argument("--pin-tool", required=True, help="Path to host PinTool")
 parser.add_argument(
     "--pin-kernel", required=True, help="Path to Pin guest kernel"
 )
+parser.add_argument("--interval-size", required = True, type = int, help = "SimPoint interval size")
+# parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
 args = parser.parse_args()
 
 process = get_process(args.cmd, args.args)
@@ -147,7 +149,7 @@ cpu = system.cpu[0]
 cpu.pinTool = args.pin_tool
 cpu.pinKernel = args.pin_kernel
 cpu.pinExe = args.pin
-cpu.pinToolArgs = "-bbv 1 -bbv_interval 50000000 -bbv_out bbv.out"
+cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True
