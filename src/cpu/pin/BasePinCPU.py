@@ -16,6 +16,11 @@ class BasePinCPU(BaseCPU):
     def support_take_over(cls):
         return False
 
+    pinExe = Param.String("Path to Intel Pin executable")
+    pinKernel = Param.String("Path to guest Pin kernel")
+    pinTool = Param.String("Path to host PinTool")
+    pinToolArgs = Param.String("", "Arguments to pass to PinTool")
+    
     countInsts = Param.Bool(True, "Enable instruction counting (moderate performance penalty)")
     traceInsts = Param.Bool(False, "Enable instruction tracing (huge performance penalty)")
     enableBBV = Param.Bool(False, "Enable basic block profiling (e.g., for SimPoints)")

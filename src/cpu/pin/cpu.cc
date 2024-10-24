@@ -26,12 +26,45 @@ namespace gem5
 namespace pin
 {
 
+static std::vector<std::string_view>
+split_by_spaces(std::string_view str)
+{
+    std::vector<std::string_view> result;
+    size_t pos = 0;
+    size_t size = str.size();
+
+    while (pos < size) {
+        // Skip any leading spaces
+        while (pos < size && std::isspace(static_cast<unsigned char>(str[pos]))) {
+            ++pos;
+        }
+
+        if (pos >= size) {
+            break;
+        }
+
+        // Find the end of the current word
+        size_t start = pos;
+        while (pos < size && !std::isspace(static_cast<unsigned char>(str[pos]))) {
+            ++pos;
+        }
+
+        // Create a string_view for the current word
+        result.emplace_back(str.substr(start, pos - start));
+    }
+
+    return result;
+}
+
 CPU::CPU(const BasePinCPUParams &params)
     : BaseCPU(params),
       tickEvent([this] { tick(); }, "BasePinCPU tick", false, Event::CPU_Tick_Pri),
       _status(Idle),
       dataPort(name() + ".dcache_port", this),
       instPort(name() + ".icache_port", this),
+      pinExe(params.pinExe),
+      pinKernel(params.pinKernel),
+      pinTool(params.pinTool),
       pinPid(-1),
       system(params.system),
       traceInsts(params.traceInsts),
@@ -48,6 +81,10 @@ CPU::CPU(const BasePinCPUParams &params)
 
     if (params.countInsts)
         ctrInsts = 0;
+
+    // Parse PinTool arguments.
+    for (std::string_view sv : split_by_spaces(params.pinToolArgs))
+        pinToolArgs.emplace_back(sv);
 }
 
 void
@@ -134,18 +171,16 @@ CPU::getPinRoot()
     return pin_root;
 }
 
-std::string
-CPU::getPinExe()
+const std::string&
+CPU::getPinExe() const
 {
-    return std::string(getPinRoot()) + "/pin";
+    return pinExe;
 }
 
-const char *
-CPU::getPinTool()
+const std::string&
+CPU::getPinTool() const
 {
-    const char *pin_tool = std::getenv("PIN_TOOL");
-    fatal_if(pin_tool == nullptr, "environment variable PIN_TOOL not set!");
-    return pin_tool;
+    return pinTool;
 }
 
 const char *
@@ -164,12 +199,10 @@ CPU::getResponsePath()
     return resp_path;
 }
 
-std::string
-CPU::getDummyProg()
+const std::string&
+CPU::getDummyProg() const
 {
-    const char *kernel_path = std::getenv("PIN_KERNEL");
-    fatal_if(kernel_path == nullptr, "environment variable PIN_KERNEL not set!");
-    return kernel_path;
+    return pinKernel;
 }
 
 void
@@ -269,6 +302,9 @@ CPU::startup()
         *it++ = "-inst_count"; *it++ = ctrInsts ? "1" : "0";
         *it++ = "-trace", *it++ = traceInsts ? "1" : "0";
 
+        // Custom Pintool args.
+        it = std::copy(pinToolArgs.begin(), pinToolArgs.end(), it);
+
         // Workload.
         *it++ = "--";
         *it++ = dummy_prog;
@@ -278,11 +314,12 @@ CPU::startup()
             args_c.push_back(const_cast<char *>(s.c_str()));
         args_c.push_back(nullptr);
 
-	std::stringstream cmd_ss;
-	for (const std::string &arg : args)
-	  cmd_ss << arg << " ";
-	DPRINTF(Pin, "Starting Pin: %s\n", cmd_ss.str());
-
+        std::stringstream cmd_ss;
+        for (const std::string &arg : args)
+            cmd_ss << arg << " ";
+        const std::string cmd_s = cmd_ss.str();
+        dprintf(kernout_fd, "Starting Pin: %s\n", cmd_s.c_str());
+        
         execvp(args_c[0], args_c.data());
         fatal("execvp failed: %s", std::strerror(errno));
     }

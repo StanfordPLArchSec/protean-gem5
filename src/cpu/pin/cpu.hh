@@ -61,6 +61,12 @@ class CPU final : public BaseCPU
     Status _status;
     PinRequestPort dataPort;
     PinRequestPort instPort;
+
+    // Pin paths.
+    std::string pinExe;
+    std::string pinKernel;
+    std::string pinTool;
+    std::vector<std::string> pinToolArgs;
     
     // TODO: Consider abstracting the Pin process into its own class.
     pid_t pinPid;
@@ -76,9 +82,9 @@ class CPU final : public BaseCPU
 
 
     static const char *getPinRoot();
-    static const char *getPinTool();
-    static std::string getPinExe();
-    static std::string getDummyProg();
+    const std::string& getPinTool() const;
+    const std::string& getPinExe() const;
+    const std::string& getDummyProg() const;
     static const char *getRequestPath();
     static const char *getResponsePath();
 
