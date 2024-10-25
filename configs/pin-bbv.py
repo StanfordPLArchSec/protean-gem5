@@ -98,9 +98,15 @@ parser.add_argument(
 )
 parser.add_argument("--interval-size", required = True, type = int, help = "SimPoint interval size")
 # parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
+parser.add_argument("--stdout")
+parser.add_argument("--stderr")
 args = parser.parse_args()
 
 process = get_process(args.cmd, args.args)
+if args.stdout:
+    process.output = args.stdout
+if args.stderr:
+    process.errout = args.stderr
 
 # NHM-FIXME: Just read the kvm cpu directly?
 # To get mem mode: CPUClass.memory_mode()
