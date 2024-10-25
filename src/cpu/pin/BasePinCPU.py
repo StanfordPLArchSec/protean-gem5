@@ -20,6 +20,7 @@ class BasePinCPU(BaseCPU):
     pinKernel = Param.String("Path to guest Pin kernel")
     pinTool = Param.String("Path to host PinTool")
     pinToolArgs = Param.String("", "Arguments to pass to PinTool")
+    pinArgs = Param.String("", "Arguments to pass to Pin")
     
     countInsts = Param.Bool(True, "Enable instruction counting (moderate performance penalty)")
     traceInsts = Param.Bool(False, "Enable instruction tracing (huge performance penalty)")

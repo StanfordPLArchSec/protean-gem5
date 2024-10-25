@@ -83,6 +83,8 @@ CPU::CPU(const BasePinCPUParams &params)
         ctrInsts = 0;
 
     // Parse PinTool arguments.
+    for (std::string_view sv : split_by_spaces(params.pinArgs))
+        pinArgs.emplace_back(sv);
     for (std::string_view sv : split_by_spaces(params.pinToolArgs))
         pinToolArgs.emplace_back(sv);
 }
@@ -290,6 +292,8 @@ CPU::startup()
         if (std::getenv("PIN_TOOLDEBUG")) {
             *it++ = "-pause_tool"; *it++ = "30";
         }
+
+        it = std::copy(pinArgs.begin(), pinArgs.end(), it);
 
         // Pintool.
         *it++ = "-t"; *it++ = pin_tool;

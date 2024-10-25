@@ -66,6 +66,7 @@ class CPU final : public BaseCPU
     std::string pinExe;
     std::string pinKernel;
     std::string pinTool;
+    std::vector<std::string> pinArgs;
     std::vector<std::string> pinToolArgs;
     
     // TODO: Consider abstracting the Pin process into its own class.
