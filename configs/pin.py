@@ -41,8 +41,21 @@
 # "m5 test.py"
 
 import argparse
+import json
 import os
 import sys
+import types
+
+from common import (
+    CacheConfig,
+    CpuConfig,
+    MemConfig,
+    ObjectList,
+    Options,
+    Simulation,
+)
+from common.Caches import *
+from common.FileSystemConfig import config_filesystem
 
 import m5
 from m5.defines import buildEnv
@@ -56,144 +69,63 @@ from m5.util import (
 
 from gem5.isas import ISA
 
-from common import (
-    CacheConfig,
-    CpuConfig,
-    MemConfig,
-    ObjectList,
-    Options,
-    Simulation,
-)
-from common.Caches import *
-from common.cpu2000 import *
-from common.FileSystemConfig import config_filesystem
-from ruby import Ruby
 
-def get_processes(args):
-    """Interprets provided args and returns a list of processes"""
+def get_process(cmd: str, args: list) -> Process:
+    process = Process(pid=100)
+    process.executable = cmd
+    process.cwd = os.getcwd()
+    process.gid = os.getgid()
 
-    multiprocesses = []
-    inputs = []
-    outputs = []
-    errouts = []
-    pargs = []
+    # Clear out the environment.
+    process.env = []
 
-    workloads = args.cmd.split(";")
-    if args.input != "":
-        inputs = args.input.split(";")
-    if args.output != "":
-        outputs = args.output.split(";")
-    if args.errout != "":
-        errouts = args.errout.split(";")
-    if args.options != "":
-        pargs = args.options.split(";")
+    process.cmd = [cmd, *args]
 
-    idx = 0
-    for wrkld in workloads:
-        process = Process(pid=100 + idx)
-        process.executable = wrkld
-        process.cwd = os.getcwd()
-        process.gid = os.getgid()
+    return process
 
-        if args.env:
-            with open(args.env) as f:
-                process.env = [line.rstrip() for line in f]
-
-        if len(pargs) > idx:
-            process.cmd = [wrkld] + pargs[idx].split()
-        else:
-            process.cmd = [wrkld]
-
-        if len(inputs) > idx:
-            process.input = inputs[idx]
-        if len(outputs) > idx:
-            process.output = outputs[idx]
-        if len(errouts) > idx:
-            process.errout = errouts[idx]
-
-        multiprocesses.append(process)
-        idx += 1
-
-    if args.smt:
-        cpu_type = ObjectList.cpu_list.get(args.cpu_type)
-        assert ObjectList.is_o3_cpu(cpu_type), "SMT requires an O3CPU"
-        return multiprocesses, idx
-    else:
-        return multiprocesses, 1
-
-
-warn(
-    "The se.py script is deprecated. It will be removed in future releases of "
-    " gem5."
-)
 
 parser = argparse.ArgumentParser()
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
-
-if "--ruby" in sys.argv:
-    Ruby.define_options(parser)
-
+parser.add_argument("cmd", help="Executable to simulate")
+parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
+parser.add_argument(
+    "--pin", required=True, help="Path to Intel Pin executable"
+)
+parser.add_argument("--pin-tool", required=True, help="Path to host PinTool")
+parser.add_argument(
+    "--pin-kernel", required=True, help="Path to Pin guest kernel"
+)
+parser.add_argument("--stdout")
+parser.add_argument("--stderr")
+parser.add_argument("--pin-args", default='')
 args = parser.parse_args()
 
-multiprocesses = []
-numThreads = 1
+process = get_process(args.cmd, args.args)
+if args.stdout:
+    process.output = args.stdout
+if args.stderr:
+    process.errout = args.stderr
 
-if args.bench:
-    apps = args.bench.split("-")
-    if len(apps) != args.num_cpus:
-        print("number of benchmarks not equal to set num_cpus!")
-        sys.exit(1)
+# NHM-FIXME: Just read the kvm cpu directly?
+# To get mem mode: CPUClass.memory_mode()
+CPUClass = ObjectList.cpu_list.get("X86PinCPU")
+assert int(CPUClass.numThreads) == 1
+assert not args.smt
+assert args.num_cpus == 1
 
-    for app in apps:
-        try:
-            if ObjectList.cpu_list.get_isa(args.cpu_type) == ISA.ARM:
-                exec(
-                    "workload = %s('arm_%s', 'linux', '%s')"
-                    % (app, args.arm_iset, args.spec_input)
-                )
-            else:
-                # TARGET_ISA has been removed, but this is missing a ], so it
-                # has incorrect syntax and wasn't being used anyway.
-                exec(
-                    "workload = %s(buildEnv['TARGET_ISA', 'linux', '%s')"
-                    % (app, args.spec_input)
-                )
-            multiprocesses.append(workload.makeProcess())
-        except:
-            print(
-                f"Unable to find workload for ISA: {app}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-elif args.cmd:
-    multiprocesses, numThreads = get_processes(args)
-else:
-    print("No workload specified. Exiting!\n", file=sys.stderr)
-    sys.exit(1)
-
-
-(CPUClass, test_mem_mode, FutureClass) = Simulation.setCPUClass(args)
-CPUClass.numThreads = numThreads
-
-# Check -- do not allow SMT with multiple CPUs
-if args.smt and args.num_cpus > 1:
-    fatal("You cannot use SMT with multiple CPUs!")
-
-np = args.num_cpus
-mp0_path = multiprocesses[0].executable
+# NHM-FIXME
+np = 1
+mp0_path = process.executable
 system = System(
     cpu=[CPUClass(cpu_id=i) for i in range(np)],
-    mem_mode=test_mem_mode,
+    mem_mode=CPUClass.memory_mode(),
     mem_ranges=[AddrRange(args.mem_size)],
     cache_line_size=args.cacheline_size,
 )
-
-system.shared_backstore = "physmem"
+system.shared_backstore = f"physmem"
 system.auto_unlink_shared_backstore = True
-
-if numThreads > 1:
-    system.multi_thread = True
+cpu = system.cpu[0]
 
 # Create a top-level voltage domain
 system.voltage_domain = VoltageDomain(voltage=args.sys_voltage)
@@ -216,93 +148,75 @@ system.cpu_clk_domain = SrcClockDomain(
 if args.elastic_trace_en:
     CpuConfig.config_etrace(CPUClass, system.cpu, args)
 
+
+# Set pin params.
+cpu = system.cpu[0]
+cpu.pinTool = args.pin_tool
+cpu.pinKernel = args.pin_kernel
+cpu.pinExe = args.pin
+cpu.pinArgs = args.pin_args
+# cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
+
+# for cpu in system.cpu:
+#     cpu.usePerf = True
+process.pinInSE = True
+
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
-for cpu in system.cpu:
-    cpu.clk_domain = system.cpu_clk_domain
+cpu.clk_domain = system.cpu_clk_domain
 
-if ObjectList.is_kvm_cpu(CPUClass) or ObjectList.is_kvm_cpu(FutureClass):
-    if buildEnv["USE_X86_ISA"]:
-        system.kvm_vm = KvmVM()
-        for process in multiprocesses:
-            process.useArchPT = True
-            process.kvmInSE = True
-    else:
-        fatal("KvmCPU can only be used in SE mode with x86")
+system.m5ops_base = max(0xFFFF0000, Addr(args.mem_size).getValue())
 
-if CPUClass is X86PinCPU or FutureClass is X86PinCPU:
-    if buildEnv["USE_X86_ISA"]:
-        system.m5ops_base = 0
-        for process in multiprocesses:
-            process.pinInSE = True
-    else:
-        fatal("PinCPU can only be used in SE mode with x86")
-        
-# Sanity check
-if args.simpoint_profile:
-    if not ObjectList.is_noncaching_cpu(CPUClass) and CPUClass is not X86PinCPU:
-        fatal("SimPoint/BPProbe should be done with an atomic cpu")
-    if np > 1:
-        fatal("SimPoint generation not supported with more than one CPUs")
+process.maxStackSize = args.max_stack_size
 
-for i in range(np):
-    system.cpu[i].countInsts = True
-    system.cpu[i].traceInsts = False
+# NHM-FIXME
+cpu.workload = process
+cpu.createThreads()
 
-    if args.smt:
-        system.cpu[i].workload = multiprocesses
-    elif len(multiprocesses) == 1:
-        system.cpu[i].workload = multiprocesses[0]
-    else:
-        system.cpu[i].workload = multiprocesses[i]
-        
-    if args.simpoint_profile:
-        system.cpu[i].addSimPointProbe(args.simpoint_interval)
-
-    if args.checker:
-        system.cpu[i].addCheckerCpu()
-
-    if args.bp_type:
-        bpClass = ObjectList.bp_list.get(args.bp_type)
-        system.cpu[i].branchPred = bpClass()
-
-    if args.indirect_bp_type:
-        indirectBPClass = ObjectList.indirect_bp_list.get(
-            args.indirect_bp_type
-        )
-        system.cpu[i].branchPred.indirectBranchPred = indirectBPClass()
-
-    system.cpu[i].createThreads()
-
-if args.ruby:
-    Ruby.create_system(args, False, system)
-    assert args.num_cpus == len(system.ruby._cpu_ports)
-
-    system.ruby.clk_domain = SrcClockDomain(
-        clock=args.ruby_clock, voltage_domain=system.voltage_domain
-    )
-    for i in range(np):
-        ruby_port = system.ruby._cpu_ports[i]
-
-        # Create the interrupt controller and connect its ports to Ruby
-        # Note that the interrupt controller is always present but only
-        # in x86 does it have message ports that need to be connected
-        system.cpu[i].createInterruptController()
-
-        # Connect the cpu's cache ports to Ruby
-        ruby_port.connectCpuPorts(system.cpu[i])
-else:
-    MemClass = Simulation.setMemClass(args)
-    system.membus = SystemXBar()
-    system.system_port = system.membus.cpu_side_ports
-    CacheConfig.config_cache(args, system)
-    MemConfig.config_mem(args, system)
-    config_filesystem(system, args)
+# NHM-FIXME
+MemClass = Simulation.setMemClass(args)
+system.membus = SystemXBar()
+system.system_port = system.membus.cpu_side_ports
+CacheConfig.config_cache(args, system)
+MemConfig.config_mem(args, system)
+config_filesystem(system, args)
 
 system.workload = SEWorkload.init_compatible(mp0_path)
 
-if args.wait_gdb:
-    system.workload.wait_for_remote_gdb = True
+root = Root(full_system=False, system=system)
+m5.instantiate()
+exit_event = m5.simulate()
+print(exit_event, file=sys.stderr)
+exit(0)
+
+# Parse checkpoints file.
+simpoints = None
+with open(args.simpoints_json) as f:
+    simpoints = json.load(f)
+    simpoints = [types.SimpleNamespace(**simpoint) for simpoint in simpoints]
+    simpoints.sort(key=lambda simpoint: simpoint.inst_range[0])
 
 root = Root(full_system=False, system=system)
-Simulation.run(args, root, system, FutureClass)
+# Simulation.run(args, root, system, CPUClass)
+
+
+def get_simpoint_start_inst(simpoint: dict) -> int:
+    return max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
+
+
+cpu.simpoint_start_insts = [
+    get_simpoint_start_inst(simpoint) for simpoint in simpoints
+]
+print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
+m5.instantiate()
+
+for simpoint in simpoints:
+    exit_event = m5.simulate()
+    exit_cause = exit_event.getCause()
+    if exit_cause != "simpoint starting point found":
+        print(f"Unexpected exit cause: {exit_cause}", file=sys.stderr)
+        exit(1)
+    # path = os.path.join(args.checkpoint_dir, name)
+    path = f"cpt.{simpoint.name}"
+    m5.checkpoint(path)
+    m5.stats.dump()
