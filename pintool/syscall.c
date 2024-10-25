@@ -98,6 +98,7 @@ int munmap(void *addr, size_t length) {
       "movl %1, %%eax\n"
       "movq %2, %%rdi\n"
       "movq %3, %%rsi\n"
+      "syscall\n"
       : "=a"(result)
       : "i"(SYS_munmap), "r"(addr), "r"(length));
   return set_errno(result);

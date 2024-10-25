@@ -694,6 +694,20 @@ CPU::handleSyscall()
 
     tc->getSystemPtr()->workload->syscall(tc);
 
+
+    // If we unmapped any pages, then tell pin that here.
+    MemState& mem_state = *tc->getProcessPtr()->memState;
+    for (Addr vaddr : mem_state.unmapped) {
+        DPRINTF(Pin, "Pin: unmapping vaddr %#x\n", vaddr);
+        Message msg;
+        msg.type = Message::Unmap;
+        msg.map.vaddr = vaddr;
+        msg.send(reqFd);
+        msg.recv(respFd);
+        panic_if(msg.type != Message::Ack, "unexpected response\n");
+    }
+    mem_state.unmapped.clear();
+
     // FIXME: Need to cleanly exit. 
 }
 

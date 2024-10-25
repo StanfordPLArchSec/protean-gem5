@@ -37,6 +37,7 @@ struct Message
 	Exit,
         GetRegs,
         SetRegs,
+        Unmap,
         NumTypes
     } type;
     union

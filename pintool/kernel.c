@@ -144,6 +144,18 @@ void main_event_loop(void) {
             }
             break;
 
+          case Unmap:
+            {
+                if (munmap((void *) msg.map.vaddr, 0x1000) < 0) {
+                    printf_("error: munmap failed (%d): vaddr=%p\n", errno, msg.map.vaddr);
+                    pinop_abort();
+                }
+                printf_("unmapped page: %p\n", (void*) msg.map.vaddr);
+                msg.type = Ack;
+                msg_write(&msg);
+            }
+            break;
+
           case Run:
             {
                 printf("KERNEL handling RUN request\n");

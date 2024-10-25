@@ -194,6 +194,10 @@ MemState::unmapRegion(Addr start_addr, Addr length)
     Addr end_addr = start_addr + length;
     const AddrRange range(start_addr, end_addr);
 
+    // HACK: Pin: mark unmapped pages.
+    for (Addr addr = start_addr; addr < end_addr; addr += 0x1000)
+        unmapped.push_back(addr);
+
     auto vma = std::begin(_vmaList);
     while (vma != std::end(_vmaList)) {
         if (vma->isStrictSuperset(range)) {
@@ -290,6 +294,10 @@ MemState::remapRegion(Addr start_addr, Addr new_start_addr, Addr length)
 {
     Addr end_addr = start_addr + length;
     const AddrRange range(start_addr, end_addr);
+
+    // HACK: Pin: mark all remapped pages as unmapped.
+    for (Addr addr = start_addr; addr < end_addr; addr += 0x1000)
+        unmapped.push_back(addr);
 
     auto vma = std::begin(_vmaList);
     while (vma != std::end(_vmaList)) {
