@@ -262,7 +262,9 @@ HandleCPUID(CONTEXT *ctx, ADDRINT next_pc)
 static ADDRINT
 HandleFSGSAccess(ADDRINT effaddr)
 {
+#if 0
     dbgs() << "Translating FS/GS access: 0x" << effaddr << "\n";
+#endif
     return effaddr;
 }
 
