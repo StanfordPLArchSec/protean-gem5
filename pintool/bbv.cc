@@ -61,9 +61,11 @@ static void DumpInterval() {
     ++num_intervals;
 }
 
-static void HandleBlock(Block *block) {
-    ++block->hits;
-    inst_count += block->size;
+static void
+HandleBlock(unsigned long& hits, uint32_t size)
+{
+    ++hits;
+    inst_count += size;
     if (inst_count >= interval_size) {
         // Interval reached.
         DumpInterval();
@@ -100,7 +102,10 @@ static void Trace(TRACE trace, void *) {
         }
         assert(block.size == BBL_NumIns(bbl));
 
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) HandleBlock, IARG_ADDRINT, &block, IARG_END);
+        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) HandleBlock,
+                       IARG_PTR, &block.hits,
+                       IARG_UINT32, block.size,
+                       IARG_END);
     }
 }
 
@@ -115,8 +120,6 @@ bbv_register()
 {
     if (!EnableBBV.Value())
         return true;
-
-    PIN_InitSymbols();
 
     if (OutputFile.Value().empty()) {
         std::cerr << "pinpoints: -o: required\n";
