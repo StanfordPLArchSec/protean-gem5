@@ -75,6 +75,9 @@ static void Fini(int32_t exit_code, void *) {
     std::exit(EXIT_FAILURE);
   }
   out.close();
+
+  std::ofstream call_count_f("f2i.callcount.txt");
+  call_count_f << func_count_cur << std::endl;
 }
 
 bool

@@ -113,6 +113,9 @@ static void Fini(int32_t code, void *) {
     out << "# func-total " << func_count_end << std::endl;
     out << "# total-insts " << get_total_insts() << std::endl;
     out.close();
+
+    std::ofstream call_count_os("bbv.callcount.txt");
+    call_count_os << func_count_end << std::endl;
 }
 
 bool 
