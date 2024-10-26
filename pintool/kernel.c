@@ -22,6 +22,11 @@
 #endif
 #define printf(...) do { } while (0)
 
+#define err(fmt, ...)                           \
+  do {                                          \
+    printf_("error: " fmt " (%d)\n" __VA_OPT__(,) __VA_ARGS__, errno);    \
+  } while (0)
+
 // FIXME: Virtual
 #define vsyscall_base 0xffffffffff600000ULL
 #define vsyscall_end (vsyscall_base + 0x1000)
@@ -29,7 +34,7 @@
 static void
 do_assert_failure(const char *file, int line, const char *desc)
 {
-    printf("%s:%d: assertion failed: %s\n", file, line, desc);
+    printf_("%s:%d: assertion failed: %s\n", file, line, desc);
 }
 
 #define assert(pred) \
@@ -37,7 +42,6 @@ do_assert_failure(const char *file, int line, const char *desc)
     if (!(pred))                                        \
         do_assert_failure(__FILE__, __LINE__, #pred);   \
     } while (false)
-
 
 
 static const char *prog;
@@ -53,7 +57,7 @@ void read_all(int fd, void *data_, size_t size) {
     while (size) {
         const ssize_t bytes_read = read(fd, data, size);
         if (bytes_read < 0) {
-            printf("error: read failed (%d)\n", errno);
+            err("read", errno);
             pinop_abort();
         }
         data += bytes_read;
@@ -66,7 +70,7 @@ void write_all(int fd, const void *data_, size_t size) {
     while (size) {
         const ssize_t bytes_written = write(fd, data, size);
         if (bytes_written < 0) {
-            printf("error: write failed (%d)\n", errno);
+            err("write");
             pinop_abort();
         }
         data += bytes_written;
@@ -125,17 +129,19 @@ void main_event_loop(void) {
                     is_vsyscall = true;
                 }
                 
+                // printf_("mapping page: %p->%p 0x%lx\n", (void *) msg.map.vaddr, (void *) msg.map.paddr, msg.map.size);
                 void *map;
-                if ((map = mmap((void *) msg.map.vaddr, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC,
+                if ((map = mmap((void *) msg.map.vaddr, msg.map.size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                 MAP_SHARED | MAP_FIXED, mem_fd, msg.map.paddr)) == MAP_FAILED) {
-                    printf("error: mmap failed (%d): vaddr=%p\n", errno, msg.map.vaddr);
+                    err("mmap failed: vaddr=%p\n", msg.map.vaddr);
                     pinop_abort();
                 }
                 if (map != (void *) msg.map.vaddr) {
-                    printf("error: mmap mapped wrong address\n");
+                    printf_("error: mmap mapped wrong address\n");
                     pinop_abort();
                 }
-                printf("mapped page: %p->%p (first byte: %02hhx)\n", (void *) msg.map.vaddr, (void *) msg.map.paddr, * (uint8_t *) map);
+                printf_("mapped page: %p->%p %p\n", (void *) msg.map.vaddr, (void *) msg.map.paddr, (void *) msg.map.size);
+                // printf_("first byte: %02hhx\n", * (uint8_t *) map);
                 if (is_vsyscall) {
                     pinop_set_vsyscall_base((void *) vsyscall_base, map);
                 }
@@ -206,7 +212,7 @@ void main_event_loop(void) {
             exit(0);
 
           default:
-            printf("error: bad message type (%d)\n", msg.type);
+            printf_("error: bad message type (%d)\n", msg.type);
             pinop_abort();
         }
 
@@ -214,9 +220,36 @@ void main_event_loop(void) {
     }
 }
 
+void main2(void);
+void switch_stacks(void *new_stack, void (*f)(void));
 void main(void) {
-    char path[256];
+    // Switch stacks.
+    printf_("Switching stacks...\n");
+    const uint64_t stack_base = 0xcafe0000000;
+    const uint64_t stack_size = 0x1000 * 32;
+    void *stack;
+    if ((stack = mmap((void *) stack_base, stack_size,
+                      PROT_READ | PROT_WRITE,
+                      MAP_PRIVATE | MAP_ANON, -1, 0)) == MAP_FAILED) {
+        printf_("error: failed to map stack (errno=%d)\n", errno);
+        pinop_abort();
+    }
+    switch_stacks((uint8_t *) stack + stack_size, main2); 
+}
 
+__attribute__((naked))
+void switch_stacks(void *new_stack, void (*f)(void)) {
+    asm volatile ("mov %rsp, -8(%rdi)\n" // Save old stack.
+                  "mov %rdi, %rsp\n" // Set to new stack.
+                  "sub $8, %rsp\n"
+                  "call *%rsi\n"
+                  "mov (%rsp), %rsp\n"
+                  "ret\n"
+        );
+}
+
+void main2(void) {
+    char path[256];
     printf("KERNEL: starting up\n");
     
     // Open request file.
@@ -231,7 +264,7 @@ void main(void) {
     // Open response file.
     pinop_get_resppath(path, sizeof path);
     if ((resp_fd = open(path, O_WRONLY)) < 0) {
-        printf("error: open failed: %s (%d)\n", path, errno);
+        err("open: %s", path);
         pinop_abort();
     }
 
@@ -239,7 +272,7 @@ void main(void) {
     char mem_path[256];
     pinop_get_mempath(mem_path, sizeof mem_path);
     if ((mem_fd = open(mem_path, O_RDWR)) < 0) {
-        printf("error: open failed: %s (%d)\n", mem_path, errno);
+        err("open: %s", mem_path);
         pinop_abort();
     }
 
