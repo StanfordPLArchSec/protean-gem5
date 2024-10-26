@@ -298,6 +298,20 @@ class MemState : public Serializable
     // Don't need to track which pages have been mapped,
     // since we lazily handle that with segfaults in Pin.
     std::vector<Addr> unmapped;
+
+    VMA *
+    getVMA(Addr vaddr)
+    {
+        auto vma_it = std::find_if(_vmaList.begin(), _vmaList.end(),
+                                   [vaddr] (const VMA& vma) -> bool {
+                                       return vma.contains(vaddr);
+                                   });
+        if (vma_it == _vmaList.end()) {
+            return nullptr;
+        } else {
+            return &*vma_it;
+        }
+    }
 };
 
 } // namespace gem5

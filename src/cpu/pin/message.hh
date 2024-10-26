@@ -47,6 +47,7 @@ struct Message
             // TODO: Use gem5 Addr.
             uint64_t vaddr;
             uint64_t paddr;
+            uint64_t size;
         } map; // For Type::Map
 
         struct

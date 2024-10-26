@@ -638,16 +638,101 @@ CPU::handlePageFault(Addr vaddr)
     DPRINTF(Pin, "vaddr=%x\n", vaddr);
     assert(vaddr);
     vaddr &= ~ (Addr) 0xfff;
+
+    // New approach:
+    // Just start grabbing mappings until they aren't mergeable.
+    struct Entry {
+        Addr vaddr;
+        Addr paddr;
+        size_t size;
+    };
+    std::list<Entry> mappings;
+    MemState& mem_state = *tc->getProcessPtr()->memState;
+    size_t size = 0x1000;
+    if (VMA *vma = mem_state.getVMA(vaddr)) {
+        vaddr = vma->start();
+        size = vma->size();
+    }
+    DPRINTF(Pin, "Preparing to map starting at vaddr=%#x size=%#x\n",
+            vaddr, size);
+    const auto ptr = tc->getMMUPtr()->translateFunctional(vaddr, size, tc, BaseMMU::Read, 0);
+    for (const TranslationGen::Range& range : *ptr) {
+        panic_if(range.fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", range.vaddr, range.fault->name());
+        Entry entry;
+        entry.vaddr = range.vaddr;
+        entry.paddr = range.paddr;
+        entry.size = range.size;
+        mappings.push_back(entry);
+    }
+
+#if 0
+    // Find the VMA entry containing this address.
+    MemState& mem_state = *tc->getProcessPtr()->memState;
+    VMA& vma = mem_state.getVMA(vaddr);
+    struct Entry {
+        Addr vaddr;
+        Addr paddr;
+        size_t size;
+    };
+    std::list<Entry> mappings;
+    for (const TranslationGen::Range& range : *tc->getMMUPtr()->translateFunctional(vma.start(), vma.size(), tc, BaseMMU::Read, 0)) {
+        panic_if(range.fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", range.vaddr, range.fault->name());
+        Entry entry;
+        entry.vaddr = range.vaddr;
+        entry.paddr = range.paddr;
+        entry.size = range.size;
+        mappings.push_back(entry);
+    }
+
+#endif
+
+    // Combine into ranges.
+    assert(!mappings.empty());
+    for (auto it1 = mappings.begin(); std::next(it1) != mappings.end(); ) {
+        const auto it2 = std::next(it1);
+
+        // Can we combine the entries pointed to by it1 and it2?
+        Entry& e1 = *it1;
+        Entry& e2 = *it2;
+        assert(e1.vaddr + e1.size == e2.vaddr);
+        if (e1.paddr + e1.size == e2.paddr) {
+            // Yes, can combine!
+            e1.size += e2.size;
+            mappings.erase(it2);
+        } else {
+            // No, we can't combine, so advance.
+            ++it1;
+        }
+    }
+
+    // Send ranges over.
+    for (const Entry &e : mappings) {
+        DPRINTF(Pin, "Mapping vaddr=%#x paddr=%#x size=%#x\n",
+                e.vaddr, e.paddr, e.size);
+        Message msg;
+        msg.type = Message::Map;
+        msg.map.vaddr = e.vaddr;
+        msg.map.paddr = e.paddr;
+        msg.map.size = e.size;
+        msg.send(reqFd);
+        msg.recv(respFd);
+        panic_if(msg.type != Message::Ack, "unexpected response\n");        
+    }
+    
+#if 0
     const auto ptr = tc->getMMUPtr()->translateFunctional(vaddr, 0x1000, tc, BaseMMU::Read, 0);
     assert(ptr);
     bool handled = false;
     for (const TranslationGen::Range &range : *ptr) {
         DPRINTF(Pin, "Handling page fault: vaddr=%x paddr=%x size=%i fault=%s\n", range.vaddr, range.paddr, range.size, range.fault);
         assert(range.size == 0x1000);
-	if (range.fault != NoFault) {
+        if (range.fault != NoFault) {
             panic("Page fault: vaddr=%x fault=%s\n", range.vaddr, range.fault->name());
-	}
+        }
 
+        const MemState& mem_state = *tc->getProcessPtr()->memState;
+        const VMA& vma = mem_state.getVMA(vaddr);
+    
         Message msg;
         msg.type = Message::Map;
         msg.map.vaddr = range.vaddr;
@@ -660,6 +745,7 @@ CPU::handlePageFault(Addr vaddr)
     }
 
     panic_if(!handled, "didn't handle page fault\n");
+#endif
 }
 
 Tick
