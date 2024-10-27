@@ -100,6 +100,7 @@ parser.add_argument("--interval-size", required = True, type = int, help = "SimP
 # parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
+parser.add_argument("--symbol-blacklist", default="")
 args = parser.parse_args()
 
 process = get_process(args.cmd, args.args)
@@ -156,6 +157,7 @@ cpu.pinTool = args.pin_tool
 cpu.pinKernel = args.pin_kernel
 cpu.pinExe = args.pin
 cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
+cpu.symbolBlacklist = args.symbol_blacklist
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True

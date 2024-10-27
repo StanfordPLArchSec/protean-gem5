@@ -211,6 +211,12 @@ void main_event_loop(void) {
           case Exit:
             exit(0);
 
+          case AddSymbol:
+            pinop_add_symbol(msg.symbol.name, (void *) msg.symbol.vaddr);
+            msg.type = Ack;
+            msg_write(&msg);
+            break;
+
           default:
             printf_("error: bad message type (%d)\n", msg.type);
             pinop_abort();

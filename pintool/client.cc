@@ -13,6 +13,7 @@
 #include "ops.hh"
 #include "bbv.hh"
 #include "f2i.hh"
+#include "fhist.hh"
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
@@ -34,6 +35,7 @@ static std::unordered_set<ADDRINT> kernel_pages;
 static ADDRINT virtual_vsyscall_base = 0;
 static ADDRINT physical_vsyscall_base = 0;
 static uint64_t inst_count = 0;
+static std::unordered_map<ADDRINT, std::string> symbol_table;
 
 constexpr bool enable_pc_hist = false;
 
@@ -481,6 +483,23 @@ HandleOp_GET_REGS(PinRegFile *user_regfile_ptr)
 }
 
 static void
+HandleOp_ADD_SYMBOL(ADDRINT name_vptr, ADDRINT vaddr)
+{
+    const std::string name = CopyUserString(name_vptr);
+    symbol_table[vaddr] = name;
+    // FIXME: Disabled because it's high-overhead.
+    // Should instead add a new pinop so gem5 can control when this happens.
+    // PIN_RemoveInstrumentation(); // So that any analyses depending on symbols will get to re-analyze with symbols.
+}
+
+const std::string *
+GetSymbol(ADDRINT addr)
+{
+    const auto it = symbol_table.find(addr);
+    return it == symbol_table.end() ? nullptr : &it->second;
+}
+
+static void
 Instrument_Instruction_PinOps(INS ins, void *)
 {
     const ADDRINT pc = INS_Address(ins);
@@ -578,6 +597,13 @@ Instrument_Instruction_PinOps(INS ins, void *)
       case PinOp::OP_GET_REGS:
         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_GET_REGS,
                                  IARG_REG_VALUE, REG_RDI,
+                                 IARG_END);
+        break;
+
+      case PinOp::OP_ADD_SYMBOL:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_ADD_SYMBOL,
+                                 IARG_REG_VALUE, REG_RDI,
+                                 IARG_REG_VALUE, REG_RSI,
                                  IARG_END);
         break;
 
@@ -939,7 +965,8 @@ main(int argc, char *argv[])
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
 
     if (!bbv_register() ||
-        !f2i_register())
+        !f2i_register() ||
+        !fhist_register())
         return EXIT_FAILURE;
 
     INS_AddInstrumentFunction(Instruction, nullptr);

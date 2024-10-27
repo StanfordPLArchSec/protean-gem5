@@ -25,6 +25,7 @@ enum PinOp
     OP_GET_INSTCOUNT,
     OP_SET_REGS,
     OP_GET_REGS,
+    OP_ADD_SYMBOL,
     OP_COUNT,
 };
 
@@ -66,3 +67,5 @@ uint64_t pinop_get_instcount(void);
 struct PinRegFile;
 void pinop_set_regs(const struct PinRegFile *regfile);
 void pinop_get_regs(struct PinRegFile *regfile);
+
+void pinop_add_symbol(const char *name, void *vaddr);

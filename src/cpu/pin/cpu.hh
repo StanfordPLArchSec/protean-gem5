@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "cpu/base.hh"
 
@@ -68,6 +69,7 @@ class CPU final : public BaseCPU
     std::string pinTool;
     std::vector<std::string> pinArgs;
     std::vector<std::string> pinToolArgs;
+    std::set<std::string> symbolBlacklist;
     
     // TODO: Consider abstracting the Pin process into its own class.
     pid_t pinPid;
@@ -114,6 +116,8 @@ class CPU final : public BaseCPU
     void handleCPUID();
 
     void haltContext();
+    void syncSymbols();
+    bool skipSymbol(const loader::Symbol& symbol) const;
 };
 
 }

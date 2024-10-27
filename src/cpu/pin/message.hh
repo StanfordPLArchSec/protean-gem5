@@ -38,6 +38,7 @@ struct Message
         GetRegs,
         SetRegs,
         Unmap,
+        AddSymbol,
         NumTypes
     } type;
     union
@@ -60,6 +61,11 @@ struct Message
         uint64_t faultaddr; // for PageFault
 
         struct PinRegFile regfile; // Valid for GetRegs, SetRegs.
+
+        struct {
+            char name[64];
+            uint64_t vaddr;
+        } symbol;
     };
 
     uint64_t inst_count; // Valid for all responses to RUN requests.

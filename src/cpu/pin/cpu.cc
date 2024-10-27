@@ -19,6 +19,7 @@
 #include "sim/faults.hh"
 #include "arch/x86/utility.hh"
 #include "cpu/pin/regfile.h"
+#include "base/loader/symtab.hh"
 
 namespace gem5
 {
@@ -87,6 +88,16 @@ CPU::CPU(const BasePinCPUParams &params)
         pinArgs.emplace_back(sv);
     for (std::string_view sv : split_by_spaces(params.pinToolArgs))
         pinToolArgs.emplace_back(sv);
+
+    // Parse symbol blacklist, if any.
+    if (!params.symbolBlacklist.empty()) {
+        std::ifstream is(params.symbolBlacklist);
+        panic_if(!is, "failed to open symbol blacklist: %s\n",
+                 params.symbolBlacklist);
+        std::string symbol;
+        while (is >> symbol)
+            symbolBlacklist.insert(symbol);
+    }
 }
 
 void
@@ -344,6 +355,9 @@ CPU::startup()
 
     // Copy over initial state.
     syncStateToPin(true);
+
+    // Copy over symbols.
+    syncSymbols();
 }
 
 void
@@ -824,6 +838,46 @@ CPU::handleCPUID()
     tc->setReg(X86ISA::int_reg::Rbx, result.rbx);
     tc->setReg(X86ISA::int_reg::Rdx, result.rdx);
     tc->setReg(X86ISA::int_reg::Rcx, result.rcx);
+}
+
+bool
+CPU::skipSymbol(const loader::Symbol& symbol) const
+{
+    if (symbol.type() != loader::Symbol::SymbolType::Function)
+        return true;
+    
+    const std::string& s = symbol.name();
+
+    auto it = symbolBlacklist.upper_bound(s);
+    if (it == symbolBlacklist.begin())
+        return false;
+    --it;
+
+    // At this point, it points to a string that is less than or equal to
+    // the symbol name.
+
+    if (it->size() > s.size())
+        return false;
+
+    return std::equal(it->begin(), it->end(), s.begin());
+}
+
+void
+CPU::syncSymbols()
+{
+    for (const loader::Symbol& symbol : loader::debugSymbolTable) {
+        if (skipSymbol(symbol))
+            continue;
+
+        DPRINTF(Pin, "Adding symbol %#x %s\n", symbol.address(), symbol.name());
+        Message msg;
+        msg.type = Message::AddSymbol;
+        std::snprintf(msg.symbol.name, sizeof msg.symbol.name, "%s", symbol.name().c_str());
+        msg.symbol.vaddr = symbol.address();
+        msg.send(reqFd);
+        msg.recv(respFd);
+        panic_if(msg.type != Message::Ack, "unexpected response!\n");
+    }
 }
 
 }

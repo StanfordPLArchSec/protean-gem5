@@ -52,7 +52,7 @@ DynamicCall()
 static void
 StaticCall(INS ins, void *)
 {
-    if (INS_IsCall(ins) && !IsKernelCode(ins))
+    if (GetSymbol(INS_Address(ins)))
         INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) DynamicCall, IARG_END);
 }
 

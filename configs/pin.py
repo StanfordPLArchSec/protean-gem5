@@ -98,7 +98,9 @@ parser.add_argument(
 )
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
-parser.add_argument("--pin-args", default='')
+parser.add_argument("--pin-args", default="")
+parser.add_argument("--pin-tool-args", default="")
+parser.add_argument("--symbol-blacklist", default="")
 args = parser.parse_args()
 
 process = get_process(args.cmd, args.args)
@@ -155,6 +157,8 @@ cpu.pinTool = args.pin_tool
 cpu.pinKernel = args.pin_kernel
 cpu.pinExe = args.pin
 cpu.pinArgs = args.pin_args
+cpu.pinToolArgs = args.pin_tool_args
+cpu.symbolBlacklist = args.symbol_blacklist
 # cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
 
 # for cpu in system.cpu:

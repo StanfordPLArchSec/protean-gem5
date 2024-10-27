@@ -22,12 +22,13 @@ class BasePinCPU(BaseCPU):
     pinToolArgs = Param.String("", "Arguments to pass to PinTool")
     pinArgs = Param.String("", "Arguments to pass to Pin")
     
-    countInsts = Param.Bool(True, "Enable instruction counting (moderate performance penalty)")
+    countInsts = Param.Bool(False, "Enable instruction counting (moderate performance penalty)")
     traceInsts = Param.Bool(False, "Enable instruction tracing (huge performance penalty)")
     enableBBV = Param.Bool(False, "Enable basic block profiling (e.g., for SimPoints)")
-    interval = Param.Unsigned(10000000, "Basic block profiling interval (default: 10M instructions)")
+    interval = Param.Unsigned(50000000, "Basic block profiling interval (default: 50M instructions)")
+
+    symbolBlacklist = Param.String("", "Path to symbol blacklist")
 
     def addSimPointProbe(self, interval: int):
         self.enableBBV = True
         self.interval = interval
-        
