@@ -222,6 +222,8 @@ class X86StaticInst : public StaticInst
         ret_pc_ptr->as<PCState>().uEnd();
         return std::unique_ptr<PCStateBase>{ret_pc_ptr};
     }
+
+    bool annotatedDest(int dest_idx) const override;
 };
 
 } // namespace X86ISA

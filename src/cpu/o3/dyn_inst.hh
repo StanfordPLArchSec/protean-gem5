@@ -1291,6 +1291,9 @@ class DynInst : public ExecContext, public RefCounted
 
     /** [TPE, STT, SPT] Is this instruction a speculation primitive? */
     bool isSpeculationPrimitive() const;
+
+    /** [SPT] Annotations. */
+    bool annotatedDest(int dest_idx) const;
 };
 
 } // namespace o3

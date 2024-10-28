@@ -68,6 +68,7 @@
 #include "debug/ShadowL1.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include "debug/Annotations.hh"
 
 namespace gem5
 {
@@ -167,7 +168,18 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
       ADD_STAT(committedInstType, statistics::units::Count::get(),
                "Class of committed instruction"),
       ADD_STAT(commitEligibleSamples, statistics::units::Cycle::get(),
-               "number cycles where commit BW limit reached")
+               "number cycles where commit BW limit reached"),
+      ADD_STAT(committedAnnotationsCount, statistics::units::Count::get(),
+               "number of annotated registers that were committed"),
+      ADD_STAT(committedUnprotectedAnnotationsCount,
+               statistics::units::Count::get(),
+               "number of annotated and unprotected registers "
+               "that were committed"),
+      ADD_STAT(committedUnprotectedAnnotationsRate,
+               statistics::units::Rate<statistics::units::Count,
+               statistics::units::Count>::get(),
+               "fraction of committed, annotated registers that were "
+               "unprotected")
 {
     using namespace statistics;
 
@@ -196,6 +208,10 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
         .flags(total | pdf | dist);
 
     committedInstType.ysubnames(enums::OpClassStrings);
+
+    committedUnprotectedAnnotationsRate.precision(6);
+    committedUnprotectedAnnotationsRate =
+        committedUnprotectedAnnotationsCount / committedAnnotationsCount;
 }
 
 void
@@ -1402,6 +1418,18 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     // If this was a store, record it for this cycle.
     if (head_inst->isStore() || head_inst->isAtomic())
         committedStores[tid] = true;
+
+    // [SPT] Annotations + stats recording.
+    for (int dest_idx = 0; dest_idx < head_inst->numDests(); ++dest_idx) {
+        if (head_inst->annotatedDest(dest_idx)) {
+            DPRINTF(Annotations, "annotated %s public: %s\n", head_inst->destRegIdx(dest_idx), head_inst->staticInst->disassemble(0));
+
+            // Is this register unprotected?
+            ++stats.committedAnnotationsCount;
+            if (!head_inst->isDestIdxTainted(dest_idx))
+                ++stats.committedUnprotectedAnnotationsCount;
+        }
+    }
 
     // Return true to indicate that we have committed an instruction.
     return true;

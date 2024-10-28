@@ -495,6 +495,11 @@ class Commit
 
         /** Number of cycles where the commit bandwidth limit is reached. */
         statistics::Scalar commitEligibleSamples;
+
+        /** [SPT] Number of retired annotated registers. */
+        statistics::Scalar committedAnnotationsCount;
+        statistics::Scalar committedUnprotectedAnnotationsCount;
+        statistics::Formula committedUnprotectedAnnotationsRate;
     } stats;
 };
 

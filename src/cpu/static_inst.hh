@@ -397,7 +397,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
 
     // Rutvik, SPT
     virtual uint8_t getDataSize() const { return 0; }
-    virtual uint8_t getAddrSize() const { return 0; }    
+    virtual uint8_t getAddrSize() const { return 0; }
+
+    virtual bool annotatedDest(int dest_idx) const { panic("unimplemented!"); }
 };
 
 } // namespace gem5

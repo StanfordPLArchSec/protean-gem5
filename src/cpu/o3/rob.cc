@@ -49,6 +49,7 @@
 #include "debug/ROB.hh"
 #include "params/BaseO3CPU.hh"
 #include "debug/SPT.hh"
+#include "debug/Annotations.hh"
 
 namespace gem5
 {
@@ -274,6 +275,11 @@ ROB::retireHead(ThreadID tid)
 
     head_inst->clearInROB();
     head_inst->setCommitted();
+
+    // [SPT] Debugging stuff.
+    for (int dest_idx = 0; dest_idx < head_inst->numDests(); ++dest_idx)
+        if (head_inst->annotatedDest(dest_idx))
+            DPRINTF(Annotations, "annotated %s public: %s\n", head_inst->destRegIdx(dest_idx), head_inst->staticInst->disassemble(0));
 
     //Update "Global" Head of ROB
     updateHead();

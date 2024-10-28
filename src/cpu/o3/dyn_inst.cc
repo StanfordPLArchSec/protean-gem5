@@ -815,5 +815,11 @@ DynInst::fenceDelay(bool f)
     instFlags[ReadyToExpose] = f;
 }
 
+bool
+DynInst::annotatedDest(int dest_idx) const
+{
+    return staticInst->annotatedDest(dest_idx);
+}
+
 } // namespace o3
 } // namespace gem5

@@ -301,5 +301,19 @@ X86StaticInst::generateDisassembly(
     return ss.str();
 }
 
+bool
+X86StaticInst::annotatedDest(int dest_idx) const
+{
+    // Is there an annotation 'DS' prefix?
+    if (machInst.legacy.seg != DSOverride)
+        return false;
+
+    // Is this an integer register?
+    if (!destRegIdx(dest_idx).is(IntRegClass))
+        return false;
+
+    return true;
+}
+
 } // namespace X86ISA
 } // namespace gem5
