@@ -57,14 +57,18 @@ class SMTQueuePolicy(ScopedEnum):
 class CommitPolicy(ScopedEnum):
     vals = ["RoundRobin", "OldestReady"]
 
+
 class SpeculationModel(ScopedEnum):
     vals = ["None", "Ctrl", "CtrlSt", "Futuristic", "AtRet"]
+
 
 class DeclassifyMode(ScopedEnum):
     vals = ["None", "ShadowL1", "ShadowMem"]
 
+
 class TPTMode(ScopedEnum):
     vals = ["Naive", "Ideal", "YRoT", "None"]
+
 
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
@@ -203,10 +207,12 @@ class BaseO3CPU(BaseCPU):
         "Futuristic", "[TPE, STT, SPT] Speculation model"
     )
     ptexMem = Param.DeclassifyMode(
-        "ShadowL1", "[PTeX] Memory declassification implementation",
+        "ShadowL1",
+        "[PTeX] Memory declassification implementation",
     )
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
+    sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")
     implicitChannel = Param.Bool(True, "If handling implicit channel")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
     tptMode = Param.TPTMode("Naive", "TPT Mode")

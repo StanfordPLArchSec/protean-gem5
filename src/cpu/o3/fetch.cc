@@ -944,7 +944,9 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
         if (fromCommit->commitInfo[tid].mispredictInst &&
             fromCommit->commitInfo[tid].mispredictInst->isControl()) {
 
-            if ((cpu->stt && cpu->impChannel) && fromCommit->commitInfo[tid].mispredictInst->isArgsTainted()) { 
+            const DynInstPtr &mispredict_inst = fromCommit->commitInfo[tid].mispredictInst;
+            if (cpu->stt && cpu->impChannel &&
+                (mispredict_inst->isArgsTainted() || mispredict_inst->inputProtection() == Protected)) {
                 // the squashed branch is tainted, which we must delay
                 DelayedSquashReq delayedReq;
                 delayedReq.misp_inst   = fromCommit->commitInfo[tid].mispredictInst;
@@ -981,7 +983,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
             for (auto it = delayedSquashReqList.delayedSquashes[tid].begin();
                       it != delayedSquashReqList.delayedSquashes[tid].end();
                       it++) {
-                if (!it->misp_inst->isArgsTainted()) {
+                if (!it->misp_inst->isArgsTainted() && it->misp_inst->inputProtection() != Protected) {
                     branchPred->squash(it->doneSeqNum,
                                        *it->pc,
                                        it->branchTaken,

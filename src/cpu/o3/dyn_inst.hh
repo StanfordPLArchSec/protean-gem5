@@ -265,7 +265,7 @@ class DynInst : public ExecContext, public RefCounted
     Protection *_destProt;
 
     // [STT] Arg producers
-    DynInstPtr *_argProducers;    
+    DynInstPtr *_argProducers;
 
   public:
     size_t numSrcs() const { return _numSrcs; }
@@ -631,10 +631,6 @@ class DynInst : public ExecContext, public RefCounted
         return staticInst->isSerializeAfter() || status[SerializeAfter];
     }
 
-    // [Jiyong,STT] The following are STT status
-    /// Instruction is an access instruction(root of taint)    
-    bool isAccess() const;
-
     bool isSquashAfter() const { return staticInst->isSquashAfter(); }
     bool isFullMemBarrier()   const { return staticInst->isFullMemBarrier(); }
     bool isReadBarrier() const { return staticInst->isReadBarrier(); }
@@ -838,7 +834,7 @@ class DynInst : public ExecContext, public RefCounted
 
     void removeFromStallList() { status.reset(InStallList); }
 
-    bool isInStallList() const { return status[InStallList]; }    
+    bool isInStallList() const { return status[InStallList]; }
 
     /** Sets this instruction as issued from the IQ. */
     void setIssued() { status.set(Issued); }

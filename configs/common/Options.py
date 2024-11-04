@@ -708,14 +708,26 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     )
 
     # [TPT]
-    parser.add_argument("--tpt", action="store_true",
-            help="[TPT] Enable")
-    parser.add_argument("--implicit-channel", action="store_true",
-            help="[TPT] Whether enabling defense mechanism for implicit channel")
-    parser.add_argument("--more-transmit-insts", default=1, action="store", type=int,
-            help="[TPT] Include more transmit instruction types.")
-    parser.add_argument("--tpt-mode", choices=["None", "Naive", "Ideal", "YRoT"], default="Ideal",
-                        help="[TPT] TPT mode")
+    parser.add_argument("--tpt", action="store_true", help="[TPT] Enable")
+    parser.add_argument(
+        "--implicit-channel",
+        action="store_true",
+        help="[TPT] Whether enabling defense mechanism for implicit channel",
+    )
+    parser.add_argument(
+        "--more-transmit-insts",
+        default=0,
+        action="store",
+        type=int,
+        help="[TPT] Include more transmit instruction types.",
+    )
+    parser.add_argument(
+        "--tpt-mode",
+        choices=["None", "Naive", "Ideal", "YRoT"],
+        default="Ideal",
+        help="[TPT] TPT mode",
+    )
+
 
 def addSEOptions(parser):
     # Benchmark options

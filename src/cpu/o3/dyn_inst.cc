@@ -544,7 +544,7 @@ DynInst::isSpeculationPrimitive() const
         // speculation primitives. Thus, all instructions except for the head of
         // the ROB are considered speculative.
         return true;
-        
+
       default:
         panic("unreachable!\n");
     }
@@ -633,12 +633,6 @@ DynInst::computeDestProtection(unsigned dest_idx) const
 }
 
 bool
-DynInst::isAccess() const
-{
-    return staticInst->isLoad() && loadProtection() == Unprotected;
-}
-
-bool
 DynInst::isMemTaintPrimitive() const
 {
     assert(isLoad());
@@ -649,7 +643,7 @@ DynInst::isMemTaintPrimitive() const
       case TPTMode::None:
         // Treat all speculative loads as taint primitives (vanilla STT).
         return true;
-        
+
       case TPTMode::Naive:
         // Naively treat all unprotected loads as taint primitives.
         return loadProtection() == Unprotected;

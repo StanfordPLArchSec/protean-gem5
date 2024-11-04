@@ -621,8 +621,20 @@ void
 ROB::address_flow(ThreadID tid, DynInstPtr &inst)
 {
     if (inst->isMemRef()) {
+
+        auto check_src_prot = [&] (size_t src_idx) -> bool {
+            return inst->srcProt(src_idx) == Protected && !inst->isUnsquashable();
+        };
+
         if (inst->isStore()) {
             for (int i = 1; i < inst->numSrcRegs(); i++){
+
+                // [TPT] If the addr source is protected.
+                if (check_src_prot(i)) {
+                    inst->isAddrTainted(true);
+                    return;
+                }
+
                 if (inst->getArgProducer(i)) {
                     DynInstPtr argProducer = inst->getArgProducer(i);
                     assert(argProducer->threadNumber == tid);
@@ -636,6 +648,13 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
         }
         else if (inst->isLoad()) {
             for (int i = 0; i < inst->numSrcRegs(); i++){
+
+                // [TPT] Check if the addr source is protected.
+                if (check_src_prot(i)) {
+                    inst->isAddrTainted(true);
+                    return;
+                }
+
                 if (inst->getArgProducer(i)) {
                     DynInstPtr argProducer = inst->getArgProducer(i);
                     assert(argProducer->threadNumber == tid);

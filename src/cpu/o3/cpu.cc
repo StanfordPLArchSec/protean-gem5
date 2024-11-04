@@ -330,12 +330,13 @@ CPU::CPU(const BaseO3CPUParams &params)
 
     /*** [STT] additional configurations ***/
     tpt = params.tpt;
+    sttBugfixes = params.sttBugfixes;
     impChannel = params.implicitChannel;
     moreTransmitInsts = params.moreTransmitInsts;
     assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
     tptMode = params.tptMode;
-    cprintf("applySTT = %d, implicit_channel = %d, moreTransmitInsts = %d\n",
-            stt, impChannel, moreTransmitInsts);
+    cprintf("applySTT = %d, implicit_channel = %d, moreTransmitInsts = %d bugfixes=%d\n",
+            stt, impChannel, moreTransmitInsts, sttBugfixes);
 }
 
 void

@@ -47,6 +47,7 @@ isa_string_map = {
     ISA.MIPS: "Mips",
 }
 
+
 def config_etrace(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         # Assign the same file name to all cpus for now. This must be
@@ -74,6 +75,7 @@ def config_etrace(cpu_cls, cpu_list, options):
             " type or inherited from DerivO3CPU.",
             cpu_cls,
         )
+
 
 # [TPE, STT, SPT] Common O3 CPU parameters.
 def config_scheme(cpu_cls, cpu_list, options):
