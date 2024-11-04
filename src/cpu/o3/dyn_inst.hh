@@ -1206,6 +1206,8 @@ class DynInst : public ExecContext, public RefCounted
 
     /** [TPE, STT, SPT] Is this instruction a speculation primitive? */
     bool isSpeculationPrimitive() const;
+
+    std::string disassembleWithProt() const;
 };
 
 } // namespace o3

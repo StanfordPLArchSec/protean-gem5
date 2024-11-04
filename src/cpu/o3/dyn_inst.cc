@@ -596,5 +596,27 @@ DynInst::computeDestProtection(unsigned dest_idx) const
     return Unprotected;
 }
 
+std::string
+DynInst::disassembleWithProt() const
+{
+    std::stringstream ss;
+    ss << staticInst->disassemble(pcState().instAddr());
+
+    auto print_op = [&] (const RegId &reg, Protection prot) {
+        ss << ' ';
+        if (prot == Protected)
+            ss << '*';
+        ss << reg;
+    };
+    ss << " :: [srcs]";
+    for (size_t src_idx = 0; src_idx < numSrcRegs(); ++src_idx)
+        print_op(srcRegIdx(src_idx), srcProt(src_idx));
+    ss << " :: [dests]";
+    for (size_t dest_idx = 0; dest_idx < numDestRegs(); ++dest_idx)
+        print_op(destRegIdx(dest_idx), destProt(dest_idx));
+
+    return ss.str();
+}
+
 } // namespace o3
 } // namespace gem5

@@ -74,6 +74,12 @@ class MemOp : public X86MicroopBase
             foldABit((addressSize == 1 && !mach_inst.rex.present) ? 1 << 6 : 0)
     {}
 
+    uint8_t
+    destDataSize() const override
+    {
+        return dataSize;
+    }
+
   public:
     const uint8_t dataSize;
     const uint8_t addressSize;
