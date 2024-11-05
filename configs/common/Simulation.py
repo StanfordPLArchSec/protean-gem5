@@ -688,6 +688,7 @@ def run(options, root, testsys, cpu_class):
         )
 
     checkpoint_dir = None
+    cpt_starttick = 0
     if options.checkpoint_restore:
         cpt_starttick, checkpoint_dir = findCptDir(options, cptdir, testsys)
     root.apply_config(options.param)

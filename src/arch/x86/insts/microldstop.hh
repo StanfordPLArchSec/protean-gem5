@@ -94,7 +94,7 @@ class MemOp : public X86MicroopBase
             return true;
         return false;
     }
-    
+
   public:
     const uint8_t dataSize;
     const uint8_t addressSize;
