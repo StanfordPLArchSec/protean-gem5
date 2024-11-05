@@ -727,6 +727,21 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         default="Ideal",
         help="[TPT] TPT mode",
     )
+    parser.add_argument(
+        "--tpt-reg",
+        action="store_true",
+        help="[TPT] Mitigate r-taint primitives",
+    )
+    parser.add_argument(
+        "--tpt-mem",
+        action="store_true",
+        help="[TPT] Mitigate m-taint primitives",
+    )
+    parser.add_argument(
+        "--tpt-xmit",
+        action="store_true",
+        help="[TPT] Mitigate x-taint primitives",
+    )
 
 
 def addSEOptions(parser):

@@ -39,6 +39,8 @@
 
 #include "arch/x86/regs/misc.hh"
 
+#include "debug/TPT.hh"
+
 namespace gem5
 {
 
@@ -132,6 +134,50 @@ X86MicroopBase::branchTarget(const PCStateBase &branch_pc) const
     xpc.npc(xpc.npc() + (int64_t)machInst.immediate);
     xpc.uEnd();
     return std::unique_ptr<PCStateBase>{pcs};
+}
+
+bool
+X86MicroopBase::destPartialFlags(unsigned dest_idx) const
+{
+    const RegId &dest_reg = destRegIdx(dest_idx);
+    if (!dest_reg.is(CCRegClass))
+        return false;
+
+    // Conservatively assume that flags are partially updated
+    // if it's also an input.
+    for (unsigned src_idx = 0; src_idx < numSrcRegs(); ++src_idx)
+        if (srcRegIdx(src_idx) == dest_reg)
+            return true;
+
+    // Otherwise, it's definitely not partially updated.
+    return false;
+}
+
+bool
+X86MicroopBase::destPartial(unsigned dest_idx) const
+{
+    const RegId &dest_reg = destRegIdx(dest_idx);
+    switch (dest_reg.classValue()) {
+      case IntRegClass:
+        {
+            const uint8_t size = destDataSize();
+            assert(size == 1 || size == 2 || size == 4 || size == 8);
+            return size < 4;
+        }
+      case CCRegClass:
+        return destPartialFlags(dest_idx);
+      case FloatRegClass:
+      case MiscRegClass:
+      case InvalidRegClass:
+        return false;
+
+      case VecRegClass:
+      case VecElemClass:
+      case VecPredRegClass:
+      case MatRegClass:
+      default:
+        panic("unrecognized regclass: %s\n", disassemble(0));
+    }
 }
 
 } // namespace X86ISA

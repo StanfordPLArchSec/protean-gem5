@@ -104,4 +104,11 @@ StaticInst::destPartial(unsigned dest_idx) const
     return !destRegIdx(dest_idx).isFlat();
 }
 
+bool
+StaticInst::srcTransmitted(int src_idx) const
+{
+    assert(!isMemRef());
+    return isControl();
+}
+
 } // namespace gem5

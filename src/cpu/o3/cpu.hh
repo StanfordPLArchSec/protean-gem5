@@ -617,6 +617,9 @@ class CPU : public BaseCPU
 
     // [TPT] Operating mode.
     TPTMode tptMode;
+
+    // [TPT] Enable r-taint, m-taint, x-taint primitives.
+    const bool tptReg, tptMem, tptXmit;
 };
 
 } // namespace o3

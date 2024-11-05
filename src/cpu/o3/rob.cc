@@ -602,7 +602,14 @@ ROB::updateVisibleState()
 void
 ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
 {
+    if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
+        inst->hasExplicitFlow(true);
+        return;
+    }
+        
     for (int i = 0; i < inst->numSrcRegs(); i++){
+        // TPT-TODO: Need to set hasExplicitFlow(true)
+        // if it's a protected transmitter.
         if (inst->getArgProducer(i)) {
             DynInstPtr argProducer = inst->getArgProducer(i);
             assert(argProducer->threadNumber == tid);
@@ -622,19 +629,15 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
 {
     if (inst->isMemRef()) {
 
-        auto check_src_prot = [&] (size_t src_idx) -> bool {
-            return inst->srcProt(src_idx) == Protected && !inst->isUnsquashable();
-        };
+        // [TPT] If the address operand itself is protected.
+        if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
+            inst->isAddrTainted(true);
+            return;
+        }
 
         if (inst->isStore()) {
+            // TPT-TODO: Fix bug here.
             for (int i = 1; i < inst->numSrcRegs(); i++){
-
-                // [TPT] If the addr source is protected.
-                if (check_src_prot(i)) {
-                    inst->isAddrTainted(true);
-                    return;
-                }
-
                 if (inst->getArgProducer(i)) {
                     DynInstPtr argProducer = inst->getArgProducer(i);
                     assert(argProducer->threadNumber == tid);
@@ -648,13 +651,6 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
         }
         else if (inst->isLoad()) {
             for (int i = 0; i < inst->numSrcRegs(); i++){
-
-                // [TPT] Check if the addr source is protected.
-                if (check_src_prot(i)) {
-                    inst->isAddrTainted(true);
-                    return;
-                }
-
                 if (inst->getArgProducer(i)) {
                     DynInstPtr argProducer = inst->getArgProducer(i);
                     assert(argProducer->threadNumber == tid);
@@ -708,7 +704,7 @@ ROB::compute_taint()
             if (!prev_taint_primitive)
               inst->setNoPrevTaintPrimitive();
 
-            if (inst->isTaintPrimitive()) {
+            if (inst->isTaintPrimitive() && !inst->isUnsquashable()) {
                 inst->isDestTainted(true);
                 prev_taint_primitive = true;
             }

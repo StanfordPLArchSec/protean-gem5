@@ -508,7 +508,12 @@ class Commit
         statistics::Scalar stalledBranchMispredicts;
         /** Stat for the total number of delayed memory violation squashes. */
         statistics::Scalar stalledMemoryViolations;
+
+        /** [TPT] */
+        statistics::Scalar regTaints, memTaints, xmitTaints;
     } stats;
+
+    static void printTaintDebug(const DynInstPtr &inst,  const char *type);
 };
 
 } // namespace o3

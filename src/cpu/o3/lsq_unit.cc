@@ -1711,10 +1711,6 @@ LSQUnit::updateVisibleState()
     //iterate all the loads and update its fencedelay state accordingly
     for (const LQEntry &load_ent : loadQueue) {
         const DynInstPtr &inst = load_ent.instruction();
-        // Sanity check: STT previously checked isArgsTainted(), not isAddrTainted().
-        // No clue why.
-        if (inst->isArgsTainted())
-            assert(inst->isAddrTainted());
         inst->fenceDelay(cpu->stt && inst->isAddrTainted());
     }
 

@@ -1284,10 +1284,13 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPE, STT, SPT] Is this instruction a speculation primitive? */
     bool isSpeculationPrimitive() const;
 
+    std::string disassembleWithProt() const;
+
     /** [TPT] Is this instruction an r-taint or m-taint primitive? */
     bool isTaintPrimitive() const;
     bool isMemTaintPrimitive() const;
     bool isRegTaintPrimitive() const;
+    bool isProtectedTransmitter() const;
 
     /** [TPT] Did a load read unprotected memory? */
     bool readUnprotectedMem() const { return instFlags[ReadUnprotectedMem]; }
@@ -1296,6 +1299,10 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPT] Is this the youngest taint primitive? */
     bool noPrevTaintPrimitive() const { return instFlags[NoPrevTaintPrimitive]; }
     void setNoPrevTaintPrimitive() { instFlags[NoPrevTaintPrimitive] = true; }
+
+    /** [TPT] Does this instruction transmit this source operand? */
+    bool srcTransmitted(int src_idx) const;
+    unsigned numValidDests() const;
 };
 
 } // namespace o3

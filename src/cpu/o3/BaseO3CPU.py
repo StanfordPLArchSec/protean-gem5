@@ -216,3 +216,6 @@ class BaseO3CPU(BaseCPU):
     implicitChannel = Param.Bool(True, "If handling implicit channel")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
     tptMode = Param.TPTMode("Naive", "TPT Mode")
+    tptReg = Param.Bool(True, "[TPT] Enable r-taint primitives")
+    tptMem = Param.Bool(True, "[TPT] Enable m-taint primitives")
+    tptXmit = Param.Bool(True, "[TPT] Enable x-taint primitives")

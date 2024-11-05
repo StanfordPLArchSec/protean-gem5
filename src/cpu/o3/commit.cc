@@ -66,6 +66,8 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include "debug/TPT.hh"
+#include "debug/TPTRetire.hh"
 
 namespace gem5
 {
@@ -169,7 +171,14 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
                "number cycles where commit BW limit reached"),
       ADD_STAT(memoryViolations, statistics::units::Cycle::get(), "Number of memory violations"),
       ADD_STAT(stalledBranchMispredicts, statistics::units::Cycle::get(), "Number of delayed branch squashes"),
-      ADD_STAT(stalledMemoryViolations, statistics::units::Cycle::get(), "Number of delayed memory violation squashes")
+      ADD_STAT(stalledMemoryViolations, statistics::units::Cycle::get(),
+               "Number of delayed memory violation squashes"),
+      ADD_STAT(regTaints, statistics::units::Count::get(),
+               "[TPT] Number of r-taint primitives"),
+      ADD_STAT(memTaints, statistics::units::Count::get(),
+               "[TPT] Number of m-taint primitives"),
+      ADD_STAT(xmitTaints, statistics::units::Count::get(),
+               "[TPT] Number of x-taint primitives")      
 {
     using namespace statistics;
 
@@ -1475,6 +1484,22 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->isStore() || head_inst->isAtomic())
         committedStores[tid] = true;
 
+    // [TPT] Taint primitive stats.
+    if (debug::TPTRetire)
+        printTaintDebug(head_inst, "retire");
+    if (head_inst->isRegTaintPrimitive()) {
+        stats.regTaints++;
+        printTaintDebug(head_inst, "reg");
+    }
+    if (head_inst->isMemTaintPrimitive()) {
+        stats.memTaints++;
+        printTaintDebug(head_inst, "mem");
+    }
+    if (head_inst->isProtectedTransmitter()) {
+        stats.xmitTaints++;
+        printTaintDebug(head_inst, "xmit");
+    }
+
     // Return true to indicate that we have committed an instruction.
     return true;
 }
@@ -1718,6 +1743,14 @@ Commit::oldestReady()
     } else {
         return InvalidThreadID;
     }
+}
+
+void
+Commit::printTaintDebug(const DynInstPtr &inst, const char *type)
+{
+    const Addr inst_addr = inst->pcState().instAddr();
+    DPRINTFR(TPT, "TPT %s %#x :: %s\n",
+             type, inst_addr, inst->disassembleWithProt());
 }
 
 } // namespace o3

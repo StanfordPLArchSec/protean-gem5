@@ -632,11 +632,35 @@ DynInst::computeDestProtection(unsigned dest_idx) const
     return Unprotected;
 }
 
+std::string
+DynInst::disassembleWithProt() const
+{
+    std::stringstream ss;
+    ss << staticInst->disassemble(pcState().instAddr());
+
+    auto print_op = [&] (const RegId &reg, Protection prot) {
+        ss << ' ';
+        if (prot == Protected)
+            ss << '*';
+        ss << reg;
+    };
+    ss << " :: [srcs]";
+    for (size_t src_idx = 0; src_idx < numSrcRegs(); ++src_idx)
+        print_op(srcRegIdx(src_idx), srcProt(src_idx));
+    ss << " :: [dests]";
+    for (size_t dest_idx = 0; dest_idx < numDestRegs(); ++dest_idx)
+        print_op(destRegIdx(dest_idx), destProt(dest_idx));
+
+    return ss.str();
+}
+
 bool
 DynInst::isMemTaintPrimitive() const
 {
-    assert(isLoad());
-    if (isUnsquashable())
+    if (!cpu->tptMem)
+        return false;
+
+    if (!isLoad())
         return false;
 
     switch (cpu->tptMode) {
@@ -666,11 +690,28 @@ DynInst::isMemTaintPrimitive() const
 bool
 DynInst::isRegTaintPrimitive() const
 {
-    assert(!isLoad());
+    if (!cpu->tptReg)
+        return false;
+
+    if (isLoad())
+        return false;
+
     return
-        !isUnsquashable() &&
         outputProtection() == Unprotected &&
         inputProtection() == Protected;
+}
+
+bool
+DynInst::isProtectedTransmitter() const
+{
+    if (!cpu->tptXmit)
+        return false;
+
+    for (int src_idx = 0; src_idx < numSrcs(); ++src_idx)
+        if (srcTransmitted(src_idx) && srcProt(src_idx) == Protected)
+            return true;
+
+    return false;
 }
 
 bool
@@ -681,6 +722,22 @@ DynInst::isTaintPrimitive() const
     } else {
         return isRegTaintPrimitive();
     }
+}
+
+bool
+DynInst::srcTransmitted(int src_idx) const
+{
+    return staticInst->srcTransmitted(src_idx);
+}
+
+unsigned
+DynInst::numValidDests() const
+{
+    unsigned n = 0;
+    for (unsigned i = 0; i < numDests(); ++i)
+        if (!destRegIdx(i).is(InvalidRegClass))
+            ++n;
+    return n;
 }
 
 } // namespace o3

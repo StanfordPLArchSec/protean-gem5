@@ -157,6 +157,17 @@ class X86MicroopBase : public X86StaticInst
 
     // Explicitly import the otherwise hidden branchTarget.
     using StaticInst::branchTarget;
+
+    bool destPartial(unsigned dest_idx) const override;
+
+    virtual uint8_t
+    destDataSize() const
+    {
+        panic("unimplemented: %s\n", disassemble(0));
+    }
+
+  private:
+    bool destPartialFlags(unsigned dest_idx) const;
 };
 
 class MicroCondBase : public X86MicroopBase
