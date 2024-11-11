@@ -338,8 +338,24 @@ CPU::CPU(const BaseO3CPUParams &params)
     moreTransmitInsts = params.moreTransmitInsts;
     assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
     tptMode = params.tptMode;
-    cprintf("applySTT = %d, implicit_channel = %d, moreTransmitInsts = %d bugfixes=%d\n",
-            stt, impChannel, moreTransmitInsts, sttBugfixes);
+
+    const char *imp_channel_str = nullptr;
+    switch (impChannel) {
+    case ImplicitChannelMode::None:
+      imp_channel_str = "none";
+      break;
+    case ImplicitChannelMode::Eager:
+      imp_channel_str = "eager";
+      break;
+    case ImplicitChannelMode::Lazy:
+      imp_channel_str = "lazy";
+      break;
+    default:
+      imp_channel_str = "(bad)";
+      break;
+    }
+    cprintf("applySTT = %d, implicit_channel = %s, moreTransmitInsts = %d bugfixes=%d\n",
+            stt, imp_channel_str, moreTransmitInsts, sttBugfixes);
 }
 
 void

@@ -711,7 +711,7 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     parser.add_argument("--tpt", action="store_true", help="[TPT] Enable")
     parser.add_argument(
         "--implicit-channel",
-        action="store_true",
+        choices=["None", "Eager", "Lazy"],
         help="[TPT] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(

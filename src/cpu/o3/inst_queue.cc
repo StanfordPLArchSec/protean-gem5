@@ -1440,7 +1440,7 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
 {
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
-    if (!(cpu->stt && cpu->moreTransmitInsts)) {
+    if (!cpu->stt) {
         if (inst->readyToIssue()) {
             //Add the instruction to the proper ready list.
             if (inst->isMemRef()) {
@@ -1472,8 +1472,7 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
                 addToOrderList(op_class);
             }
         }
-    }
-    else {
+    } else {
         if (inst->readyToIssue_UT()) {
             //Add the instruction to the proper ready list.
             if (inst->isMemRef()) {

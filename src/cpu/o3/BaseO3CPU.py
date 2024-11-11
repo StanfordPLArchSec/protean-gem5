@@ -69,6 +69,8 @@ class DeclassifyMode(ScopedEnum):
 class TPTMode(ScopedEnum):
     vals = ["Naive", "Ideal", "YRoT", "None"]
 
+class ImplicitChannelMode(ScopedEnum):
+    vals = ["None", "Eager", "Lazy"]
 
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
@@ -213,7 +215,7 @@ class BaseO3CPU(BaseCPU):
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
     sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")
-    implicitChannel = Param.Bool(True, "If handling implicit channel")
+    implicitChannel = Param.ImplicitChannelMode("None", "[TPT] How to handle implicit channels")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
     tptMode = Param.TPTMode("Naive", "TPT Mode")
     tptReg = Param.Bool(True, "[TPT] Enable r-taint primitives")

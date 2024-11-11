@@ -70,6 +70,7 @@
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
 #include "enums/TPTMode.hh"
+#include "enums/ImplicitChannelMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 
@@ -607,7 +608,7 @@ class CPU : public BaseCPU
     const bool &stt = tpt;
 
     // [TPT] whether add implicit flow protection
-    bool impChannel;
+    ImplicitChannelMode impChannel;
 
     /** [STT] Whether to enable bugfixes to restore security of STT. */
     bool sttBugfixes;

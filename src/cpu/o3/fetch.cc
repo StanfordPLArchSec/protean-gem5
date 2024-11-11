@@ -945,7 +945,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
             fromCommit->commitInfo[tid].mispredictInst->isControl()) {
 
             const DynInstPtr &mispredict_inst = fromCommit->commitInfo[tid].mispredictInst;
-            if (cpu->stt && cpu->impChannel &&
+            if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy &&
                 (mispredict_inst->isArgsTainted() || mispredict_inst->inputProtection() == Protected)) {
                 // the squashed branch is tainted, which we must delay
                 DelayedSquashReq delayedReq;
@@ -978,7 +978,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
         // there is no squash/update signal from commit in current cycle.
         // We will squash branch predictor if there is outstanding branch untainted
         if (!delayedSquashReqList.empty(tid)) {
-            assert (cpu->stt && cpu->impChannel);
+            assert (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy);
             InstSeqNum squashedSeqNum = 0;
             for (auto it = delayedSquashReqList.delayedSquashes[tid].begin();
                       it != delayedSquashReqList.delayedSquashes[tid].end();
