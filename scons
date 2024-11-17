@@ -2,22 +2,27 @@
 
 usage() {
     cat <<EOF
-usage: $0 [<target>=build/X86/gem5.opt]
+usage: $0 [-t target] [sconsopts...]
 EOF
 }
 
-target=
-case $# in
-    0)
-	target=build/X86/gem5.opt
-	;;
-    1)
-	target="$1"
-	;;
-    *)
-	usage >&2
-	exit 1
-	;;
-esac
+target=build/X86/gem5.opt
 
-scons "$target" -j`nproc` --ignore-style --linker=lld
+while getopts "ht:" optc; do
+    case $optc in
+        h)
+            usage
+            exit
+            ;;
+        t)
+            target="$OPTARG"
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+scons "$target" -j`nproc` --ignore-style --linker=lld "$@"
