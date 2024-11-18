@@ -1634,6 +1634,10 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 auto size = load_inst->effSize;
 
                 const BitVec* stSrcTaintVec = forwardingStore->argsIdxTaintVec(2);
+                if (stSrcTaintVec == nullptr) {
+                    static BitVec dummyTaintVec(8, false);
+                    stSrcTaintVec = &dummyTaintVec;
+                }
                 assert(stSrcTaintVec != nullptr);
                 auto stSrcOffs = forwardingStore->getSrcRegSizeAndOffs(2).second;
                 assert(stSrcOffs + size + shift_amt <= stSrcTaintVec->size());
@@ -1917,6 +1921,10 @@ LSQUnit::propagateUntaint()
 
         if (loadInst->waitForSTLPublic && !loadInst->fwdFromTaintedSt) {
             const BitVec* ldDestTaintVec = loadInst->destIdxTaintVec(0);
+            if (ldDestTaintVec == nullptr) {
+              static BitVec dummyTaintVec(8, false);
+              ldDestTaintVec = &dummyTaintVec;
+            }
             assert(ldDestTaintVec != nullptr);
             BitVec newTaintVec(*ldDestTaintVec);
             Addr loadAddr = loadInst->physEffAddr;
@@ -1973,6 +1981,10 @@ LSQUnit::propagateUntaint()
             auto size = loadInst->effSize;
 
             const BitVec* stSrcTaintVec = storeInst->argsIdxTaintVec(2);
+            if (stSrcTaintVec == nullptr) {
+                static BitVec dummyTaintVec(8, false);
+                stSrcTaintVec = &dummyTaintVec;
+            }
             assert(stSrcTaintVec != nullptr);
             auto stSrcOffs = storeInst->getSrcRegSizeAndOffs(2).second;
             assert(stSrcOffs + size + shiftAmt <= stSrcTaintVec->size());

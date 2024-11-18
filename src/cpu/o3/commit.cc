@@ -169,17 +169,24 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
                "Class of committed instruction"),
       ADD_STAT(commitEligibleSamples, statistics::units::Cycle::get(),
                "number cycles where commit BW limit reached"),
-      ADD_STAT(committedAnnotationsCount, statistics::units::Count::get(),
+      ADD_STAT(committedAnnotatedRegisterCount, statistics::units::Count::get(),
                "number of annotated registers that were committed"),
-      ADD_STAT(committedUnprotectedAnnotationsCount,
+      ADD_STAT(committedAnnotatedUnprotectedRegisterCount,
                statistics::units::Count::get(),
                "number of annotated and unprotected registers "
                "that were committed"),
-      ADD_STAT(committedUnprotectedAnnotationsRate,
+      ADD_STAT(committedAnnotatedUnprotectedRegisterRate,
                statistics::units::Rate<statistics::units::Count,
                statistics::units::Count>::get(),
                "fraction of committed, annotated registers that were "
-               "unprotected")
+               "unprotected"),
+      ADD_STAT(committedAnnotatedLoadCount, statistics::units::Count::get(),
+               "number of annotated loads that were committed"),
+      ADD_STAT(committedAnnotatedUnprotectedLoadCount, statistics::units::Count::get(),
+               "number of annotated loads with unprotected destinations that were committed"),
+      ADD_STAT(committedAnnotatedUnprotectedLoadRate, statistics::units::Rate<statistics::units::Count,
+               statistics::units::Count>::get(),
+               "fraction of committed, annotated loads that were unprotected")
 {
     using namespace statistics;
 
@@ -209,9 +216,15 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
 
     committedInstType.ysubnames(enums::OpClassStrings);
 
-    committedUnprotectedAnnotationsRate.precision(6);
-    committedUnprotectedAnnotationsRate =
-        committedUnprotectedAnnotationsCount / committedAnnotationsCount;
+    committedAnnotatedUnprotectedRegisterRate.precision(6);
+    committedAnnotatedUnprotectedRegisterRate =
+        committedAnnotatedUnprotectedRegisterCount /
+        committedAnnotatedRegisterCount;
+
+    committedAnnotatedUnprotectedLoadRate.precision(6);
+    committedAnnotatedUnprotectedLoadRate =
+        committedAnnotatedUnprotectedLoadCount /
+        committedAnnotatedLoadCount;
 }
 
 void
@@ -1419,15 +1432,22 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->isStore() || head_inst->isAtomic())
         committedStores[tid] = true;
 
-    // [SPT] Annotations + stats recording.
+    // [SPT] Annotated loads.
+    if (head_inst->isLoad() && head_inst->numDests() >= 1 && head_inst->annotatedDest(0)) {
+        ++stats.committedAnnotatedLoadCount;
+        if (!head_inst->isDestIdxTainted(0))
+            ++stats.committedAnnotatedUnprotectedLoadCount;
+    }
+
+    // [SPT] Annotated register stats.
     for (int dest_idx = 0; dest_idx < head_inst->numDests(); ++dest_idx) {
         if (head_inst->annotatedDest(dest_idx)) {
             DPRINTF(Annotations, "annotated %s public: %s\n", head_inst->destRegIdx(dest_idx), head_inst->staticInst->disassemble(0));
 
             // Is this register unprotected?
-            ++stats.committedAnnotationsCount;
+            ++stats.committedAnnotatedRegisterCount;
             if (!head_inst->isDestIdxTainted(dest_idx))
-                ++stats.committedUnprotectedAnnotationsCount;
+                ++stats.committedAnnotatedUnprotectedRegisterCount;
         }
     }
 

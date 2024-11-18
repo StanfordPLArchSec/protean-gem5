@@ -497,9 +497,12 @@ class Commit
         statistics::Scalar commitEligibleSamples;
 
         /** [SPT] Number of retired annotated registers. */
-        statistics::Scalar committedAnnotationsCount;
-        statistics::Scalar committedUnprotectedAnnotationsCount;
-        statistics::Formula committedUnprotectedAnnotationsRate;
+        statistics::Scalar committedAnnotatedRegisterCount;
+        statistics::Scalar committedAnnotatedUnprotectedRegisterCount;
+        statistics::Formula committedAnnotatedUnprotectedRegisterRate;
+        statistics::Scalar committedAnnotatedLoadCount;
+        statistics::Scalar committedAnnotatedUnprotectedLoadCount;
+        statistics::Formula committedAnnotatedUnprotectedLoadRate;
     } stats;
 };
 
