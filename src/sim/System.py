@@ -104,6 +104,10 @@ class System(SimObject):
         "shared_backstore is non-empty.",
     )
 
+    pristine_zero_pages = Param.Bool(False, "Pristine zero pages")
+
+    lazy_checkpoint_mem = Param.Bool(False, "Lazy checkpoint memory")
+
     cache_line_size = Param.Unsigned(64, "Cache line size in bytes")
 
     redirect_paths = VectorParam.RedirectPath([], "Path redirections")
