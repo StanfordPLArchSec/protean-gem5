@@ -10,6 +10,7 @@
 #include <asm/prctl.h>
 
 #define STDERR_FILENO 2
+#define ENOMEM 12
 
 #include "cpu/pin/message.hh"
 #include "syscall.h"
@@ -50,6 +51,34 @@ static int resp_fd;
 static int mem_fd;
 
 typedef struct Message Message;
+
+static void
+diagnose_ENOMEM(void)
+{
+    // Read /proc/self/maps.
+    int maps_fd;
+    if ((maps_fd = open("/proc/self/maps", O_RDONLY)) < 0) {
+        err("open: /proc/self/maps");
+        return;
+    }
+
+    // Count the number of maps present.
+    int num_maps = 0;
+    while (true) {
+        char c;
+        ssize_t bytes_read = read(maps_fd, &c, 1);
+        if (bytes_read < 0) {
+            err("read: /proc/self/maps");
+            return;
+        }
+        if (bytes_read == 0)
+            break;
+        if (c == '\n')
+            ++num_maps;
+    }
+
+    printf_("ENOMEM: num maps: %d\n", num_maps);
+}
 
 
 void read_all(int fd, void *data_, size_t size) {
@@ -134,6 +163,8 @@ void main_event_loop(void) {
                 if ((map = mmap((void *) msg.map.vaddr, msg.map.size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                 MAP_SHARED | MAP_FIXED, mem_fd, msg.map.paddr)) == MAP_FAILED) {
                     err("mmap failed: vaddr=%p\n", msg.map.vaddr);
+                    if (errno == ENOMEM)
+                        diagnose_ENOMEM();
                     pinop_abort();
                 }
                 if (map != (void *) msg.map.vaddr) {
