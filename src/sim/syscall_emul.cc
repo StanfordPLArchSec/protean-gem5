@@ -357,7 +357,7 @@ unlinkFunc(SyscallDesc *desc, ThreadContext *tc, VPtr<> pathname)
     std::string path;
     if (!SETranslatingPortProxy(tc).tryReadString(path, pathname))
         return -EFAULT;
-
+    DPRINTF_SYSCALL(Verbose, "%s: path=%s\n", desc->name(), path);
     return unlinkImpl(desc, tc, path);
 }
 

@@ -73,6 +73,7 @@ diagnose_ENOMEM(void)
         }
         if (bytes_read == 0)
             break;
+        printf_("%c", c);
         if (c == '\n')
             ++num_maps;
     }
@@ -162,7 +163,7 @@ void main_event_loop(void) {
                 void *map;
                 if ((map = mmap((void *) msg.map.vaddr, msg.map.size, PROT_READ | PROT_WRITE | PROT_EXEC,
                                 MAP_SHARED | MAP_FIXED, mem_fd, msg.map.paddr)) == MAP_FAILED) {
-                    err("mmap failed: vaddr=%p\n", msg.map.vaddr);
+                    err("mmap failed: vaddr=%p size=%zu paddr=%p\n", msg.map.vaddr, msg.map.size, msg.map.paddr);
                     if (errno == ENOMEM)
                         diagnose_ENOMEM();
                     pinop_abort();

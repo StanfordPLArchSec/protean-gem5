@@ -923,7 +923,26 @@ static int CheckPathArg(const T &arg) {
 static void
 HandleOOM(size_t size, void *)
 {
-    
+    std::cerr << "Pin ran out of memory! Allocation size: " << size << "\n";
+
+    int fd = open("/proc/self/maps", O_RDONLY);
+    if (fd < 0) {
+        std::cerr << "error: failed to open /proc/self/maps\n";
+        return;
+    }
+    while (true) {
+        char buf[1024];
+        const ssize_t bytes = read(fd, buf, sizeof buf - 1);
+        if (bytes < 0) {
+            std::cerr << "error reading /proc/self/maps\n";
+            return;
+        }
+        if (bytes == 0)
+            break;
+        buf[bytes] = 0;
+        std::cerr << buf;
+    }
+    close(fd);
 }
 
 int

@@ -235,7 +235,7 @@ PhysicalMemory::createBackingStore(
         if (shm_fd == -1)
                panic("Shared memory failed");
         if (ftruncate(shm_fd, sharedBackstoreSize))
-               panic("Setting size of shared memory failed");
+            panic("Setting size of shared memory failed (size: %lu): %s", sharedBackstoreSize, strerror(errno));
         map_flags = MAP_SHARED;
     }
 

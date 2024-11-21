@@ -29,8 +29,9 @@ void __attribute__((naked)) pinop_exit(int code) {
     asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_EXIT));
 }
 
-void __attribute__((naked)) pinop_abort() {
-    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_ABORT));
+void __attribute__((naked)) (pinop_abort)(const char *msg, size_t line) {
+    asm volatile ("movq (%%rsp), %%rdx\n"
+                  "movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_ABORT));
 }
 
 void __attribute__((naked)) pinop_resetuser() {

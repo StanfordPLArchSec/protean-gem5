@@ -447,14 +447,11 @@ MemState::fixupFault(Addr vaddr)
      * this address.
      */
     if (vaddr < _stackMin && vaddr >= _stackBase - _maxStackSize) {
-        while (vaddr < _stackMin) {
-            _stackMin -= _pageBytes;
-            if (_stackBase - _stackMin > _maxStackSize) {
-                fatal("Maximum stack size exceeded\n");
-            }
-            _ownerProcess->allocateMem(_stackMin, _pageBytes);
-            inform("Increasing stack size by one page.");
-        }
+        const Addr new_stack_min = roundDown(vaddr, _pageBytes);
+        const size_t size = _stackMin - new_stack_min;
+        _stackMin = new_stack_min;
+        _ownerProcess->allocateMem(_stackMin, size);
+        inform("Increasing stack size by %d pages\n", size / _pageBytes);
         return true;
     }
 

@@ -58,7 +58,7 @@ void pinop_get_reqpath(char *data, size_t size);
 void pinop_get_resppath(char *data, size_t size);
 void pinop_get_mempath(char *data, size_t size);
 void pinop_exit(int code);
-void pinop_abort(void);
+void pinop_abort(const char *msg, size_t line);
 void pinop_resetuser(void);
 void pinop_run(struct RunResult *result);
 void pinop_set_vsyscall_base(void *virt, void *phys);
@@ -69,3 +69,5 @@ void pinop_set_regs(const struct PinRegFile *regfile);
 void pinop_get_regs(struct PinRegFile *regfile);
 
 void pinop_add_symbol(const char *name, void *vaddr);
+
+#define pinop_abort() (pinop_abort)(__FILE__, __LINE__)

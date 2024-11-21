@@ -364,9 +364,10 @@ HandleOp_EXIT(int32_t code)
 }
 
 [[noreturn]] static void
-HandleOp_ABORT()
+HandleOp_ABORT(const char *user_msg, size_t line, void *pc)
 {
-    std::cerr << "Aborting\n";
+    std::cerr << "Aborting at pc " << pc << "\n";
+    std::cerr << CopyUserString(reinterpret_cast<ADDRINT>(user_msg)) << ":" << line << "\n";
     PIN_ExitApplication(1);
     std::abort(); // TODO: Unreachable.
 }
@@ -578,6 +579,9 @@ Instrument_Instruction_PinOps(INS ins, void *)
 
       case PinOp::OP_ABORT:
         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_ABORT,
+                                 IARG_REG_VALUE, REG_RDI,
+                                 IARG_REG_VALUE, REG_RSI,
+                                 IARG_REG_VALUE, REG_RDX,
                                  IARG_END);
         break;
 
@@ -919,6 +923,31 @@ static int CheckPathArg(const T &arg) {
     return 0;
 }
 
+static void
+HandleOOM(size_t size, void *)
+{
+    std::cerr << "Pin ran out of memory! Allocation size: " << size << "\n";
+
+    int fd = open("/proc/self/maps", O_RDONLY);
+    if (fd < 0) {
+        std::cerr << "error: failed to open /proc/self/maps\n";
+        return;
+    }
+    while (true) {
+        char buf[1024];
+        const ssize_t bytes = read(fd, buf, sizeof buf - 1);
+        if (bytes < 0) {
+            std::cerr << "error reading /proc/self/maps\n";
+            return;
+        }
+        if (bytes == 0)
+            break;
+        buf[bytes] = '\0';
+        std::cerr << buf;
+    }
+    close(fd);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -975,6 +1004,8 @@ main(int argc, char *argv[])
 
     PIN_InterceptSignal(SIGSEGV, InterceptSEGV, nullptr);
 
+    PIN_AddOutOfMemoryFunction(HandleOOM, nullptr);
+    
     std::cerr << "runtime: starting program\n";
 
     PIN_StartProgram();
