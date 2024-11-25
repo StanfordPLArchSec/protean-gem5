@@ -347,14 +347,9 @@ SyscallReturn getcpuFunc(SyscallDesc *desc, ThreadContext *tc,
 SyscallReturn getsocknameFunc(SyscallDesc *desc, ThreadContext *tc,
                               int tgt_fd, VPtr<> addrPtr, VPtr<> lenPtr);
 
+// Target sched_getparam() handler.
 SyscallReturn sched_getparamFunc(SyscallDesc *desc, ThreadContext *tc,
                                  int pid, VPtr<int> paramPtr);
-SyscallReturn sched_getschedulerFunc(SyscallDesc *desc, ThreadContext *tc,
-                                     int pid);
-SyscallReturn sched_get_priority_minFunc(SyscallDesc *desc,
-                                         ThreadContext *tc, int policy);
-SyscallReturn sched_get_priority_maxFunc(SyscallDesc *desc,
-                                         ThreadContext *tc, int policy);
 
 template <class OS>
 SyscallReturn

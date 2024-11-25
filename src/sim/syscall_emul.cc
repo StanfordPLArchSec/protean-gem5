@@ -1482,38 +1482,8 @@ sched_getparamFunc(SyscallDesc *desc, ThreadContext *tc,
     if (!paramPtr || pid < 0)
         return -EINVAL;
 
-#if 0
-    System *sys = tc->getSystemPtr();
-    for (const Thread &thread : sys->threads) {
-        
-    }
-    if (pid != 0)
-        fatal("Syscall sched_getparam not implemented for non-zero pid (pid = %d)\n", pid);
-#endif
-
     warn_once("sched_getparam: pretending sched_priority is 0 for all PIDs\n");
     *paramPtr = 0;
-    return 0;
-}
-
-SyscallReturn
-sched_getschedulerFunc(SyscallDesc *desc, ThreadContext *tc, int pid)
-{
-    warn_once("sched_getscheduler: pretending scheduler is SCHED_OTHER (0) for all PIDs\n");
-    return 0;
-}
-
-SyscallReturn
-sched_get_priority_minFunc(SyscallDesc *desc, ThreadContext *tc, int policy)
-{
-    fatal_if(policy != 0, "sched_get_priority_min: Only SCHED_OTHER (0) policy supported\n");
-    return 0;
-}
-
-SyscallReturn
-sched_get_priority_maxFunc(SyscallDesc *desc, ThreadContext *tc, int policy)
-{
-    fatal_if(policy != 0, "sched_get_priority_min: Only SCHED_OTHER (0) policy supported\n");
     return 0;
 }
 
