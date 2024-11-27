@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD 17)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(PinTool)
 
-add_pin_tool(client client.cc bbv.cc f2i.cc fhist.cc)
+add_pin_tool(client client.cc bbv.cc f2i.cc fhist.cc pmcount.cc)
 target_include_directories(client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 add_pin_tool(client2 client2.cc bbv.cc f2i.cc fhist.cc)
@@ -55,4 +55,3 @@ target_compile_options(kernel PRIVATE -ffreestanding -fPIC -Wall -pedantic -O1 -
 target_include_directories(kernel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_options(kernel PRIVATE -nostdlib -Wl,-e,main -static -T ${CMAKE_CURRENT_SOURCE_DIR}/kernel.ld -Wl,--no-relax)
 set_target_properties(kernel PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kernel.ld)
-

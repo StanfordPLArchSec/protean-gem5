@@ -17,6 +17,7 @@
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
+#include "pmcount.hh"
 
 static const char *prog;
 static KNOB<std::string> log_path(KNOB_MODE_WRITEONCE, "pintool", "log", "", "specify path to log file");
@@ -995,7 +996,8 @@ main(int argc, char *argv[])
 
     if (!bbv_register() ||
         !f2i_register() ||
-        !fhist_register())
+        !fhist_register() ||
+        !pmcount_register())
         return EXIT_FAILURE;
 
     INS_AddInstrumentFunction(Instruction, nullptr);
@@ -1005,7 +1007,7 @@ main(int argc, char *argv[])
     PIN_InterceptSignal(SIGSEGV, InterceptSEGV, nullptr);
 
     PIN_AddOutOfMemoryFunction(HandleOOM, nullptr);
-    
+
     std::cerr << "runtime: starting program\n";
 
     PIN_StartProgram();
