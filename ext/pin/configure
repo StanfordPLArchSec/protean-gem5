@@ -1,0 +1,26 @@
+#!/bin/sh
+
+set -e
+
+PIN_URL=https://software.intel.com/sites/landingpage/pintool/downloads/pin-external-3.31-98869-gfa6f126a8-gcc-linux.tar.gz
+
+usage() {
+    cat <<EOF
+usage: $0 [-h]
+EOF
+}
+
+while getopts "h" optc; do
+    case $optc in
+        h)
+            usage
+            exit
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+wget -O- $PIN_URL | tar -x --gzip --strip-components=1
