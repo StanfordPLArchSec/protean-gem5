@@ -1,9 +1,9 @@
 #pragma once
 
 #include <stddef.h>
-#include <stdio.h>
+#include <sys/types.h>
 
-void exit(int code);
+void __attribute__((noreturn)) exit(int code);
 ssize_t write(int fd, const void *data, size_t size);
 ssize_t read(int fd, void *data, size_t size);
 int open(const char *path, int flags, ...);

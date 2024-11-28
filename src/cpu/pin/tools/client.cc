@@ -27,8 +27,6 @@ static KNOB<std::string> resp_path(KNOB_MODE_WRITEONCE, "pintool", "resp_path", 
 static KNOB<std::string> mem_path(KNOB_MODE_WRITEONCE, "pintool", "mem_path", "", "specify path to physmem file");
 static KNOB<bool> enable_inst_count(KNOB_MODE_WRITEONCE, "pintool", "inst_count", "1", "enable instruction counting");
 static KNOB<bool> enable_trace(KNOB_MODE_WRITEONCE, "pintool", "trace", "0", "enable instruction tracing");
-static KNOB<std::string> bbv_path(KNOB_MODE_WRITEONCE, "pintool", "bbv_path", "", "BBV output path (empty string to disable)");
-static KNOB<uint64_t> bbv_interval(KNOB_MODE_WRITEONCE, "pintool", "bbv_interval_dontuse", "0", "BBV interval size, in instructions");
 
 static CONTEXT user_ctx;
 static CONTEXT saved_kernel_ctx;
@@ -46,12 +44,6 @@ std::ofstream &
 log()
 {
     return log_;
-}
-
-static bool
-enable_bbv()
-{
-    return !bbv_path.Value().empty();
 }
 
 static ADDRINT getpage(ADDRINT addr) {
@@ -671,13 +663,9 @@ Instruction(INS ins, void *)
         REG seg_reg = INS_OperandMemorySegmentReg(ins, INS_MemoryOperandIndexToOperandIndex(ins, i));
         if (!REG_valid(seg_reg))
             continue;
-        REG seg_base_reg;
         switch (seg_reg) {
           case REG_SEG_FS:
-            seg_base_reg = REG_SEG_FS_BASE;
-            break;
           case REG_SEG_GS:
-            seg_base_reg = REG_SEG_GS_BASE;
             break;
           default:
             std::cerr << "CLIENT: error: unexpected segment register: " << REG_StringShort(seg_reg) << "\n";
@@ -798,25 +786,6 @@ DumpHistory()
     for (ADDRINT pc : hist)
         std::cerr << " 0x" << std::hex << pc;
     std::cerr << "\n";
-}
-
-static void
-PrintCall(void *s, int c, size_t n)
-{
-    std::cerr << "TRACE: memset(" << s << ", " << c << ", " << n << ")\n";
-    DumpHistory();
-}
-
-static void
-Instrument_Instruction_PrintCall(INS ins, void *)
-{
-    if (INS_Address(ins) == 0x46ab40) {
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) PrintCall,
-                       IARG_REG_VALUE, REG_RDI,
-                       IARG_REG_VALUE, REG_ESI,
-                       IARG_REG_VALUE, REG_RDX,
-                       IARG_END);
-    }
 }
 
 

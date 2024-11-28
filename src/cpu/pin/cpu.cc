@@ -293,10 +293,11 @@ CPU::startup()
         std::vector<std::string> args;
         auto it = std::back_inserter(args);
 
-	// Pin executable.
+        // Pin executable.
         *it++ = pin_exe;
 
         // Pin args.
+        *it++ = "-smc_support"; *it++ = "0";
         if (std::getenv("PIN_APPDEBUG")) {
             *it++ = "-appdebug"; *it++ = "1";
         }

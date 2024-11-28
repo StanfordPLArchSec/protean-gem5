@@ -32,7 +32,7 @@
 #define vsyscall_base 0xffffffffff600000ULL
 #define vsyscall_end (vsyscall_base + 0x1000)
 
-static void
+static void __attribute__((unused))
 do_assert_failure(const char *file, int line, const char *desc)
 {
     printf_("%s:%d: assertion failed: %s\n", file, line, desc);
@@ -45,7 +45,6 @@ do_assert_failure(const char *file, int line, const char *desc)
     } while (false)
 
 
-static const char *prog;
 static int req_fd;
 static int resp_fd;
 static int mem_fd;

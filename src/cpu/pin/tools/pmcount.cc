@@ -24,15 +24,6 @@ static void PIN_FAST_ANALYSIS_CALL AnalyzeBBL(uint64_t &count) {
     ++count;
 }
 
-static void
-FlushBlock(BlockCounts::iterator it)
-{
-    const auto& [inst_addrs, n] = it->second;
-    for (const ADDRINT& inst_addr : inst_addrs)
-        inst_counts[inst_addr].second += n;
-    block_counts.erase(it);
-}
-
 static ADDRINT
 DynamicToStaticAddress(ADDRINT addr)
 {

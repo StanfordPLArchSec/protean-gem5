@@ -2,6 +2,7 @@ from m5.defines import buildEnv
 from m5.objects.BaseCPU import BaseCPU
 from m5.params import *
 from m5.SimObject import *
+import os
 
 class BasePinCPU(BaseCPU):
     type = "BasePinCPU"
@@ -16,9 +17,9 @@ class BasePinCPU(BaseCPU):
     def support_take_over(cls):
         return False
 
-    pinExe = Param.String("Path to Intel Pin executable")
-    pinKernel = Param.String("Path to guest Pin kernel")
-    pinTool = Param.String("Path to host PinTool")
+    pinExe = Param.String(os.path.join(buildEnv["PIN_DIR"], 'pin'), "Path to Intel Pin executable")
+    pinKernel = Param.String(buildEnv["PIN_KERNEL"], "Path to guest Pin kernel")
+    pinTool = Param.String(buildEnv["PIN_CLIENT"], "Path to host PinTool")
     pinToolArgs = Param.String("", "Arguments to pass to PinTool")
     pinArgs = Param.String("", "Arguments to pass to Pin")
     

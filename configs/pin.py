@@ -89,12 +89,20 @@ Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
+gem5_root = os.path.dirname(os.path.dirname(__file__))
 parser.add_argument(
-    "--pin", required=True, help="Path to Intel Pin executable"
+    "--pin",
+    default=os.path.join(gem5_root, 'pin', 'pin'),
+    help="Path to Intel Pin executable",
 )
-parser.add_argument("--pin-tool", required=True, help="Path to host PinTool")
 parser.add_argument(
-    "--pin-kernel", required=True, help="Path to Pin guest kernel"
+    "--pin-tool",
+    default=os.path.join(gem5_root, 'pintool', 'build', 'libclient.so'),
+    help="Path to host PinTool"),
+parser.add_argument(
+    "--pin-kernel",
+    default=os.path.join(gem5_root, 'pintool', 'build', 'kernel'),
+    help="Path to Pin guest kernel",
 )
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
@@ -153,9 +161,9 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinTool = args.pin_tool
-cpu.pinKernel = args.pin_kernel
-cpu.pinExe = args.pin
+# cpu.pinTool = args.pin_tool
+# cpu.pinKernel = args.pin_kernel
+# cpu.pinExe = args.pin
 cpu.pinArgs = args.pin_args
 cpu.pinToolArgs = args.pin_tool_args
 cpu.symbolBlacklist = args.symbol_blacklist

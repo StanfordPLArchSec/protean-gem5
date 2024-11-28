@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <syscall.h>
+#include <sys/syscall.h>
 
 #ifdef errno
 # undef errno
@@ -36,6 +36,7 @@ void exit(int code) {
         "syscall\n"
         "ud2\n"
         :: "i"(SYS_exit), "r"(code));
+    __builtin_unreachable();
 }
 
 ssize_t write(int fd, const void *data, size_t size) {
