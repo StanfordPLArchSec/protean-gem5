@@ -1,0 +1,1 @@
+bool qtrace_register();

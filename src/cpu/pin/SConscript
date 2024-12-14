@@ -61,6 +61,7 @@ if env['CONF']['BUILD_ISA']:
         '-fomit-frame-pointer',
         '-fno-strict-aliasing',
         '-Wno-dangling-pointer',
+        '-g',
     ]
     for sysinc in client_system_include_dirs:
         client_cxxflags.extend(['-isystem', os.path.join(pin_dir, sysinc)])
@@ -113,6 +114,9 @@ if env['CONF']['BUILD_ISA']:
             'tools/fhist.cc',
             'tools/bbv.cc',
             'tools/pmcount.cc',
+            'tools/uniqtrace.cc',
+            'tools/instlist.cc',
+            'tools/sehist.cc',
         ],
         tags = 'pin',
     )

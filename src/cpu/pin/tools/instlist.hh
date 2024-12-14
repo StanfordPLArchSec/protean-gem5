@@ -1,0 +1,1 @@
+bool instlist_register();

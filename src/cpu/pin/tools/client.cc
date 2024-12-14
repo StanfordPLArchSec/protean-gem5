@@ -18,6 +18,9 @@
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
 #include "pmcount.hh"
+#include "uniqtrace.hh"
+#include "instlist.hh"
+#include "sehist.hh"
 
 static const char *prog;
 static KNOB<std::string> log_path(KNOB_MODE_WRITEONCE, "pintool", "log", "", "specify path to log file");
@@ -638,6 +641,7 @@ Instruction(INS ins, void *)
         return;
 
     // Application instruction.
+    dbgs() << "INSTRUMENT: 0x" << std::hex << INS_Address(ins) << std::endl;
 
     // Instrument system calls. Replace them with traps into gem5.
     if (INS_IsSyscall(ins)) {
@@ -659,7 +663,6 @@ Instruction(INS ins, void *)
     for (uint32_t i = 0; i < INS_MemoryOperandCount(ins); ++i) {
         if (!(INS_MemoryOperandIsRead(ins, i) || INS_MemoryOperandIsWritten(ins, i)))
             continue;
-        dbgs() << "CLIENT: checking instruction for FS/GS: " << INS_Disassemble(ins) << "\n";
         REG seg_reg = INS_OperandMemorySegmentReg(ins, INS_MemoryOperandIndexToOperandIndex(ins, i));
         if (!REG_valid(seg_reg))
             continue;
@@ -824,7 +827,7 @@ InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const E
         if (is_pinop_addr((void *) fault_addr)) {
             std::cerr << "CLIENT: detected new pinop instruction: 0x" << fault_pc << "\n";
             pinops_blacklist[fault_pc] = static_cast<PinOp>(fault_addr - pinops_addr_base);
-            PIN_RemoveInstrumentationInRange(fault_pc, fault_pc + 16); // TODO: Don't use magic 16 bytes.
+            PIN_RemoveInstrumentation(); // FIXME: Try just removing insturmentation in range, benchmark performance diff.
             return false;
         }
 
@@ -845,7 +848,7 @@ InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const E
         // Trick Pin into re-instrumenting the instruction.
         std::cerr << "CLIENT: detected vsyscall access\n";
         vsyscall_blacklist.insert(fault_pc);
-        PIN_RemoveInstrumentationInRange(fault_pc, fault_pc + 16); // TODO: Don't use magic 16 bytes.
+        PIN_RemoveInstrumentation(); // FIXME: Try out removing instrumentation in range again.
         return false;
     } else {
         result.result = RunResult::RUNRESULT_PAGEFAULT;
@@ -860,6 +863,9 @@ InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const E
 
     // Set the return value.
     CopyOutRunResult(ctx, result);
+
+    // TODO: Might be too conservative.
+    PIN_RemoveInstrumentation();
 
     return false;
 }
@@ -966,7 +972,11 @@ main(int argc, char *argv[])
     if (!bbv_register() ||
         !f2i_register() ||
         !fhist_register() ||
-        !pmcount_register())
+        !pmcount_register() ||
+        !qtrace_register() || // TODO: Remove qtrace.
+        !instlist_register() ||
+        !sehist_register() ||
+        false)
         return EXIT_FAILURE;
 
     INS_AddInstrumentFunction(Instruction, nullptr);
