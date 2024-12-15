@@ -57,7 +57,7 @@ Finish(int32_t code, void *) {
   if (!out) {
     std::cerr << "sehist: failed to open output file\n";
     std::abort();
-  }  
+  }
   for (const SrcLoc& src : srclocs)
     for (int dst_idx = 0; dst_idx < srclocs.size(); ++dst_idx)
       if (const long count = src.dsts[dst_idx])
@@ -95,7 +95,7 @@ bool sehist_register() {
     srcloc.id = srclocs.size() - 1;
     inst_to_src[addr] = srcloc.id;
   }
-  
+
   // Populate srcloc edge vectors.
   for (SrcLoc &srcloc : srclocs)
     srcloc.dsts.resize(srclocs.size());
