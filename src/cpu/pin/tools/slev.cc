@@ -7,24 +7,24 @@
 #include <iostream>
 #include <list>
 #include <cassert>
+#include <unordered_set>
 #include <pin.H>
 
 #include "client.hh"
 
 static KNOB<std::string> OutputFile(KNOB_MODE_WRITEONCE, "pintool", "slev", "", "Collect source location edge vectors");
 static KNOB<unsigned long> IntervalSize(KNOB_MODE_WRITEONCE, "pintool", "slev-interval", "0", "SLEV interval size");
-static KNOB<std::string> EdgeFile(KNOB_MODE_WRITEONCE, "pintool", "slev-edges", "", "SLEV path to edges");
-static KNOB<std::string> MapFile(KNOB_MODE_WRITEONCE, "pintool", "slev-map", "", "SLEV: path to instruction-address-to-source-location map");
+static KNOB<std::string> ProgressMarkerFile(KNOB_MODE_WRITEONCE, "pintool", "slev-progmark", "",
+                                            "Path to progress marker file (instruction address list)");
 
 using Count = long;
 
 static std::ofstream out;
-static std::map<std::pair<std::string, std::string>, Count> edges;
-static std::map<ADDRINT, std::string> map;
+static std::unordered_set<ADDRINT> progmarks;
 static long interval_size = 0;
 
-static long prev_edges = 0;
-static long total_edges = 0;
+static long prev_progmarks = 0;
+static long total_progmarks = 0;
 static long cur_insts = 0;
 static long prev_insts = 0;
 static long total_insts = 0;
@@ -56,24 +56,6 @@ struct Block {
 
 static std::list<Block> blocks;
 
-static const std::string *
-getLoc(INS ins)
-{
-    const auto it = map.find(INS_Address(ins));
-    if (it == map.end())
-        return nullptr;
-    return &it->second;
-}
-
-static bool
-CheckStaticEdge(const std::string *src, const std::string *dst)
-{
-    if (!(src && dst))
-        return false;
-    const auto edge = std::make_pair(*src, *dst);
-    return edges.count(std::make_pair(*src, *dst)) > 0;
-}
-
 static void
 DumpInterval()
 {
@@ -84,10 +66,10 @@ DumpInterval()
             block.reset();
         }
     }
-    out << "\n# interval=" << num_intervals << " insts=" << prev_insts << "," << total_insts << " edges=" << prev_edges << "," << total_edges << "\n";
+    out << "\n# interval=" << num_intervals << " insts=" << prev_insts << "," << total_insts << " progmarks=" << prev_progmarks << "," << total_progmarks << "\n";
 
     // Update global counters.
-    prev_edges = total_edges;
+    prev_progmarks = total_progmarks;
     prev_insts = total_insts;
     total_insts += cur_insts;
     cur_insts = 0;
@@ -95,9 +77,9 @@ DumpInterval()
 }
 
 static void
-UpdateEdgeCount(uint64_t num_edges)
+UpdateProgmarkCount(uint64_t num_progmarks)
 {
-    total_edges += num_edges;
+    total_progmarks += num_progmarks;
     if (cur_insts >= interval_size)
         DumpInterval();
 }
@@ -111,21 +93,17 @@ UpdateInstCount(Block *block)
 static void
 InstrumentBBL(BBL bbl)
 {
-    const std::string *prev_loc = nullptr;
-    long num_edges = 0;
-    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-        const std::string *loc = getLoc(ins);
-        if (CheckStaticEdge(prev_loc, loc))
-            ++num_edges;
-        prev_loc = loc;
-    }
+    long num_progmarks = 0;
+    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+        if (progmarks.count(INS_Address(ins)))
+            ++num_progmarks;
     blocks.emplace_back(blocks.size(), bbl);
     Block *block = &blocks.back();
     BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateInstCount,
                    IARG_PTR, block,
                    IARG_END);
-    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateEdgeCount,
-                   IARG_UINT64, (uint64_t) num_edges,
+    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateProgmarkCount,
+                   IARG_UINT64, (uint64_t) num_progmarks,
                    IARG_END);
 }
 
@@ -162,38 +140,21 @@ slev_register()
         return false;
     }
 
-    if (EdgeFile.Value().empty()) {
-        std::cerr << "slev: -slev-edges: required\n";
+    if (ProgressMarkerFile.Value().empty()) {
+        std::cerr << "slev: -slev-progmark: required\n";
         return false;
     }
 
-    // Parse edge file.
-    std::ifstream edge_is(EdgeFile.Value());
-    if (!edge_is) {
-        std::cerr << "slev: failed to open edge file\n";
+    // Parse progress markers.
+    std::ifstream progmark_f(ProgressMarkerFile.Value());
+    if (!progmark_f) {
+        std::cerr << "slev: failed to open progress marker file\n";
         return false;
     }
-    std::string loc1;
-    std::string loc2;
-    long count;
-    while (edge_is >> loc1 >> loc2 >> count)
-        edges[std::make_pair(loc1, loc2)] = count;
-    edge_is.close();
-    std::cerr << "slev: parsed " << edges.size() << " edges\n";
-
-    // Parse map file.
-    std::ifstream map_is(MapFile.Value());
-    if (!map_is) {
-        std::cerr << "slev: failed to open map file\n";
-        return false;
-    }
-    ADDRINT addr;
-    std::string loc;
-    map_is >> std::hex;
-    while (map_is >> addr >> loc)
-        map[addr] = loc;
-    map_is.close();
-    std::cerr << "slev: parsed " << map.size() << " inst->locs\n";
+    progmark_f >> std::hex;
+    ADDRINT inst;
+    while (progmark_f >> inst)
+        progmarks.insert(inst);
 
     // Set interval size.
     interval_size = IntervalSize.Value();
