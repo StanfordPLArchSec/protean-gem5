@@ -32,23 +32,40 @@ SetEdgeVec(long *new_edgevec) {
   edgevec = new_edgevec;
 }
 
+static SrcLoc *
+getSrcLoc(INS ins)
+{
+    const auto it = inst_to_src.find(INS_Address(ins));
+    if (it == inst_to_src.end())
+        return nullptr;
+    return &srclocs.at(it->second);
+}
+
 static void
-InstrumentINS(INS ins, void *) {
-  if (IsKernelCode(ins))
-    return;
+InstrumentBBL(BBL bbl)
+{
+    SrcLoc *prev_loc = nullptr;
+    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+        if (SrcLoc *loc = getSrcLoc(ins); loc && loc != prev_loc) {
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) IncDstEdge,
+                           IARG_ADDRINT, (long) loc->id,
+                           IARG_END);
+            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) SetEdgeVec,
+                           IARG_PTR, loc->dsts.data(),
+                           IARG_END);
+            prev_loc = loc;
+            break; // REVERTME
+        }
+    }
+}
 
-  const auto it = inst_to_src.find(INS_Address(ins));
-  if (it == inst_to_src.end())
-    return;
-
-  SrcLoc *srcloc = &srclocs.at(it->second);
-  assert(srcloc->id < srclocs.size());
-  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) IncDstEdge,
-                 IARG_ADDRINT, (long) srcloc->id,
-                 IARG_END);
-  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) SetEdgeVec,
-                 IARG_PTR, srcloc->dsts.data(),
-                 IARG_END);
+static void
+InstrumentTRACE(TRACE trace, void *)
+{
+    if (IsKernelCode(trace))
+        return;
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+        InstrumentBBL(bbl);
 }
 
 static void
@@ -104,7 +121,7 @@ bool sehist_register() {
 
   std::cerr << "sehist: parsed " << (srclocs.size() - 1) << " srclocs\n";
 
-  INS_AddInstrumentFunction(InstrumentINS, nullptr);
+  TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
   PIN_AddFiniFunction(Finish, nullptr);
 
   return true;

@@ -1,0 +1,1 @@
+bool bbe_register();

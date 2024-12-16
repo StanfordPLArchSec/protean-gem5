@@ -21,6 +21,9 @@
 #include "uniqtrace.hh"
 #include "instlist.hh"
 #include "sehist.hh"
+#include "bbe.hh"
+#include "bbhist.hh"
+#include "slev.hh"
 
 static const char *prog;
 static KNOB<std::string> log_path(KNOB_MODE_WRITEONCE, "pintool", "log", "", "specify path to log file");
@@ -969,6 +972,7 @@ main(int argc, char *argv[])
     if (enable_inst_count.Value())
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
 
+    // TODO: Use a static function registration list to make it cleaner.
     if (!bbv_register() ||
         !f2i_register() ||
         !fhist_register() ||
@@ -976,6 +980,9 @@ main(int argc, char *argv[])
         !qtrace_register() || // TODO: Remove qtrace.
         !instlist_register() ||
         !sehist_register() ||
+        !bbe_register() ||
+        !bbhist_register() ||
+        !slev_register() ||
         false)
         return EXIT_FAILURE;
 

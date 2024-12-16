@@ -3,29 +3,46 @@
 #include <pin.H>
 #include <fstream>
 #include <iostream>
-#include <unordered_set>
+#include <unordered_map>
+#include <vector>
 
 #include "client.hh"
 
 static KNOB<std::string> OutPath(KNOB_MODE_WRITEONCE, "pintool", "instlist", "",
                                  "list unique instruction addresses executed");
 static std::ofstream out;
-static std::unordered_set<ADDRINT> insts;
+static std::unordered_map<ADDRINT, std::vector<std::vector<ADDRINT>>> blocks;
 
 static void
-InstrumentINS(INS ins, void *)
+InstrumentBBL(BBL bbl)
 {
-    if (IsKernelCode(ins))
-        return;
+    std::vector<ADDRINT> &insts = blocks[BBL_Address(bbl)].emplace_back();
+    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+        insts.push_back(INS_Address(ins));
+}
 
-    insts.insert(INS_Address(ins));
+static void
+InstrumentTRACE(TRACE trace, void *)
+{
+    if (IsKernelCode(trace))
+        return;
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+        InstrumentBBL(bbl);
 }
 
 static void
 Finish(int32_t code, void *)
 {
-    for (ADDRINT inst : insts)
-        out << std::hex << inst << "\n";
+    out << std::hex;
+    for (const auto &[block, insts] : blocks) {
+        out << block;
+        for (const auto &insts2 : insts) {
+            for (ADDRINT inst : insts2)
+                out << " " << inst;
+            out << " ::";
+        }
+        out << "\n";
+    }
     out.close();
 }
 
@@ -40,7 +57,7 @@ bool instlist_register()
         return false;
     }
 
-    INS_AddInstrumentFunction(InstrumentINS, nullptr);
+    TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
     PIN_AddFiniFunction(Finish, nullptr);
 
     return true;

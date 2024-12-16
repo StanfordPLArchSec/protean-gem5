@@ -1,0 +1,1 @@
+bool bbhist_register();
