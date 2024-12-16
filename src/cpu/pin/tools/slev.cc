@@ -97,7 +97,7 @@ InstrumentBBL(BBL bbl)
     for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
         if (progmarks.count(INS_Address(ins)))
             ++num_progmarks;
-    blocks.emplace_back(blocks.size(), bbl);
+    blocks.emplace_back(blocks.size() + 1, bbl);
     Block *block = &blocks.back();
     BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateInstCount,
                    IARG_PTR, block,
