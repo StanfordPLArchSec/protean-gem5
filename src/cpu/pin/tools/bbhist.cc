@@ -37,7 +37,8 @@ static void
 InstrumentBBL(BBL bbl)
 {
     blocks.emplace_back(bbl);
-    BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR) AnalyzeBBL,
+    // TODO: Change to ANYWHERE, if we're sure it won't mess with results.
+    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) AnalyzeBBL,
                    IARG_PTR, &blocks.back().count,
                    IARG_END);
 }
