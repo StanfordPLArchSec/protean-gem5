@@ -26,9 +26,6 @@ include(PinTool)
 add_pin_tool(client client.cc bbv.cc f2i.cc fhist.cc pmcount.cc)
 target_include_directories(client PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
-add_pin_tool(client2 client2.cc bbv.cc f2i.cc fhist.cc)
-target_include_directories(client2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
-
 # add_executable(kernel kernel.c)
 # target_link_options(kernel PRIVATE -static
 #   -T ${CMAKE_SOURCE_DIR}/kernel.ld
