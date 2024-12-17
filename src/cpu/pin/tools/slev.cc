@@ -93,6 +93,7 @@ UpdateInstCount(Block *block)
 static void
 InstrumentBBL(BBL bbl)
 {
+    // TODO: Merge with code in progmark2inst.cc
     long num_progmarks = 0;
     for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
         if (progmarks.count(INS_Address(ins)))
