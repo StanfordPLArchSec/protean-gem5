@@ -20,6 +20,7 @@
 #include "arch/x86/utility.hh"
 #include "cpu/pin/regfile.h"
 #include "base/loader/symtab.hh"
+#include "base/output.hh"
 
 namespace gem5
 {
@@ -276,13 +277,15 @@ CPU::startup()
     } else if (pinPid == 0) {
         // Create log file for this fucking mess.
         // It will be for the kernel.
-        const int kernout_fd = open("kernout.txt", O_WRONLY | O_APPEND | O_TRUNC | O_CREAT, 0664);
+        const std::string kernout_path = simout.resolve("kernout.txt");
+        const int kernout_fd = open(kernout_path.c_str(), O_WRONLY | O_APPEND | O_TRUNC | O_CREAT, 0664);
         if (kernout_fd < 0)
             panic("Failed to create kernel.log\n");
         if (dup2(kernout_fd, STDOUT_FILENO) < 0)
             panic("dup2 failed\n");
 
-        const int kernerr_fd = open("kernerr.txt", O_WRONLY | O_APPEND | O_TRUNC | O_CREAT, 0664);
+        const std::string kernerr_path = simout.resolve("kernerr.txt");
+        const int kernerr_fd = open(kernerr_path.c_str(), O_WRONLY | O_APPEND | O_TRUNC | O_CREAT, 0664);
         if (kernerr_fd < 0)
             panic("Failed to create kernerr.txt");
         if (dup2(kernerr_fd, STDERR_FILENO) < 0)
@@ -316,7 +319,6 @@ CPU::startup()
         *it++ = "-resp_path"; *it++ = resp_path;
         *it++ = "-mem_path"; *it++ = shm_path;
         *it++ = "-inst_count"; *it++ = ctrInsts ? "1" : "0";
-        *it++ = "-trace", *it++ = traceInsts ? "1" : "0";
 
         // Custom Pintool args.
         it = std::copy(pinToolArgs.begin(), pinToolArgs.end(), it);
