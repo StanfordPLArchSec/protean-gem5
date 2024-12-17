@@ -29,7 +29,7 @@ if env['CONF']['BUILD_ISA']:
 
     # Build the client.
     # TODO: Extract this to ext/pin.
-    
+
     pin_dir = env['CONF']['PIN_DIR']
     client_system_include_dirs = [
         'extras/cxx/include',
@@ -105,7 +105,7 @@ if env['CONF']['BUILD_ISA']:
         source = ['tools/Count.cpp'],
         tags = 'pin',
     )
-    
+
     client_pintool = client_env.SharedLibrary(
         target = 'client',
         source = [
@@ -117,6 +117,10 @@ if env['CONF']['BUILD_ISA']:
             'tools/uniqtrace.cc',
             'tools/instlist.cc',
             'tools/sehist.cc',
+            'tools/bbe.cc',
+            'tools/bbhist.cc',
+            'tools/slev.cc',
+            'tools/progmark2inst.cc',
         ],
         tags = 'pin',
     )
