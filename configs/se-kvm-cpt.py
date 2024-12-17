@@ -70,21 +70,24 @@ from m5.util import (
 from gem5.isas import ISA
 
 
-def get_process(cmd: str, args: list) -> Process:
+def get_process(cmd: str, args) -> Process:
     process = Process(pid=100)
     process.executable = cmd
-    process.cwd = os.getcwd()
+    process.cwd = os.getcwd() if args.chdir is None else args.chdir
     process.gid = os.getgid()
 
     # Clear out the environment.
     process.env = []
 
-    process.cmd = [cmd, *args]
+    process.cmd = [cmd, *args.args]
 
     return process
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--chdir", help="Set working directory of simulated process"
+)
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
@@ -101,10 +104,16 @@ parser.add_argument(
     help="Warmup period, in instructions",
 )
 parser.add_argument("--test", action="store_true")
+parser.add_argument("--stdout")
+parser.add_argument("--stderr")
 
 args = parser.parse_args()
 
-process = get_process(args.cmd, args.args)
+process = get_process(args.cmd, args)
+if args.stdout:
+    process.output = args.stdout
+if args.stderr:
+    process.errout = args.stderr
 
 # NHM-FIXME: Just read the kvm cpu directly?
 # To get mem mode: CPUClass.memory_mode()
@@ -212,6 +221,6 @@ for simpoint in simpoints:
     assert start + warmup == simpoint.inst_range[0]
     interval = simpoint.inst_range[1] - simpoint.inst_range[0]
     name = f"cpt.simpoint_{int(simpoint.name):02}_inst_{start}_weight_{simpoint.weight}_interval_{interval}_warmup_{warmup}"
-    path = os.path.join("m5out", name)
+    path = os.path.join(m5.options.outdir, name)
     m5.checkpoint(path)
     m5.stats.dump()

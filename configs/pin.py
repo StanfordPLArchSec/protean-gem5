@@ -70,21 +70,24 @@ from m5.util import (
 from gem5.isas import ISA
 
 
-def get_process(cmd: str, args: list) -> Process:
+def get_process(cmd: str, args) -> Process:
     process = Process(pid=100)
     process.executable = cmd
-    process.cwd = os.getcwd()
+    process.cwd = os.getcwd() if args.chdir is None else args.chdir
     process.gid = os.getgid()
 
     # Clear out the environment.
     process.env = []
 
-    process.cmd = [cmd, *args]
+    process.cmd = [cmd, *args.args]
 
     return process
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--chdir", help="Set working directory of simulated process"
+)
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
@@ -92,26 +95,27 @@ parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
 gem5_root = os.path.dirname(os.path.dirname(__file__))
 parser.add_argument(
     "--pin",
-    default=os.path.join(gem5_root, 'pin', 'pin'),
+    default=os.path.join(gem5_root, "pin", "pin"),
     help="Path to Intel Pin executable",
 )
 parser.add_argument(
     "--pin-tool",
-    default=os.path.join(gem5_root, 'pintool', 'build', 'libclient.so'),
-    help="Path to host PinTool"),
+    default=os.path.join(gem5_root, "pintool", "build", "libclient.so"),
+    help="Path to host PinTool",
+),
 parser.add_argument(
     "--pin-kernel",
-    default=os.path.join(gem5_root, 'pintool', 'build', 'kernel'),
+    default=os.path.join(gem5_root, "pintool", "build", "kernel"),
     help="Path to Pin guest kernel",
 )
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
 parser.add_argument("--pin-args", default="")
 parser.add_argument("--pin-tool-args", default="")
-parser.add_argument("--symbol-blacklist", default="")
+parser.add_argument("--symbol-blacklist", default="")  # REMOVEME
 args = parser.parse_args()
 
-process = get_process(args.cmd, args.args)
+process = get_process(args.cmd, args)
 if args.stdout:
     process.output = args.stdout
 if args.stderr:

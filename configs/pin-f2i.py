@@ -67,7 +67,7 @@ from m5.util import (
     warn,
 )
 
-print(sys.argv, file = sys.stderr)
+print(sys.argv, file=sys.stderr)
 
 from gem5.isas import ISA
 
@@ -92,14 +92,13 @@ Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
 parser.add_argument(
-    "--pin", required=True, help="Path to Intel Pin executable"
+    "--f2i-input", required=True, help="[F2I] Input path of list of functions"
 )
-parser.add_argument("--pin-tool", required=True, help="Path to host PinTool")
 parser.add_argument(
-    "--pin-kernel", required=True, help="Path to Pin guest kernel"
+    "--f2i-output",
+    required=True,
+    help="[F2I] Output path to list of instructions",
 )
-parser.add_argument("--f2i-input", required = True, help = "[F2I] Input path of list of functions")
-parser.add_argument("--f2i-output", required = True, help = "[F2I] Output path to list of instructions")
 parser.add_argument("--symbol-blacklist", default="")
 args = parser.parse_args()
 
@@ -149,9 +148,6 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinTool = args.pin_tool
-cpu.pinKernel = args.pin_kernel
-cpu.pinExe = args.pin
 cpu.pinToolArgs = f"-f2i 1 -f2i-input {args.f2i_input} -f2i-output {args.f2i_output} -fhist 1"
 cpu.symbolBlacklist = args.symbol_blacklist
 

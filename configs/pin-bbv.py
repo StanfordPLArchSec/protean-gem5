@@ -90,13 +90,8 @@ Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
 parser.add_argument(
-    "--pin", required=True, help="Path to Intel Pin executable"
+    "--interval-size", required=True, type=int, help="SimPoint interval size"
 )
-parser.add_argument("--pin-tool", required=True, help="Path to host PinTool")
-parser.add_argument(
-    "--pin-kernel", required=True, help="Path to Pin guest kernel"
-)
-parser.add_argument("--interval-size", required = True, type = int, help = "SimPoint interval size")
 # parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
@@ -153,10 +148,9 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinTool = args.pin_tool
-cpu.pinKernel = args.pin_kernel
-cpu.pinExe = args.pin
-cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
+cpu.pinToolArgs = (
+    f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
+)
 cpu.symbolBlacklist = args.symbol_blacklist
 
 # for cpu in system.cpu:
