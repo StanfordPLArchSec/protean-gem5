@@ -24,6 +24,9 @@ class CPU final : public BaseCPU
 
     void init() override;
     void startup() override;
+
+    void serializeThread(CheckpointOut &cp, ThreadID tid) const override;
+    
     void activateContext(ThreadID tid = 0) override;
 
     class PinRequestPort final : public RequestPort

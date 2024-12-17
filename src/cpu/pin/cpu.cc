@@ -314,7 +314,7 @@ CPU::startup()
         *it++ = "-t"; *it++ = pin_tool;
 
         // Pintool args.
-        *it++ = "-log"; *it++ = "pin.log";
+        *it++ = "-log"; *it++ = simout.resolve("pin.log");
         *it++ = "-req_path"; *it++ = req_path;
         *it++ = "-resp_path"; *it++ = resp_path;
         *it++ = "-mem_path"; *it++ = shm_path;
@@ -881,6 +881,13 @@ CPU::syncSymbols()
         msg.recv(respFd);
         panic_if(msg.type != Message::Ack, "unexpected response!\n");
     }
+}
+
+void
+CPU::serializeThread(CheckpointOut &cp, ThreadID tid) const
+{
+    assert(tid == 0);
+    thread->serialize(cp);
 }
 
 }
