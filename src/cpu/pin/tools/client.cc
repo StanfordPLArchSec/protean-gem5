@@ -24,6 +24,7 @@
 #include "bbe.hh"
 #include "bbhist.hh"
 #include "slev.hh"
+#include "progmark2inst.hh"
 
 static const char *prog;
 static KNOB<std::string> log_path(KNOB_MODE_WRITEONCE, "pintool", "log", "", "specify path to log file");
@@ -983,6 +984,7 @@ main(int argc, char *argv[])
         !bbe_register() ||
         !bbhist_register() ||
         !slev_register() ||
+        !progmark2inst_register() ||
         false)
         return EXIT_FAILURE;
 
