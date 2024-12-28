@@ -57,6 +57,7 @@
 #include "mem/abstract_mem.hh"
 #include "sim/serialize.hh"
 #include "sim/sim_exit.hh"
+#include "base/stl_helpers/hash_helpers.hh"
 
 /**
  * On Linux, MAP_NORESERVE allow us to simulate a very large memory
@@ -82,11 +83,13 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
                                const std::string& shared_backstore,
                                bool auto_unlink_shared_backstore,
                                bool pristine_zero_pages,
-                               bool lazy_checkpoint_mem) :
+                               bool lazy_checkpoint_mem,
+                               bool serialize_using_pagelist) :
     _name(_name), size(0), mmapUsingNoReserve(mmap_using_noreserve),
     pristineZeroPages(pristine_zero_pages), lazyCheckpointMem(lazy_checkpoint_mem),
     sharedBackstore(shared_backstore), sharedBackstoreSize(0),
-    pageSize(sysconf(_SC_PAGE_SIZE))
+    pageSize(sysconf(_SC_PAGE_SIZE)),
+    serializeUsingPagelist(serialize_using_pagelist)
 {
     // Register cleanup callback if requested.
     if (auto_unlink_shared_backstore && !sharedBackstore.empty()) {
@@ -364,7 +367,18 @@ PhysicalMemory::serialize(CheckpointOut &cp) const
 
 void
 PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
-                               AddrRange range, uint8_t* pmem) const
+                               AddrRange range, uint8_t *pmem) const
+{
+    if (serializeUsingPagelist) {
+        serializeStorePaged(cp, store_id, range, pmem);
+    } else {
+        serializeStoreUnpaged(cp, store_id, range, pmem);
+    }
+}
+
+void
+PhysicalMemory::serializeStoreUnpaged(CheckpointOut &cp, unsigned int store_id,
+                                      AddrRange range, uint8_t* pmem) const
 {
     // we cannot use the address range for the name as the
     // memories that are not part of the address map can overlap
@@ -372,7 +386,7 @@ PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
         name() + ".store" + std::to_string(store_id) + ".pmem";
     Addr range_size = range.size();
 
-    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d\n",
+    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d (unpaged)\n",
             filename, range_size);
 
     SERIALIZE_SCALAR(store_id);
@@ -407,6 +421,59 @@ PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
         fatal("Close failed on physical memory checkpoint file '%s'\n",
               filename);
 
+}
+
+void
+PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
+                                    AddrRange range, uint8_t *mem) const
+{
+    const std::string basename = name() + ".store" + std::to_string(store_id) + ".pmem";
+    const std::string filename_pages = basename + ".pages";
+    const std::string filename_ids = basename  + ".ids";
+    Addr range_size = range.size();
+
+    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d (paged)\n",
+            basename, range_size);
+
+    SERIALIZE_SCALAR(store_id);
+    SERIALIZE_SCALAR(filename_pages);
+    SERIALIZE_SCALAR(filename_ids);
+    SERIALIZE_SCALAR(range_size);
+
+    // Open page file.
+    const std::string filepath_pages = CheckpointIn::dir() + "/" + filename_pages;
+    FILE *file_pages = std::fopen(filepath_pages.c_str(), "wb");
+    if (!file_pages)
+        fatal("Failed to open memory checkpoint page file %s\n", filepath_pages);
+
+    // Open id file.
+    const std::string filepath_ids = CheckpointIn::dir() + "/" + filename_ids;
+    FILE *file_ids = std::fopen(filepath_ids.c_str(), "wb");
+    if (!file_ids)
+        fatal("Failed to open memory checkpoint id file %s\n", filepath_ids);
+
+    // Memory pages.
+    using Page = std::vector<uint8_t>;
+    using PageId = int;
+    stl_helpers::unordered_map<Page, PageId> pages;
+
+    assert((range.size() & (pageSize - 1)) == 0);
+    for (std::size_t i = 0; i != range.size(); i += pageSize) {
+        Page page(&mem[i], &mem[i + pageSize]);
+        const auto res = pages.emplace(std::move(page), pages.size());
+        const PageId id = res.first->second;
+        if (res.second) {
+            // Added new page; write out to page file.
+            const Page &page = res.first->first;
+            if (std::fwrite(page.data(), sizeof *page.data(), page.size(), file_pages) != page.size())
+                fatal("Failed to write page data\n");
+        }
+        if (std::fwrite(&id, sizeof id, 1, file_ids) != 1)
+            fatal("Failed to write page id\n");
+    }
+
+    std::fclose(file_pages);
+    std::fclose(file_ids);
 }
 
 void
