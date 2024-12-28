@@ -163,6 +163,8 @@ class PhysicalMemory : public Serializable
     // system
     std::vector<BackingStoreEntry> backingStore;
 
+    bool serializeUsingPagelist;
+
     // Prevent copying
     PhysicalMemory(const PhysicalMemory&);
 
@@ -193,7 +195,8 @@ class PhysicalMemory : public Serializable
                    bool mmap_using_noreserve,
                    const std::string& shared_backstore,
                    bool auto_unlink_shared_backstore,
-                   bool anonymous_shared_backstore);
+                   bool anonymous_shared_backstore,
+                   bool serialize_using_pagelist);
 
     /**
      * Unmap all the backing store we have used.
@@ -285,6 +288,11 @@ class PhysicalMemory : public Serializable
      */
     void serializeStore(CheckpointOut &cp, unsigned int store_id,
                         AddrRange range, uint8_t* pmem) const;
+
+    void serializeStoreUnpaged(CheckpointOut &cp, unsigned int store_id,
+                               AddrRange range, uint8_t *pmem) const;
+    void serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
+                             AddrRange range, uint8_t *pmem) const;
 
     /**
      * Unserialize the memories in the system. As with the

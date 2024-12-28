@@ -107,6 +107,10 @@ class System(SimObject):
         True,
         "Shared backstore should be anonymously created using memfd_create(2)",
     )
+    use_pagelist = Param.Bool(
+        False,
+        "Use pagelists when checkpointing",
+    )
 
     cache_line_size = Param.Unsigned(64, "Cache line size in bytes")
 
