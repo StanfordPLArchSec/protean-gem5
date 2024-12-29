@@ -504,13 +504,27 @@ PhysicalMemory::unserialize(CheckpointIn &cp)
 void
 PhysicalMemory::unserializeStore(CheckpointIn &cp)
 {
-    const uint32_t chunk_size = 16384;
-
     unsigned int store_id;
     UNSERIALIZE_SCALAR(store_id);
 
     std::string filename;
-    UNSERIALIZE_SCALAR(filename);
+    if (optParamIn(cp, "filename", filename)) {
+        unserializeStoreUnpaged(cp, store_id, filename);
+    } else {
+        std::string filename_pages;
+        UNSERIALIZE_SCALAR(filename_pages);
+        std::string filename_ids;
+        UNSERIALIZE_SCALAR(filename_ids);
+        unserializeStorePaged(cp, store_id, filename_pages, filename_ids);
+    }
+}
+
+void
+PhysicalMemory::unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
+                                        const std::string &filename)
+{
+    const uint32_t chunk_size = 16384;
+
     std::string filepath = cp.getCptDir() + "/" + filename;
 
     // mmap memoryfile
@@ -555,6 +569,64 @@ PhysicalMemory::unserializeStore(CheckpointIn &cp)
         fatal("Close failed on physical memory checkpoint file '%s'\n",
               filename);
 }
+
+void
+PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
+                                      const std::string &filename_pages,
+                                      const std::string &filename_ids)
+{
+    const auto path = [&cp] (const std::string &name) -> std::string {
+        return cp.getCptDir() + "/" + name;
+    };
+    const std::string filepath_pages = path(filename_pages);
+    const std::string filepath_ids = path(filename_ids);
+
+    FILE *file_pages = std::fopen(filepath_pages.c_str(), "rb");
+    if (!file_pages)
+        fatal("Can't open physical memory checkpoint pages file '%s'\n", filename_pages);
+    FILE *file_ids = std::fopen(filepath_ids.c_str(), "rb");
+    if (!file_ids)
+        fatal("Can't open physical memory checkpoint pageid file '%s'\n", filename_ids);
+
+    using PageId = int;
+    using Page = std::vector<uint8_t>;
+
+    // we've already got the actual backing store mapped
+    // TODO: Shared code with unserializeStoreUnpaged.
+    uint8_t* pmem = backingStore[store_id].pmem;
+    AddrRange range = backingStore[store_id].range;
+
+    Addr range_size;
+    UNSERIALIZE_SCALAR(range_size);
+    
+    DPRINTF(Checkpoint, "Unserializing physical memory %s with size %d\n",
+            filename_ids, range_size);
+
+    if (range_size != range.size())
+        fatal("Memory range size has changed! Saw %lld, expected %lld\n",
+              range_size, range.size());
+
+    // Parse page table.
+    std::vector<Page> pages;
+    while (true) {
+        Page page(pageSize);
+        std::size_t bytes = std::fread(page.data(), sizeof *page.data(), page.size(), file_pages);
+        if (bytes == 0 && std::feof(file_pages))
+            break;
+        if (bytes != page.size())
+            fatal("Failed to read page\n");
+        pages.emplace_back(std::move(page));
+    }
+
+    // Parse ids.
+    for (std::size_t i = 0; i != range.size(); i += pageSize) {
+        PageId id;
+        if (std::fread(&id, sizeof id, 1, file_ids) != 1)
+            fatal("Failed to read page id\n");
+        const Page &page = pages.at(id);
+        std::copy(page.begin(), page.end(), &pmem[i]);
+    }
+}   
 
 } // namespace memory
 } // namespace gem5

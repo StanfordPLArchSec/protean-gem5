@@ -309,6 +309,12 @@ class PhysicalMemory : public Serializable
      * Unserialize a specific backing store, identified by a section.
      */
     void unserializeStore(CheckpointIn &cp);
+    void unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
+                                 const std::string &filename);
+
+    void unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
+                               const std::string &filename_pages,
+                               const std::string &filename_ids);
 
 };
 
