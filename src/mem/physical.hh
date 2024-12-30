@@ -44,6 +44,7 @@
 
 #include "base/addr_range.hh"
 #include "base/addr_range_map.hh"
+#include "base/stl_helpers/hash_helpers.hh"
 #include "mem/packet.hh"
 #include "sim/serialize.hh"
 
@@ -167,6 +168,11 @@ class PhysicalMemory : public Serializable
     std::vector<BackingStoreEntry> backingStore;
 
     bool serializeUsingPagelist;
+    mutable std::string pagelistPath;
+
+    using Page = std::vector<uint8_t>;
+    using PageId = uint32_t;
+    mutable stl_helpers::unordered_map<Page, PageId> pages;
 
     // Prevent copying
     PhysicalMemory(const PhysicalMemory&);

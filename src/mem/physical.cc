@@ -442,9 +442,15 @@ PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
 
     // Open page file.
     const std::string filepath_pages = CheckpointIn::dir() + "/" + filename_pages;
-    FILE *file_pages = std::fopen(filepath_pages.c_str(), "wb");
+    if (!(::access(filepath_pages.c_str(), F_OK) < 0 && (errno == ENOENT || errno == ENOTDIR)))
+        fatal("File already exists. Refusing to overwrite it.\n");
+    if (!pagelistPath.empty())
+        if (link(pagelistPath.c_str(), filepath_pages.c_str()) < 0)
+            fatal("Failed to hardlink paths\n");
+    FILE *file_pages = std::fopen(filepath_pages.c_str(), "ab");
     if (!file_pages)
         fatal("Failed to open memory checkpoint page file %s\n", filepath_pages);
+    pagelistPath = filepath_pages;
 
     // Open id file.
     const std::string filepath_ids = CheckpointIn::dir() + "/" + filename_ids;
@@ -453,10 +459,6 @@ PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
         fatal("Failed to open memory checkpoint id file %s\n", filepath_ids);
 
     // Memory pages.
-    using Page = std::vector<uint8_t>;
-    using PageId = int;
-    stl_helpers::unordered_map<Page, PageId> pages;
-
     assert((range.size() & (pageSize - 1)) == 0);
     for (std::size_t i = 0; i != range.size(); i += pageSize) {
         Page page(&mem[i], &mem[i + pageSize]);
