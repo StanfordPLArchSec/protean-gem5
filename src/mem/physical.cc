@@ -447,9 +447,10 @@ PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
     if (!pagelistPath.empty())
         if (link(pagelistPath.c_str(), filepath_pages.c_str()) < 0)
             fatal("Failed to hardlink paths\n");
-    FILE *file_pages = std::fopen(filepath_pages.c_str(), "ab");
-    if (!file_pages)
+    FILE *file_pages_raw = std::fopen(filepath_pages.c_str(), "ab");
+    if (!file_pages_raw)
         fatal("Failed to open memory checkpoint page file %s\n", filepath_pages);
+    gzFile file_pages = ::gzdopen(fileno(file_pages_raw), "wb");
     pagelistPath = filepath_pages;
 
     // Open id file.
@@ -467,14 +468,14 @@ PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
         if (res.second) {
             // Added new page; write out to page file.
             const Page &page = res.first->first;
-            if (std::fwrite(page.data(), sizeof *page.data(), page.size(), file_pages) != page.size())
+            if (gzwrite(file_pages, page.data(), page.size()) != page.size())
                 fatal("Failed to write page data\n");
         }
         if (std::fwrite(&id, sizeof id, 1, file_ids) != 1)
             fatal("Failed to write page id\n");
     }
 
-    std::fclose(file_pages);
+    gzclose(file_pages);
     std::fclose(file_ids);
 }
 
@@ -583,7 +584,7 @@ PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
     const std::string filepath_pages = path(filename_pages);
     const std::string filepath_ids = path(filename_ids);
 
-    FILE *file_pages = std::fopen(filepath_pages.c_str(), "rb");
+    gzFile file_pages = gzopen(filepath_pages.c_str(), "rb");
     if (!file_pages)
         fatal("Can't open physical memory checkpoint pages file '%s'\n", filename_pages);
     FILE *file_ids = std::fopen(filepath_ids.c_str(), "rb");
@@ -612,13 +613,14 @@ PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
     std::vector<Page> pages;
     while (true) {
         Page page(pageSize);
-        std::size_t bytes = std::fread(page.data(), sizeof *page.data(), page.size(), file_pages);
-        if (bytes == 0 && std::feof(file_pages))
+        int bytes = gzread(file_pages, page.data(), page.size());
+        if (bytes == 0 && gzeof(file_pages))
             break;
         if (bytes != page.size())
             fatal("Failed to read page\n");
         pages.emplace_back(std::move(page));
     }
+    gzclose(file_pages);
 
     // Parse ids.
     for (std::size_t i = 0; i != range.size(); i += pageSize) {
