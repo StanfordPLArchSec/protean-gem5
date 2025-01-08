@@ -20,11 +20,11 @@ static KNOB<std::string> ProgressMarkerFile(KNOB_MODE_WRITEONCE, "pintool", "sle
 using Count = long;
 
 static std::ofstream out;
-static std::unordered_set<ADDRINT> progmarks;
+static std::unordered_set<ADDRINT> progmarks; // TODO: Rename to waypoints.
 static long interval_size = 0;
 
-static long prev_progmarks = 0;
-static long total_progmarks = 0;
+static long prev_progmarks = 0; // TODO: Rename to waypoints.
+static long total_progmarks = 0; // TODO: Rename to waypoints.
 static long cur_insts = 0;
 static long prev_insts = 0;
 static long total_insts = 0;
@@ -32,19 +32,11 @@ static int num_intervals = 0;
 
 struct Block {
     long id;
-    long size;
-    long hits;
+    uint64_t hits;
 
-    Block(long id, BBL bbl)
-        : id(id), size(BBL_NumIns(bbl)), hits(0)
+    Block(long id)
+        : id(id), hits(0)
     {
-    }
-
-    void
-    hit()
-    {
-        cur_insts += size;
-        hits += size;
     }
 
     void
@@ -72,7 +64,8 @@ DumpInterval()
     prev_progmarks = total_progmarks;
     prev_insts = total_insts;
     total_insts += cur_insts;
-    cur_insts = 0;
+    cur_insts -= interval_size;
+    cur_insts = 0; // TODO: Maybe just subtract interval?
     ++num_intervals;
 }
 
@@ -85,9 +78,10 @@ UpdateProgmarkCount(uint64_t num_progmarks)
 }
 
 static void
-UpdateInstCount(Block *block)
+UpdateInstCount(uint64_t *hits, uint64_t num_insts)
 {
-    block->hit();
+    *hits += num_insts;
+    cur_insts += num_insts;
 }
 
 static void
@@ -98,10 +92,11 @@ InstrumentBBL(BBL bbl)
     for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
         if (progmarks.count(INS_Address(ins)))
             ++num_progmarks;
-    blocks.emplace_back(blocks.size() + 1, bbl);
+    blocks.emplace_back(blocks.size() + 1);
     Block *block = &blocks.back();
     BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateInstCount,
-                   IARG_PTR, block,
+                   IARG_PTR, &block->hits,
+                   IARG_UINT64, (uint64_t) BBL_NumIns(bbl),
                    IARG_END);
     BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) UpdateProgmarkCount,
                    IARG_UINT64, (uint64_t) num_progmarks,
