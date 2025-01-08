@@ -1,31 +1,15 @@
 #pragma once
 
-class Plugin;
-void register_plugin(Plugin *plugin);
+#include <vector>
+#include <string>
 
-class Plugin {
-  private:
-    Plugin()
-    {
-        register_plugin(this);
-    }
+struct Plugin
+{
+    Plugin();
+    Plugin(const Plugin &) = delete;
 
-    template <class Derived>
-    friend class PluginT;
-
-  public:
-    virtual void reg() = 0;
+    virtual bool reg() = 0;
+    virtual bool command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) = 0;
 };
 
-
-template <class Derived>
-class PluginT : public Plugin {
-    static Derived plugin;
-
-  public:
-    static Derived *
-    getInstance()
-    {
-        return &plugin;
-    }
-};
+extern std::vector<Plugin *> plugins;

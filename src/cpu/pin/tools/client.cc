@@ -25,6 +25,7 @@
 #include "bbhist.hh"
 #include "slev.hh"
 #include "progmark2inst.hh"
+#include "plugin.hh"
 
 static const char *prog;
 static KNOB<std::string> log_path(KNOB_MODE_WRITEONCE, "pintool", "log", "", "specify path to log file");
@@ -493,13 +494,53 @@ HandleOp_ADD_SYMBOL(ADDRINT name_vptr, ADDRINT vaddr)
     // PIN_RemoveInstrumentation(); // So that any analyses depending on symbols will get to re-analyze with symbols.
 }
 
-static void
-HandleOp_SET_BREAKPOINT(ADDRINT event_vptr, ADDRINT count)
+static std::string
+ExecCommand(const std::string &cmd, const std::vector<std::string> &args)
 {
-    const std::string name = CopyUserString(event_vptr);
-    // TODO
-    std::cerr << "unimplemented: handle breakpoint event=" << name << " count=" << count << "\n";
+    for (Plugin *plugin : plugins) {
+        std::string result;
+        if (plugin->command(cmd, args, result))
+            return result;
+    }
+
+    std::cerr << __FUNCTION__ << ": no plugin handled command: " << cmd << "\n";
     Abort();
+}
+
+static std::string gCommandResult;
+
+static ADDRINT
+HandleOp_EXEC_COMMAND(ADDRINT cmd_vptr)
+{
+    const std::string cmdline = CopyUserString(cmd_vptr);
+
+    // Tokenize.
+    std::vector<std::string> tokens;
+    tokens.emplace_back();
+    for (char c : cmdline) {
+        if (std::isspace(c)) {
+            tokens.emplace_back();
+        } else {
+            tokens.back().push_back(c);
+        }
+    }
+    if (tokens.empty()) {
+        std::cerr << __func__ << ": got empty command!\n";
+        Abort();
+    }
+    const std::string cmd = tokens.front();
+    tokens.erase(tokens.begin());
+
+    // Try to find plugin to handle the command.
+    gCommandResult = ExecCommand(cmd, tokens);
+    return gCommandResult.size();
+}
+
+static void
+HandleOp_READ_COMMAND_RESULT(ADDRINT buf_vptr, ADDRINT idx, ADDRINT len)
+{
+    assert(idx + len <= gCommandResult.size());
+    PIN_SafeCopy(reinterpret_cast<void *>(buf_vptr), gCommandResult.data() + idx, len);
 }
 
 const std::string *
@@ -620,10 +661,18 @@ Instrument_Instruction_PinOps(INS ins, void *)
                                  IARG_END);
         break;
 
-      case PinOp::OP_SET_BREAKPOINT:
-        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_SET_BREAKPOINT,
+      case PinOp::OP_EXEC_COMMAND:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_EXEC_COMMAND,
+                                 IARG_REG_VALUE, REG_RDI,
+                                 IARG_RETURN_REGS, REG_RAX,
+                                 IARG_END);
+        break;
+
+      case PinOp::OP_READ_COMMAND_RESULT:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_READ_COMMAND_RESULT,
                                  IARG_REG_VALUE, REG_RDI,
                                  IARG_REG_VALUE, REG_RSI,
+                                 IARG_REG_VALUE, REG_RDX,
                                  IARG_END);
         break;
 
@@ -990,6 +1039,7 @@ main(int argc, char *argv[])
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
 
     // TODO: Use a static function registration list to make it cleaner.
+    // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
         !f2i_register() ||
         !fhist_register() ||
@@ -1003,6 +1053,10 @@ main(int argc, char *argv[])
         !progmark2inst_register() || // TODO: Remove progmark2inst
         false)
         return EXIT_FAILURE;
+
+    // Register plugins.
+    for (Plugin *plugin : plugins)
+        plugin->reg();
 
     INS_AddInstrumentFunction(Instruction, nullptr);
     INS_AddInstrumentFunction(Instrument_Instruction_PinOps, nullptr);

@@ -18,7 +18,7 @@ class BasePinCPU(BaseCPU):
         return False
 
     @cxxMethod
-    def setBreakpoint(event, n):
+    def executePinCommand(command):
         pass
 
     pinExe = Param.String(os.path.join(buildEnv["PIN_DIR"], 'pin'), "Path to Intel Pin executable")
@@ -26,12 +26,16 @@ class BasePinCPU(BaseCPU):
     pinTool = Param.String(buildEnv["PIN_CLIENT"], "Path to host PinTool")
     pinToolArgs = Param.String("", "Arguments to pass to PinTool")
     pinArgs = Param.String("", "Arguments to pass to Pin")
-    
+
+    # FIXME: Remove.
     countInsts = Param.Bool(False, "Enable instruction counting (moderate performance penalty)")
     traceInsts = Param.Bool(False, "Enable instruction tracing (huge performance penalty)")
+    # FIXME: Remove
     enableBBV = Param.Bool(False, "Enable basic block profiling (e.g., for SimPoints)")
+    # FIXME: Remove.
     interval = Param.Unsigned(50000000, "Basic block profiling interval (default: 50M instructions)")
 
+    # FIXME: Remove.
     def addSimPointProbe(self, interval: int):
         self.enableBBV = True
         self.interval = interval

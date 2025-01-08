@@ -62,6 +62,10 @@ void __attribute__((naked)) pinop_add_symbol(const char *name, void *vaddr) {
     asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_ADD_SYMBOL));
 }
 
-void __attribute__((naked)) pinop_set_breakpoint(const char *event, uint64_t count) {
-    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_SET_BREAKPOINT));
+size_t __attribute__((naked)) pinop_exec_command(const char *cmd) {
+    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_EXEC_COMMAND));
+}
+
+void __attribute__((naked)) pinop_read_command_result(char *buf, size_t idx, size_t size) {
+    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_READ_COMMAND_RESULT));
 }

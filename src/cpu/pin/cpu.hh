@@ -85,20 +85,6 @@ class CPU final : public BaseCPU
     bool enableBBV;
     unsigned long interval;
 
-    // Pending breakpoints.
-    struct Breakpoint
-    {
-        std::string event;
-        uint64_t count;
-
-        Breakpoint(const std::string &event, uint64_t count)
-            : event(event), count(count)
-        {
-        }
-    };
-    std::optional<Breakpoint> breakpoint;
-
-
     static const char *getPinRoot();
     const std::string& getPinTool() const;
     const std::string& getPinExe() const;
@@ -134,10 +120,8 @@ class CPU final : public BaseCPU
 
     bool isPinRunning() const;
 
-    void sendBreakpoint() const;
-
   public:
-    void setBreakpoint(const char *event, uint64_t msgcount);
+    std::string executePinCommand(const std::string &command);
 };
 
 }

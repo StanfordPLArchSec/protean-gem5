@@ -39,7 +39,8 @@ struct Message
         SetRegs,
         Unmap,
         AddSymbol,
-        SetBreakpoint,
+        ExecCommand,
+        CommandResult,
         NumTypes
     } type;
     union
@@ -68,10 +69,8 @@ struct Message
             uint64_t vaddr;
         } symbol;
 
-        struct {
-            char event[64];
-            uint64_t count;
-        } breakpoint;
+        char command[64];
+        uint64_t command_result_size;
     };
 
     uint64_t inst_count; // Valid for all responses to RUN requests.

@@ -32,6 +32,8 @@
 #define vsyscall_base 0xffffffffff600000ULL
 #define vsyscall_end (vsyscall_base + 0x1000)
 
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+
 static void __attribute__((unused))
 do_assert_failure(const char *file, int line, const char *desc)
 {
@@ -118,9 +120,7 @@ void msg_read(Message *msg) {
 }
 
 void msg_write(const Message *msg) {
-    // printf("KERNEL: writing response\n");
     write_all(resp_fd, msg, sizeof *msg);
-    // printf("KERNEL: wrote response\n");
 }
 
 void main_event_loop(void) {
@@ -248,12 +248,24 @@ void main_event_loop(void) {
             msg_write(&msg);
             break;
 
-          case SetBreakpoint:
-            pinop_set_breakpoint(msg.breakpoint.event, msg.breakpoint.count);
-            msg.type = Ack;
-            msg_write(&msg);
-            break;
+          case ExecCommand:
+            {
+                const size_t bytes = pinop_exec_command(msg.command);
+                msg.type = CommandResult;
+                msg.command_result_size = bytes;
+                msg_write(&msg);
 
+                // TODO: Should just send null-terminated string, once we use buffered files on the gem5 end.
+                for (size_t i = 0; i != bytes; ) {
+                    char buf[1024];
+                    const size_t chunk = min(bytes - i, sizeof buf);
+                    pinop_read_command_result(buf, i, chunk);
+                    write_all(resp_fd, buf, chunk);
+                    i += chunk;
+                }
+            }
+            break;
+              
           default:
             printf_("error: bad message type (%d)\n", msg.type);
             pinop_abort();

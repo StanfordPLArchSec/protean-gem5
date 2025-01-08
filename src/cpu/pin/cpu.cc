@@ -226,6 +226,7 @@ CPU::startup()
     tc->simcall_info.type = ThreadContext::SimcallInfo::INVALID; // TODO: This is definitely not the appropriate place for this.
 
     // Create pipes for bidirectional communication.
+    // TODO: Wrap these as C FILEs, so that we don't have to worry about partial read(2)'s and write(2)'s.
     int req_fds[2];
     if (pipe(req_fds) < 0)
         fatal("pipe failed: %s", std::strerror(errno));
@@ -308,7 +309,7 @@ CPU::startup()
         *it++ = "-req_path"; *it++ = req_path;
         *it++ = "-resp_path"; *it++ = resp_path;
         *it++ = "-mem_path"; *it++ = shm_path;
-        *it++ = "-inst_count"; *it++ = ctrInsts ? "1" : "0";
+        *it++ = "-instcount"; *it++ = ctrInsts ? "1" : "0";
 
         // Custom Pintool args.
         it = std::copy(pinToolArgs.begin(), pinToolArgs.end(), it);
@@ -348,10 +349,6 @@ CPU::startup()
 
     // Copy over initial state.
     syncStateToPin(true);
-
-    // Copy over breakpoint information?
-    if (breakpoint)
-        sendBreakpoint();
 }
 
 void
@@ -613,10 +610,12 @@ CPU::pinRun()
     msg.send(reqFd);
     msg.recv(respFd);
     if (ctrInsts) {
-        assert(*ctrInsts <= msg.inst_count);
-        ctrInsts = (uint64_t) msg.inst_count;
+        const std::string instcount_s = executePinCommand("get-instcount");
+        const auto new_instcount = std::stoull(instcount_s);
+        assert(*ctrInsts <= new_instcount);
+        ctrInsts = new_instcount;
     }
-        
+
     switch (msg.type) {
       case Message::PageFault:
         handlePageFault(msg.faultaddr);
@@ -841,27 +840,30 @@ CPU::serializeThread(CheckpointOut &cp, ThreadID tid) const
     thread->serialize(cp);
 }
 
-void
-CPU::sendBreakpoint() const
+std::string
+CPU::executePinCommand(const std::string &command)
 {
-    assert(breakpoint);
+    fatal_if(!isPinRunning(), "PinCPU has not been started up yet!\n");
     Message msg;
-    msg.type = Message::SetBreakpoint;
-    fatal_if(breakpoint->event.size() >= sizeof msg.breakpoint.event,
-             "Breakpoint event name too long!\n");
-    std::strncpy(msg.breakpoint.event, breakpoint->event.c_str(), sizeof msg.breakpoint.event - 1);
-    msg.breakpoint.count = breakpoint->count;
+    msg.type = Message::ExecCommand;
+    fatal_if(command.size() >= sizeof msg.command, "Command too long!\n");
+    std::strcpy(msg.command, command.c_str());
     msg.send(reqFd);
     msg.recv(respFd);
-    panic_if(msg.type != Message::Ack, "Received message other than ACK when sending breakpoint!\n");
-}
-
-void
-CPU::setBreakpoint(const char *event, uint64_t n)
-{
-    breakpoint.emplace(event, n);
-    if (isPinRunning())
-        sendBreakpoint();
+    panic_if(msg.type != Message::CommandResult, "Received message other than CommandResult!\n");
+    
+    size_t rem = msg.command_result_size;
+    std::string s;
+    while (rem > 0) {
+        char buf[1024];
+        const ssize_t bytes = read(respFd, buf, std::min(rem, sizeof buf));
+        if (bytes <= 0)
+            panic("read failed: rem=%u\n", rem);
+        s.insert(s.end(), &buf[0], &buf[bytes]);
+        rem -= bytes;
+    }
+    assert(s.size() == msg.command_result_size);
+    return s;
 }
 
 bool

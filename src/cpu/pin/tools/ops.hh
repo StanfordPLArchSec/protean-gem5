@@ -26,7 +26,8 @@ enum PinOp
     OP_SET_REGS,
     OP_GET_REGS,
     OP_ADD_SYMBOL,
-    OP_SET_BREAKPOINT,
+    OP_EXEC_COMMAND,
+    OP_READ_COMMAND_RESULT,
     OP_COUNT,
 };
 
@@ -64,12 +65,15 @@ void pinop_resetuser(void);
 void pinop_run(struct RunResult *result);
 void pinop_set_vsyscall_base(void *virt, void *phys);
 uint64_t pinop_get_instcount(void);
-void pinop_set_breakpoint(const char *event, uint64_t count);
 
 struct PinRegFile;
 void pinop_set_regs(const struct PinRegFile *regfile);
 void pinop_get_regs(struct PinRegFile *regfile);
 
 void pinop_add_symbol(const char *name, void *vaddr);
+
+/// Returns the number of bytes in the command result.
+size_t pinop_exec_command(const char *s);
+void pinop_read_command_result(char *buf, size_t idx, size_t size);
 
 #define pinop_abort() (pinop_abort)(__FILE__, __LINE__)

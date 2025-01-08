@@ -225,9 +225,14 @@ cpu.simpoint_start_insts = [
 ]
 print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
 m5.instantiate()
+m5.startup()
 
 for simpoint in simpoints:
-    cpu.setBreakpoint("dummy_event", 42)
+    # Assume instruction counting is already set up.
+    # Just need to set up instruction count breakpoint.
+    next_inst_bkpt = get_simpoint_start_inst(simpoint)
+    cpu.executePinCommand(f"break-inst {next_inst_bkpt}")
+    
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
     if exit_cause != "simpoint starting point found":
