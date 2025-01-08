@@ -112,7 +112,6 @@ parser.add_argument("--stdout")
 parser.add_argument("--stderr")
 parser.add_argument("--pin-args", default="")
 parser.add_argument("--pin-tool-args", default="")
-parser.add_argument("--symbol-blacklist", default="")  # REMOVEME
 args = parser.parse_args()
 
 process = get_process(args.cmd, args)
@@ -139,6 +138,7 @@ system = System(
 )
 system.shared_backstore = f"physmem"
 system.auto_unlink_shared_backstore = True
+system.use_pagelist = True
 cpu = system.cpu[0]
 
 # Create a top-level voltage domain
@@ -165,13 +165,8 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-# cpu.pinTool = args.pin_tool
-# cpu.pinKernel = args.pin_kernel
-# cpu.pinExe = args.pin
 cpu.pinArgs = args.pin_args
 cpu.pinToolArgs = args.pin_tool_args
-cpu.symbolBlacklist = args.symbol_blacklist
-# cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True

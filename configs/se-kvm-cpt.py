@@ -163,6 +163,7 @@ cpu.clk_domain = system.cpu_clk_domain
 
 system.kvm_vm = KvmVM()
 system.m5ops_base = max(0xFFFF0000, Addr(args.mem_size).getValue())
+system.use_pagelist = True
 process.useArchPT = True
 process.kvmInSE = True
 
@@ -181,12 +182,6 @@ MemConfig.config_mem(args, system)
 config_filesystem(system, args)
 
 system.workload = SEWorkload.init_compatible(mp0_path)
-
-if args.test:
-    root = Root(full_system=False, system=system)
-    m5.instantiate()
-    m5.simulate()
-    exit(0)
 
 # Parse checkpoints file.
 simpoints = None

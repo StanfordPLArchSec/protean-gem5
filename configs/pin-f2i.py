@@ -99,7 +99,6 @@ parser.add_argument(
     required=True,
     help="[F2I] Output path to list of instructions",
 )
-parser.add_argument("--symbol-blacklist", default="")
 args = parser.parse_args()
 
 process = get_process(args.cmd, args.args)
@@ -149,7 +148,6 @@ if args.elastic_trace_en:
 # Set pin params.
 cpu = system.cpu[0]
 cpu.pinToolArgs = f"-f2i 1 -f2i-input {args.f2i_input} -f2i-output {args.f2i_output} -fhist 1"
-cpu.symbolBlacklist = args.symbol_blacklist
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True

@@ -70,34 +70,63 @@ from m5.util import (
 from gem5.isas import ISA
 
 
-def get_process(cmd: str, args: list) -> Process:
+def get_process(cmd: str, args) -> Process:
     process = Process(pid=100)
     process.executable = cmd
-    process.cwd = os.getcwd()
+    process.cwd = os.getcwd() if args.chdir is None else args.chdir
     process.gid = os.getgid()
 
     # Clear out the environment.
     process.env = []
 
-    process.cmd = [cmd, *args]
+    process.cmd = [cmd, *args.args]
 
     return process
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--chdir", help="Set working directory of simulated process"
+)
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
+gem5_root = os.path.dirname(os.path.dirname(__file__))
 parser.add_argument(
-    "--interval-size", required=True, type=int, help="SimPoint interval size"
+    "--pin",
+    default=os.path.join(gem5_root, "pin", "pin"),
+    help="Path to Intel Pin executable",
 )
-# parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
+parser.add_argument(
+    "--pin-tool",
+    default=os.path.join(gem5_root, "pintool", "build", "libclient.so"),
+    help="Path to host PinTool",
+),
+parser.add_argument(
+    "--pin-kernel",
+    default=os.path.join(gem5_root, "pintool", "build", "kernel"),
+    help="Path to Pin guest kernel",
+)
+parser.add_argument(
+    "--simpoints-json",
+    required=True,
+    help="Path to SimPoint JSON file under cpt/*",
+)
+parser.add_argument(
+    "--simpoints-warmup",
+    type=int,
+    required=True,
+    help="Warmup period, in instructions",
+)
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
+parser.add_argument("--pin-args", default="")
+parser.add_argument("--pin-tool-args", default="")
+
 args = parser.parse_args()
 
-process = get_process(args.cmd, args.args)
+process = get_process(args.cmd, args)
 if args.stdout:
     process.output = args.stdout
 if args.stderr:
@@ -119,7 +148,7 @@ system = System(
     mem_ranges=[AddrRange(args.mem_size)],
     cache_line_size=args.cacheline_size,
 )
-system.shared_backstore = "physmem"
+system.shared_backstore = f"physmem"
 system.auto_unlink_shared_backstore = True
 cpu = system.cpu[0]
 
@@ -146,10 +175,9 @@ if args.elastic_trace_en:
 
 
 # Set pin params.
-cpu = system.cpu[0]
-cpu.pinToolArgs = (
-    f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
-)
+cpu.pinArgs = args.pin_args
+cpu.pinToolArgs = args.pin_tool_args
+# cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True
@@ -177,12 +205,6 @@ config_filesystem(system, args)
 
 system.workload = SEWorkload.init_compatible(mp0_path)
 
-root = Root(full_system=False, system=system)
-m5.instantiate()
-exit_event = m5.simulate()
-print(exit_event, file=sys.stderr)
-exit(0)
-
 # Parse checkpoints file.
 simpoints = None
 with open(args.simpoints_json) as f:
@@ -205,6 +227,7 @@ print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
 m5.instantiate()
 
 for simpoint in simpoints:
+    cpu.setBreakpoint("dummy_event", 42)
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
     if exit_cause != "simpoint starting point found":
@@ -214,3 +237,4 @@ for simpoint in simpoints:
     path = f"cpt.{simpoint.name}"
     m5.checkpoint(path)
     m5.stats.dump()
+    print("pin-cpt: dumped checkpoint {}".format(simpoint["name"]), file=sys.stderr)
