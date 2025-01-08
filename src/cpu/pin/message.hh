@@ -27,18 +27,19 @@ struct Message
         Invalid = 0,
         Ack,
         Map,
-	SetReg,
+        SetReg,
         Abort,
         Run,
         PageFault,
         Syscall,
         GetReg,
         Cpuid,
-	Exit,
+        Exit,
         GetRegs,
         SetRegs,
         Unmap,
         AddSymbol,
+        SetBreakpoint,
         NumTypes
     } type;
     union
@@ -66,6 +67,11 @@ struct Message
             char name[64];
             uint64_t vaddr;
         } symbol;
+
+        struct {
+            char event[64];
+            uint64_t count;
+        } breakpoint;
     };
 
     uint64_t inst_count; // Valid for all responses to RUN requests.

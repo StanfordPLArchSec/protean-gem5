@@ -26,6 +26,7 @@ enum PinOp
     OP_SET_REGS,
     OP_GET_REGS,
     OP_ADD_SYMBOL,
+    OP_SET_BREAKPOINT,
     OP_COUNT,
 };
 
@@ -63,6 +64,7 @@ void pinop_resetuser(void);
 void pinop_run(struct RunResult *result);
 void pinop_set_vsyscall_base(void *virt, void *phys);
 uint64_t pinop_get_instcount(void);
+void pinop_set_breakpoint(const char *event, uint64_t count);
 
 struct PinRegFile;
 void pinop_set_regs(const struct PinRegFile *regfile);

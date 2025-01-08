@@ -61,3 +61,7 @@ void __attribute__((naked)) pinop_get_regs(struct PinRegFile *regfile) {
 void __attribute__((naked)) pinop_add_symbol(const char *name, void *vaddr) {
     asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_ADD_SYMBOL));
 }
+
+void __attribute__((naked)) pinop_set_breakpoint(const char *event, uint64_t count) {
+    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_SET_BREAKPOINT));
+}

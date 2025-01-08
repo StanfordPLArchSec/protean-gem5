@@ -121,6 +121,7 @@ if env['CONF']['BUILD_ISA']:
             'tools/bbhist.cc',
             'tools/slev.cc',
             'tools/progmark2inst.cc',
+            # 'tools/waycpt.cc',
         ],
         tags = 'pin',
     )

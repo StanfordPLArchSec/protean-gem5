@@ -72,12 +72,11 @@ class CPU final : public BaseCPU
     std::string pinTool;
     std::vector<std::string> pinArgs;
     std::vector<std::string> pinToolArgs;
-    std::set<std::string> symbolBlacklist;
     
     // TODO: Consider abstracting the Pin process into its own class.
-    pid_t pinPid;
-    int reqFd;
-    int respFd;
+    pid_t pinPid = -1;
+    int reqFd = -1;
+    int respFd = -1;
     System *system;
     std::optional<Counter> ctrInsts;
     bool traceInsts;
@@ -85,6 +84,19 @@ class CPU final : public BaseCPU
     // Basic block profiling
     bool enableBBV;
     unsigned long interval;
+
+    // Pending breakpoints.
+    struct Breakpoint
+    {
+        std::string event;
+        uint64_t count;
+
+        Breakpoint(const std::string &event, uint64_t count)
+            : event(event), count(count)
+        {
+        }
+    };
+    std::optional<Breakpoint> breakpoint;
 
 
     static const char *getPinRoot();
@@ -119,8 +131,13 @@ class CPU final : public BaseCPU
     void handleCPUID();
 
     void haltContext();
-    void syncSymbols();
-    bool skipSymbol(const loader::Symbol& symbol) const;
+
+    bool isPinRunning() const;
+
+    void sendBreakpoint() const;
+
+  public:
+    void setBreakpoint(const char *event, uint64_t msgcount);
 };
 
 }

@@ -493,6 +493,15 @@ HandleOp_ADD_SYMBOL(ADDRINT name_vptr, ADDRINT vaddr)
     // PIN_RemoveInstrumentation(); // So that any analyses depending on symbols will get to re-analyze with symbols.
 }
 
+static void
+HandleOp_SET_BREAKPOINT(ADDRINT event_vptr, ADDRINT count)
+{
+    const std::string name = CopyUserString(event_vptr);
+    // TODO
+    std::cerr << "unimplemented: handle breakpoint event=" << name << " count=" << count << "\n";
+    Abort();
+}
+
 const std::string *
 GetSymbol(ADDRINT addr)
 {
@@ -606,6 +615,13 @@ Instrument_Instruction_PinOps(INS ins, void *)
 
       case PinOp::OP_ADD_SYMBOL:
         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_ADD_SYMBOL,
+                                 IARG_REG_VALUE, REG_RDI,
+                                 IARG_REG_VALUE, REG_RSI,
+                                 IARG_END);
+        break;
+
+      case PinOp::OP_SET_BREAKPOINT:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_SET_BREAKPOINT,
                                  IARG_REG_VALUE, REG_RDI,
                                  IARG_REG_VALUE, REG_RSI,
                                  IARG_END);
@@ -984,7 +1000,7 @@ main(int argc, char *argv[])
         !bbe_register() ||
         !bbhist_register() ||
         !slev_register() ||
-        !progmark2inst_register() ||
+        !progmark2inst_register() || // TODO: Remove progmark2inst
         false)
         return EXIT_FAILURE;
 

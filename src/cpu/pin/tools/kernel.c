@@ -248,6 +248,12 @@ void main_event_loop(void) {
             msg_write(&msg);
             break;
 
+          case SetBreakpoint:
+            pinop_set_breakpoint(msg.breakpoint.event, msg.breakpoint.count);
+            msg.type = Ack;
+            msg_write(&msg);
+            break;
+
           default:
             printf_("error: bad message type (%d)\n", msg.type);
             pinop_abort();

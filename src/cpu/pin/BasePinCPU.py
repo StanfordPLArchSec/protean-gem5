@@ -17,6 +17,10 @@ class BasePinCPU(BaseCPU):
     def support_take_over(cls):
         return False
 
+    @cxxMethod
+    def setBreakpoint(event, n):
+        pass
+
     pinExe = Param.String(os.path.join(buildEnv["PIN_DIR"], 'pin'), "Path to Intel Pin executable")
     pinKernel = Param.String(buildEnv["PIN_KERNEL"], "Path to guest Pin kernel")
     pinTool = Param.String(buildEnv["PIN_CLIENT"], "Path to host PinTool")
@@ -27,8 +31,6 @@ class BasePinCPU(BaseCPU):
     traceInsts = Param.Bool(False, "Enable instruction tracing (huge performance penalty)")
     enableBBV = Param.Bool(False, "Enable basic block profiling (e.g., for SimPoints)")
     interval = Param.Unsigned(50000000, "Basic block profiling interval (default: 50M instructions)")
-
-    symbolBlacklist = Param.String("", "Path to symbol blacklist")
 
     def addSimPointProbe(self, interval: int):
         self.enableBBV = True

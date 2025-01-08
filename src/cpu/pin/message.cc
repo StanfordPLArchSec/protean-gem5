@@ -20,7 +20,7 @@ Message::send(int fd) const
     while (size > 0) {
         ssize_t bytes_written;
         if ((bytes_written = write(fd, data, size)) < 0)
-            std::abort();
+            panic("Failed to write message!\n");
         data += bytes_written;
         size -= bytes_written;
     }
