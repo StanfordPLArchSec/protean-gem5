@@ -21,6 +21,7 @@
 #include "cpu/pin/regfile.h"
 #include "base/loader/symtab.hh"
 #include "base/output.hh"
+#include "sim/sim_exit.hh"
 
 namespace gem5
 {
@@ -610,7 +611,7 @@ CPU::pinRun()
     msg.send(reqFd);
     msg.recv(respFd);
     if (ctrInsts) {
-        const std::string instcount_s = executePinCommand("get-instcount");
+        const std::string instcount_s = executePinCommand("instcount");
         const auto new_instcount = std::stoull(instcount_s);
         assert(*ctrInsts <= new_instcount);
         ctrInsts = new_instcount;
@@ -627,6 +628,10 @@ CPU::pinRun()
 
       case Message::Cpuid:
         handleCPUID();
+        break;
+
+      case Message::Break:
+        exitSimLoopNow("pin-breakpoint");
         break;
 
       case Message::Ack:

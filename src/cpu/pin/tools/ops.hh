@@ -46,6 +46,7 @@ struct RunResult {
         RUNRESULT_PAGEFAULT,
         RUNRESULT_SYSCALL,
         RUNRESULT_CPUID,
+        RUNRESULT_BREAK,
 	RUNRESULT_INSTCOUNT,
     } result;
     union {

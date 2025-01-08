@@ -41,6 +41,7 @@ struct Message
         AddSymbol,
         ExecCommand,
         CommandResult,
+        Break,
         NumTypes
     } type;
     union

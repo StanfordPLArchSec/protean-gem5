@@ -217,9 +217,14 @@ void main_event_loop(void) {
                     // Send up to gem5.
                     msg.type = Cpuid;
                     break;
+
+                  case RUNRESULT_BREAK:
+                    // Send up to gem5.
+                    msg.type = Break;
+                    break;
                     
                   default:
-                    printf("KERNEL ERROR: unhandled run result: %d\n", result);
+                    printf_("KERNEL ERROR: unhandled run result: %d\n", result);
                     pinop_abort();
                 }
 

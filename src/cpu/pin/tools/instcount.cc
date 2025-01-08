@@ -30,10 +30,15 @@ namespace {
 struct InstCountPlugin : Plugin
 {
     bool
+    enabled() const override
+    {
+        return enable.Value();
+    }
+    
+    bool
     reg() override
     {
-        if (!enable.Value())
-            return true;
+        assert(enabled());
         TRACE_AddInstrumentFunction(Instrument, nullptr);
         return true;
     }
@@ -41,7 +46,7 @@ struct InstCountPlugin : Plugin
     bool
     command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) override
     {
-        if (cmd == "get-instcount") {
+        if (cmd == "instcount") {
             result = std::to_string(instcount);
             return true;
         }

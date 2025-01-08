@@ -48,6 +48,9 @@ constexpr bool enable_pc_hist = false;
 
 static uint64_t pinops_count = 0;
 
+
+static void CopyOutRunResult(CONTEXT *ctx, const RunResult &result);
+
 std::ofstream &
 log()
 {
@@ -56,6 +59,22 @@ log()
 
 static ADDRINT getpage(ADDRINT addr) {
     return addr & ~(ADDRINT) 0xFFF;
+}
+
+void
+ContextSwitchToKernel(CONTEXT *ctx, RunResult result)
+{
+    // Save the user context.
+    PIN_SaveContext(ctx, &user_ctx);
+
+    // Swap in the kernel context.
+    PIN_SaveContext(&saved_kernel_ctx, ctx);
+
+    // Set the return value.
+    CopyOutRunResult(ctx, result);
+
+    // TODO: Probably too conservative.
+    PIN_RemoveInstrumentation();
 }
 
 bool
@@ -498,11 +517,12 @@ static std::string
 ExecCommand(const std::string &cmd, const std::vector<std::string> &args)
 {
     for (Plugin *plugin : plugins) {
-        std::string result;
-        if (plugin->command(cmd, args, result))
-            return result;
+        if (plugin->enabled()) {
+            std::string result;
+            if (plugin->command(cmd, args, result))
+                return result;
+        }
     }
-
     std::cerr << __FUNCTION__ << ": no plugin handled command: " << cmd << "\n";
     Abort();
 }
@@ -924,17 +944,7 @@ InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const E
         result.addr = fault_addr;
     }
 
-    // Save the user context.
-    PIN_SaveContext(ctx, &user_ctx);
-
-    // Swap in the kernel context.
-    PIN_SaveContext(&saved_kernel_ctx, ctx);
-
-    // Set the return value.
-    CopyOutRunResult(ctx, result);
-
-    // TODO: Might be too conservative.
-    PIN_RemoveInstrumentation();
+    ContextSwitchToKernel(ctx, result);
 
     return false;
 }
@@ -1056,7 +1066,8 @@ main(int argc, char *argv[])
 
     // Register plugins.
     for (Plugin *plugin : plugins)
-        plugin->reg();
+        if (plugin->enabled())
+            plugin->reg();
 
     INS_AddInstrumentFunction(Instruction, nullptr);
     INS_AddInstrumentFunction(Instrument_Instruction_PinOps, nullptr);
