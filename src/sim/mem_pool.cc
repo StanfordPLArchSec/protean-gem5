@@ -141,6 +141,14 @@ MemPool::unserialize(CheckpointIn &cp)
     paramIn(cp, "total_pages", _totalPages);
 }
 
+MemPools::Stats::Stats(MemPools *pools)
+    : statistics::Group(pools),
+      ADD_STAT(maxAllocatedBytes, statistics::units::Byte::get(),
+               "Maximum allocated bytes among all pools at "
+               "any point in time")
+{
+}
+
 void
 MemPools::populate(const AddrRangeList &memories)
 {
@@ -149,9 +157,23 @@ MemPools::populate(const AddrRangeList &memories)
 }
 
 Addr
+MemPools::allocatedBytes() const
+{
+    return std::transform_reduce(
+        pools.begin(), pools.end(), static_cast<Addr>(0),
+        std::plus<Addr>(), std::mem_fn(&MemPool::allocatedBytes));
+}
+
+Addr
 MemPools::allocPhysPages(int npages, int pool_id)
 {
-    return pools[pool_id].allocate(npages);
+    const Addr addr = pools[pool_id].allocate(npages);
+
+    // Recompute max allocated bytes stat, since it may have changed.
+    stats.maxAllocatedBytes =
+        std::max<Addr>(stats.maxAllocatedBytes.value(), allocatedBytes());
+
+    return addr;
 }
 
 Addr
