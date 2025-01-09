@@ -86,7 +86,9 @@ def get_process(cmd: str, args) -> Process:
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--chdir", help="Set working directory of simulated process"
+    "--chdir",
+    type=os.path.abspath,
+    help="Set working directory of simulated process",
 )
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
@@ -232,7 +234,7 @@ for simpoint in simpoints:
     # Just need to set up instruction count breakpoint.
     next_inst_bkpt = get_simpoint_start_inst(simpoint)
     cpu.executePinCommand(f"break-inst {next_inst_bkpt}")
-    
+
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
     if exit_cause != "simpoint starting point found":
@@ -242,4 +244,7 @@ for simpoint in simpoints:
     path = f"cpt.{simpoint.name}"
     m5.checkpoint(path)
     m5.stats.dump()
-    print("pin-cpt: dumped checkpoint {}".format(simpoint["name"]), file=sys.stderr)
+    print(
+        "pin-cpt: dumped checkpoint {}".format(simpoint["name"]),
+        file=sys.stderr,
+    )

@@ -86,7 +86,9 @@ def get_process(cmd: str, args) -> Process:
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--chdir", help="Set working directory of simulated process"
+    "--chdir",
+    type=os.path.abspath,
+    help="Set working directory of simulated process",
 )
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
