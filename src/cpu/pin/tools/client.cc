@@ -11,7 +11,6 @@
 
 #include "pin.H"
 #include "ops.hh"
-#include "bbv.hh"
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
@@ -1047,8 +1046,7 @@ main(int argc, char *argv[])
 
     // TODO: Use a static function registration list to make it cleaner.
     // FIXME: Migrate all of these to plugins.
-    if (!bbv_register() ||
-        !slev_register() ||
+    if (!slev_register() ||
         !progmark2inst_register() || // TODO: Remove progmark2inst
         false)
         return EXIT_FAILURE;

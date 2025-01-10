@@ -110,7 +110,6 @@ if env['CONF']['BUILD_ISA']:
         target = 'client',
         source = [
             'tools/client.cc',
-            'tools/bbv.cc',
             'tools/slev.cc',
             'tools/progmark2inst.cc',
             'tools/plugin.cc',
