@@ -110,7 +110,6 @@ if env['CONF']['BUILD_ISA']:
         target = 'client',
         source = [
             'tools/client.cc',
-            'tools/fhist.cc',
             'tools/bbv.cc',
             'tools/pmcount.cc',
             'tools/uniqtrace.cc',
