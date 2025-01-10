@@ -16,7 +16,6 @@
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
 #include "pmcount.hh"
-#include "instlist.hh"
 #include "sehist.hh"
 #include "bbe.hh"
 #include "slev.hh"
@@ -1053,7 +1052,6 @@ main(int argc, char *argv[])
     // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
         !pmcount_register() ||
-        !instlist_register() ||
         !sehist_register() ||
         !bbe_register() ||
         !slev_register() ||
