@@ -126,6 +126,8 @@ if env['CONF']['BUILD_ISA']:
             'tools/waypoints.cc',
             'tools/waypointcount.cc',
             'tools/breakpoint.cc',
+            'tools/bbhist2.cc',
+            'tools/sysbreak.cc',
         ],
         tags = 'pin',
     )

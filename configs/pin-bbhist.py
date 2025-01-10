@@ -70,34 +70,52 @@ from m5.util import (
 from gem5.isas import ISA
 
 
-def get_process(cmd: str, args: list) -> Process:
+def get_process(cmd: str, args) -> Process:
     process = Process(pid=100)
     process.executable = cmd
-    process.cwd = os.getcwd()
+    process.cwd = os.getcwd() if args.chdir is None else args.chdir
     process.gid = os.getgid()
 
     # Clear out the environment.
     process.env = []
 
-    process.cmd = [cmd, *args]
+    process.cmd = [cmd, *args.args]
 
     return process
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--chdir",
+    type=os.path.abspath,
+    help="Set working directory of simulated process",
+)
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 parser.add_argument("cmd", help="Executable to simulate")
 parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
+gem5_root = os.path.dirname(os.path.dirname(__file__))
 parser.add_argument(
-    "--interval-size", required=True, type=int, help="SimPoint interval size"
+    "--pin",
+    default=os.path.join(gem5_root, "pin", "pin"),
+    help="Path to Intel Pin executable",
 )
-# parser.add_argument("--output", required = True, help = "Path to output BBV file (uncompressed)")
+parser.add_argument(
+    "--pin-tool",
+    default=os.path.join(gem5_root, "pintool", "build", "libclient.so"),
+    help="Path to host PinTool",
+),
+parser.add_argument(
+    "--pin-kernel",
+    default=os.path.join(gem5_root, "pintool", "build", "kernel"),
+    help="Path to Pin guest kernel",
+)
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
+parser.add_argument("--bbhist", required = True, help = "Path to bbhist output file")
 args = parser.parse_args()
 
-process = get_process(args.cmd, args.args)
+process = get_process(args.cmd, args)
 if args.stdout:
     process.output = args.stdout
 if args.stderr:
@@ -119,8 +137,9 @@ system = System(
     mem_ranges=[AddrRange(args.mem_size)],
     cache_line_size=args.cacheline_size,
 )
-system.shared_backstore = "physmem"
+system.shared_backstore = f"physmem"
 system.auto_unlink_shared_backstore = True
+system.use_pagelist = True
 cpu = system.cpu[0]
 
 # Create a top-level voltage domain
@@ -147,9 +166,7 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinToolArgs = (
-    f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
-)
+cpu.pinToolArgs = "-bbhist2 1"
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True
@@ -179,38 +196,25 @@ system.workload = SEWorkload.init_compatible(mp0_path)
 
 root = Root(full_system=False, system=system)
 m5.instantiate()
-exit_event = m5.simulate()
-print(exit_event, file=sys.stderr)
-exit(0)
-
-# Parse checkpoints file.
-simpoints = None
-with open(args.simpoints_json) as f:
-    simpoints = json.load(f)
-    simpoints = [types.SimpleNamespace(**simpoint) for simpoint in simpoints]
-    simpoints.sort(key=lambda simpoint: simpoint.inst_range[0])
-
-root = Root(full_system=False, system=system)
-# Simulation.run(args, root, system, CPUClass)
-
-
-def get_simpoint_start_inst(simpoint: dict) -> int:
-    return max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
-
-
-cpu.simpoint_start_insts = [
-    get_simpoint_start_inst(simpoint) for simpoint in simpoints
+m5.startup()
+exit_sysnos = [
+    60, # exit
+    231, # exit_group
 ]
-print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
-m5.instantiate()
+for exit_sysno in exit_sysnos:
+    cpu.executePinCommand(f"sysbreak {exit_sysno}")
+exit_cause = m5.simulate().getCause()
+if exit_cause != "pin-breakpoint":
+    print(f"pin-bbhist: simulation stopped with unexpected reason '{exit_cause}' (expected 'pin-breakpoint')",
+          file = sys.stderr)
+    exit(1)
+bbhist = cpu.executePinCommand("bbhist dump")
 
-for simpoint in simpoints:
-    exit_event = m5.simulate()
-    exit_cause = exit_event.getCause()
-    if exit_cause != "simpoint starting point found":
-        print(f"Unexpected exit cause: {exit_cause}", file=sys.stderr)
-        exit(1)
-    # path = os.path.join(args.checkpoint_dir, name)
-    path = f"cpt.{simpoint.name}"
-    m5.checkpoint(path)
-    m5.stats.dump()
+with open(args.bbhist, "wt") as f:
+    f.write(bbhist)
+
+exit_cause = m5.simulate().getCause()
+if exit_cause != "exiting with last active thread context":
+    print(f"pin-bbhist: unexpected exit reason:", exit_cause, file = sys.stderr);
+    exit(1);
+print('Exited:', exit_cause, file=sys.stderr)
