@@ -111,7 +111,6 @@ if env['CONF']['BUILD_ISA']:
         source = [
             'tools/client.cc',
             'tools/bbv.cc',
-            'tools/pmcount.cc',
             'tools/sehist.cc',
             'tools/bbe.cc',
             'tools/slev.cc',

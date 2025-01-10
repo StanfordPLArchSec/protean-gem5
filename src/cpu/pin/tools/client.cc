@@ -15,7 +15,6 @@
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
-#include "pmcount.hh"
 #include "sehist.hh"
 #include "bbe.hh"
 #include "slev.hh"
@@ -1051,7 +1050,6 @@ main(int argc, char *argv[])
     // TODO: Use a static function registration list to make it cleaner.
     // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
-        !pmcount_register() ||
         !sehist_register() ||
         !bbe_register() ||
         !slev_register() ||

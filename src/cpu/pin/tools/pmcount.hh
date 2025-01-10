@@ -1,1 +1,0 @@
-bool pmcount_register();
