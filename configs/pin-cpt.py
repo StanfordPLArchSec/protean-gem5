@@ -184,6 +184,7 @@ cpu.pinToolArgs = args.pin_tool_args
 # for cpu in system.cpu:
 #     cpu.usePerf = True
 process.pinInSE = True
+cpu.countInsts = True
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
@@ -219,11 +220,12 @@ root = Root(full_system=False, system=system)
 
 
 def get_simpoint_start_inst(simpoint: dict) -> int:
-    return max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
-
+    start = max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
+    warmup = simpoint.inst_range[0] - start
+    return (start, warmup)
 
 cpu.simpoint_start_insts = [
-    get_simpoint_start_inst(simpoint) for simpoint in simpoints
+    get_simpoint_start_inst(simpoint)[0] for simpoint in simpoints
 ]
 print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
 m5.instantiate()
@@ -232,19 +234,33 @@ m5.startup()
 for simpoint in simpoints:
     # Assume instruction counting is already set up.
     # Just need to set up instruction count breakpoint.
-    next_inst_bkpt = get_simpoint_start_inst(simpoint)
-    cpu.executePinCommand(f"break-inst {next_inst_bkpt}")
+    start, warmup = get_simpoint_start_inst(simpoint)
+    cpu.executePinCommand(f"instbreak {start}")
 
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()
-    if exit_cause != "simpoint starting point found":
+    if exit_cause != "pin-breakpoint":
         print(f"Unexpected exit cause: {exit_cause}", file=sys.stderr)
         exit(1)
     # path = os.path.join(args.checkpoint_dir, name)
-    path = f"cpt.{simpoint.name}"
+    short_name = f"cpt.{simpoint.name}"
+    path = os.path.join(m5.options.outdir, short_name)
     m5.checkpoint(path)
     m5.stats.dump()
     print(
-        "pin-cpt: dumped checkpoint {}".format(simpoint["name"]),
+        "pin-cpt: dumped checkpoint {}".format(simpoint.name),
         file=sys.stderr,
     )
+
+    # Symlink in long gem5 name.
+    interval = simpoint.inst_range[1] - simpoint.inst_range[0]
+    long_name = f"cpt.simpoint_{int(simpoint.name):02}_inst_{start}_weight_{simpoint.weight}_interval_{interval}_warmup_{warmup}"
+    os.symlink(short_name, os.path.join(m5.options.outdir, long_name))
+
+# Run to completion.
+exit_cause = m5.simulate().getCause()
+if exit_cause != "exiting with last active thread context":
+    print(f"unexpected exit reason:", exit_cause);
+    exit(1)
+
+

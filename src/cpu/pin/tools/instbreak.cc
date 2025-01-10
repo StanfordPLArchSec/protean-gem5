@@ -24,6 +24,8 @@ AnalyzeThen(CONTEXT *ctx)
     result.result = result.RUNRESULT_BREAK;
     std::cerr << "instbreak: switching to kernel\n";
     ContextSwitchToKernel(ctx, result);
+    instbreak = std::numeric_limits<ADDRINT>::max();
+    PIN_RemoveInstrumentation();
     PIN_ExecuteAt(ctx);
 }
 

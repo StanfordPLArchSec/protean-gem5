@@ -397,6 +397,7 @@ HandleOp_RUN(const CONTEXT *kernel_ctx_ptr, ADDRINT next_pc)
 {
     PIN_SaveContext(kernel_ctx_ptr, &saved_kernel_ctx);
     PIN_SetContextReg(&saved_kernel_ctx, REG_RIP, next_pc);
+    std::cerr << __FUNCTION__ << ": switching to user context\n";
     PIN_ExecuteAt(&user_ctx);
     std::abort(); // TODO: UNREACHABLE
 }
@@ -516,6 +517,10 @@ HandleOp_ADD_SYMBOL(ADDRINT name_vptr, ADDRINT vaddr)
 static std::string
 ExecCommand(const std::string &cmd, const std::vector<std::string> &args)
 {
+    std::cerr << __FUNCTION__ << ": executing command: " << cmd;
+    for (const std::string &arg : args)
+        std::cerr << " " << arg;
+    std::cerr << "\n";
     for (Plugin *plugin : plugins) {
         if (plugin->enabled()) {
             std::string result;
@@ -580,7 +585,7 @@ Instrument_Instruction_PinOps(INS ins, void *)
 
     const PinOp op = it->second;
 
-    dbgs() << "CLIENT: instrumenting pinop instruction: 0x" << INS_Address(ins) << ": op=" << std::dec << op << "\n";
+    dbgs() << "CLIENT: instrumenting pinop instruction: 0x" << std::hex << INS_Address(ins) << ": op=" << std::dec << op << "\n";
 
     assert(INS_MemoryOperandCount(ins) == 1);
 

@@ -631,6 +631,7 @@ CPU::pinRun()
         break;
 
       case Message::Break:
+        syncStateFromPin(false);
         exitSimLoopNow("pin-breakpoint");
         break;
 
