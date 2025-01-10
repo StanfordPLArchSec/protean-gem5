@@ -166,7 +166,7 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinToolArgs = "-bbhist2 1"
+cpu.pinToolArgs = "-bbhist 1"
 
 # for cpu in system.cpu:
 #     cpu.usePerf = True

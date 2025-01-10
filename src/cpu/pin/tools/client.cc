@@ -22,7 +22,6 @@
 #include "instlist.hh"
 #include "sehist.hh"
 #include "bbe.hh"
-#include "bbhist.hh"
 #include "slev.hh"
 #include "progmark2inst.hh"
 #include "plugin.hh"
@@ -1063,7 +1062,6 @@ main(int argc, char *argv[])
         !instlist_register() ||
         !sehist_register() ||
         !bbe_register() ||
-        !bbhist_register() ||
         !slev_register() ||
         !progmark2inst_register() || // TODO: Remove progmark2inst
         false)

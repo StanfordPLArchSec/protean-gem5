@@ -1,22 +1,20 @@
-#include "bbhist.hh"
-
-#include <pin.H>
 #include <vector>
-#include <list>
-#include <fstream>
+#include <map>
+#include <cassert>
 #include <iostream>
+#include <sstream>
+#include <pin.H>
 
+#include "plugin.hh"
 #include "client.hh"
 
-static KNOB<std::string> OutPath(KNOB_MODE_WRITEONCE, "pintool", "bbhist", "",
-                                 "basic block edge histogram output path");
-static std::ofstream out;
+namespace {
 
-using Count = long;
+KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "bbhist", "0", "Enable basic block histogram collection");
 
 struct Block {
     std::vector<ADDRINT> insts;
-    Count count = 0;
+    ADDRINT count = 0;
 
     Block(BBL bbl)
     {
@@ -25,25 +23,33 @@ struct Block {
     }
 };
 
-static std::list<Block> blocks;
-
-static void
-AnalyzeBBL(Count *count)
+std::vector<ADDRINT>
+getInstVec(BBL bbl)
 {
-    *count += 1;
+    std::vector<ADDRINT> insts;
+    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
+        insts.push_back(INS_Address(ins));
+    return insts;
 }
 
-static void
+std::map<std::vector<ADDRINT>, ADDRINT> blocks;
+
+void
+Analyze(ADDRINT *counter)
+{
+    ++*counter;
+}
+
+void
 InstrumentBBL(BBL bbl)
 {
-    blocks.emplace_back(bbl);
-    // TODO: Change to ANYWHERE, if we're sure it won't mess with results.
-    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) AnalyzeBBL,
-                   IARG_PTR, &blocks.back().count,
+    ADDRINT &counter = blocks[getInstVec(bbl)];
+    BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) Analyze,
+                   IARG_PTR, &counter,
                    IARG_END);
 }
 
-static void
+void
 InstrumentTRACE(TRACE trace, void *)
 {
     if (IsKernelCode(trace))
@@ -52,37 +58,63 @@ InstrumentTRACE(TRACE trace, void *)
         InstrumentBBL(bbl);
 }
 
-static void
-Finish(int32_t code, void *)
+void
+Dump(std::ostream &os)
 {
-    for (const Block &block : blocks) {
-        if (!block.count)
+    for (const auto &[insts, count] : blocks) {
+        if (count == 0)
             continue;
-        out << std::dec << block.count << " ";
-        assert(!block.insts.empty());
-        auto it = block.insts.begin();
-        out << std::hex << *it++;
-        for (; it != block.insts.end(); ++it)
-            out << "," << *it;
-        out << "\n";
+        os << std::dec << count << " ";
+        auto it = insts.begin();
+        assert(it != insts.end());
+        os << std::hex << *it++;
+        while (it != insts.end())
+            os << "," << *it++;
+        os << "\n";
     }
-    out.close();
 }
 
-bool
-bbhist_register()
+void
+Reset()
 {
-    if (OutPath.Value().empty())
-        return true;
+    blocks.clear();
+}
 
-    out.open(OutPath.Value());
-    if (!out) {
-        std::cerr << "bbhist: failed to open output file: " << OutPath.Value() << "\n";
-        return false;
+struct BasicBlockHistogramPlugin final : Plugin
+{
+    bool
+    enabled() const override
+    {
+        return enable.Value();
     }
 
-    TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
-    PIN_AddFiniFunction(Finish, nullptr);
+    bool
+    reg() override
+    {
+        TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
+        return true;
+    }
 
-    return true;
+    bool
+    command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) override
+    {
+        if (cmd != "bbhist")
+            return false;
+
+        if (args.at(0) == "dump") {
+            std::stringstream ss;
+            Dump(ss);
+            result = ss.str();
+            return true;
+        } else if (args.at(0) == "reset") {
+            Reset();
+            return true;
+        }
+
+        std::cerr << "bbhist: error: bad usage\n";
+        std::cerr << "usage: bbhist (dump|reset)\n";
+        std::abort();
+    }
+} plugin;
+
 }
