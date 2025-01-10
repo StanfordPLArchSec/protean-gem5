@@ -8,54 +8,34 @@
 #include "client.hh"
 #include "plugin.hh"
 
-struct Breakpoint
-{
-    const ADDRINT target;
-    const ADDRINT *counter;
-
-    Breakpoint(const ADDRINT *counter, ADDRINT target)
-        : target(target), counter(counter)
-    {
-    }
-
-    bool
-    operator==(const Breakpoint &o) const
-    {
-        return target == o.target && counter == o.counter;
-    }
-
-    bool operator!=(const Breakpoint &o) const { return !(*this == o); }
-};
-
-static std::list<Breakpoint> breakpoints;
 static std::map<std::string, const ADDRINT *> counters;
+static std::map<const ADDRINT *, ADDRINT> breakpoints;
 
 static void
 SetBreakpoint(const ADDRINT *counter, ADDRINT target)
 {
-    breakpoints.emplace_back(counter, target);
-    PIN_RemoveInstrumentation();
+    // Remove instrumentation if we're adding a new type of breakpoint.
+    if (!breakpoints.count(counter))
+        PIN_RemoveInstrumentation();
+    breakpoints[counter] = target;
 }
 
 static void
-ClearBreakpoint(const Breakpoint *breakpoint)
+ClearBreakpoint(const ADDRINT *counter)
 {
-    auto it = breakpoints.begin();
-    for (; *it != *breakpoint; ++it)
-        ;
-    breakpoints.erase(it);
+    breakpoints.at(counter) = std::numeric_limits<ADDRINT>::max();
 }
 
 static ADDRINT
-AnalyzeIf(ADDRINT target, const ADDRINT *counter)
+AnalyzeIf(ADDRINT *target, const ADDRINT *counter)
 {
-    return *counter >= target;
+    return *counter >= *target;
 }
 
 static void
-AnalyzeThen(CONTEXT *ctx, const Breakpoint *breakpoint)
+AnalyzeThen(CONTEXT *ctx, const ADDRINT *counter)
 {
-    ClearBreakpoint(breakpoint);
+    ClearBreakpoint(counter);
     RunResult result;
     result.result = result.RUNRESULT_BREAK;
     std::cerr << "instbreak: switching to kernel\n";
@@ -68,14 +48,14 @@ Instrument(TRACE trace, void *)
 {
     if (IsKernelCode(trace))
         return;
-    for (const Breakpoint &breakpoint : breakpoints) {
+    for (const auto &[counter, target] : breakpoints) {
         TRACE_InsertIfCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeIf,
-                           IARG_ADDRINT, breakpoint.target,
-                           IARG_PTR, breakpoint.counter,
+                           IARG_ADDRINT, &target,
+                           IARG_PTR, counter,
                            IARG_END);
         TRACE_InsertThenCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeThen,
                              IARG_CONTEXT,
-                             IARG_PTR, &breakpoint,
+                             IARG_PTR, counter,
                              IARG_END);
     }
 }
