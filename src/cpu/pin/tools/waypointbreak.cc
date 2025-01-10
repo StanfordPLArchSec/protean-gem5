@@ -1,34 +1,35 @@
-#include <iostream>
 #include <optional>
+#include <iostream>
 #include <pin.H>
 
-#include "plugin.hh"
-#include "instcount.hh"
+#include "waypointcount.hh"
+#include "ops.hh"
 #include "client.hh"
+#include "plugin.hh"
 
-// FIXME: Don't need this, since it's zero overhead if no breakpoint has been set!
-static KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "instbreak", "0", "Enable instruction breakpointing");
+// TODO: Factor out common code with instbreak.
 
-static std::optional<ADDRINT> instbreak;
+static std::optional<ADDRINT> waypointbreak;
+
 
 static void
-SetBreakpoint(ADDRINT new_instbreak)
+SetBreakpoint(ADDRINT new_waypointbreak)
 {
-    instbreak = new_instbreak;
+    waypointbreak = new_waypointbreak;
     PIN_RemoveInstrumentation();
 }
 
 static void
 ClearBreakpoint()
 {
-    instbreak = std::nullopt;
+    waypointbreak = std::nullopt;
     PIN_RemoveInstrumentation();
 }
 
 static ADDRINT
-AnalyzeIf(ADDRINT instbreak)
+AnalyzeIf(ADDRINT waypointbreak)
 {
-    return instbreak <= instcount;
+    return waypointbreak <= waypointcount;
 }
 
 static void
@@ -37,7 +38,7 @@ AnalyzeThen(CONTEXT *ctx)
     ClearBreakpoint();
     RunResult result;
     result.result = result.RUNRESULT_BREAK;
-    std::cerr << "instbreak: switching to kernel\n";
+    std::cerr << "waypointbreak: switching to kernel\n";
     ContextSwitchToKernel(ctx, result);
     PIN_ExecuteAt(ctx);
 }
@@ -45,10 +46,10 @@ AnalyzeThen(CONTEXT *ctx)
 static void
 Instrument(TRACE trace, void *)
 {
-    if (IsKernelCode(trace) || !instbreak)
+    if (IsKernelCode(trace) || !waypointbreak)
         return;
     TRACE_InsertIfCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeIf,
-                       IARG_ADDRINT, *instbreak,
+                       IARG_ADDRINT, *waypointbreak,
                        IARG_END);
     TRACE_InsertThenCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeThen,
                          IARG_CONTEXT,
@@ -56,14 +57,10 @@ Instrument(TRACE trace, void *)
 }
 
 namespace {
-struct InstBreakPlugin : Plugin
+struct WaypointBreakPlugin final : Plugin
 {
-    bool
-    enabled() const override
-    {
-        return enable.Value();
-    }
-    
+    bool enabled() const override { return true; }
+
     bool
     reg() override
     {
@@ -74,7 +71,7 @@ struct InstBreakPlugin : Plugin
     bool
     command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) override
     {
-        if (cmd == "instbreak") {
+        if (cmd == "waypointbreak") {
             SetBreakpoint(std::stoull(args.at(0)));
             return true;
         }
