@@ -12,7 +12,6 @@
 #include "pin.H"
 #include "ops.hh"
 #include "bbv.hh"
-#include "f2i.hh"
 #include "fhist.hh"
 #include "ringbuf.hh"
 #include "debug.hh"
@@ -1055,7 +1054,6 @@ main(int argc, char *argv[])
     // TODO: Use a static function registration list to make it cleaner.
     // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
-        !f2i_register() ||
         !fhist_register() ||
         !pmcount_register() ||
         !qtrace_register() || // TODO: Remove qtrace.
