@@ -235,7 +235,8 @@ for simpoint in simpoints:
     # Assume instruction counting is already set up.
     # Just need to set up instruction count breakpoint.
     start, warmup = get_simpoint_start_inst(simpoint)
-    cpu.executePinCommand(f"instbreak {start}")
+    # cpu.executePinCommand(f"instbreak {start}")
+    cpu.executePinCommand(f"breakpoint inst {start}")
 
     exit_event = m5.simulate()
     exit_cause = exit_event.getCause()

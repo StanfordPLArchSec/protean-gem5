@@ -26,7 +26,7 @@ ClearBreakpoint()
 }
 
 static ADDRINT
-AnalyzeIf(ADDRINT instbreak)
+AnalyzeIf(ADDRINT instbreak, ADDRINT &instcount)
 {
     return instbreak <= instcount;
 }
@@ -49,6 +49,7 @@ Instrument(TRACE trace, void *)
         return;
     TRACE_InsertIfCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeIf,
                        IARG_ADDRINT, *instbreak,
+                       IARG_PTR, &instcount,
                        IARG_END);
     TRACE_InsertThenCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeThen,
                          IARG_CONTEXT,

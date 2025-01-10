@@ -4,8 +4,11 @@
 #include <string>
 #include "client.hh"
 #include "plugin.hh"
+#include "breakpoint.hh"
 
 static KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "instcount", "0", "Enable instruction counting");
+
+// TODO: Make this static.
 ADDRINT instcount;
 
 static void
@@ -27,7 +30,7 @@ Instrument(TRACE trace, void *)
 }
 
 namespace {
-struct InstCountPlugin : Plugin
+struct InstCountPlugin final : Plugin
 {
     bool
     enabled() const override
@@ -40,6 +43,7 @@ struct InstCountPlugin : Plugin
     {
         assert(enabled());
         TRACE_AddInstrumentFunction(Instrument, nullptr);
+        RegisterCounter("inst", &instcount);
         return true;
     }
 

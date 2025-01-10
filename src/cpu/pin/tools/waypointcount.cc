@@ -7,9 +7,11 @@
 #include "plugin.hh"
 #include "client.hh"
 #include "waypoints.hh"
+#include "breakpoint.hh"
 
-static KNOB<bool> CountWaypoints(KNOB_MODE_WRITEONCE, "pintool", "waypointcount", "", "Enable waypointcount plugin");
+static KNOB<bool> CountWaypoints(KNOB_MODE_WRITEONCE, "pintool", "waypointcount", "0", "Enable waypointcount plugin");
 
+// TODO: Make this static.
 ADDRINT waypointcount;
 
 static void
@@ -52,6 +54,7 @@ struct WaypointCountPlugin final : Plugin
     reg() override
     {
         TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
+        RegisterCounter("waypoint", &waypointcount);
         return true;
     }
 } plugin;

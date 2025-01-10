@@ -27,7 +27,7 @@ ClearBreakpoint()
 }
 
 static ADDRINT
-AnalyzeIf(ADDRINT waypointbreak)
+AnalyzeIf(ADDRINT waypointbreak, ADDRINT &waypointcount)
 {
     return waypointbreak <= waypointcount;
 }
@@ -50,6 +50,7 @@ Instrument(TRACE trace, void *)
         return;
     TRACE_InsertIfCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeIf,
                        IARG_ADDRINT, *waypointbreak,
+                       IARG_PTR, &waypointcount,
                        IARG_END);
     TRACE_InsertThenCall(trace, IPOINT_BEFORE, (AFUNPTR) AnalyzeThen,
                          IARG_CONTEXT,
