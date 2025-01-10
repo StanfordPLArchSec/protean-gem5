@@ -1,1 +1,0 @@
-bool sehist_register();

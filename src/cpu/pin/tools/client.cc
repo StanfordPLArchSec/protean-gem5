@@ -15,7 +15,6 @@
 #include "ringbuf.hh"
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
-#include "sehist.hh"
 #include "slev.hh"
 #include "progmark2inst.hh"
 #include "plugin.hh"
@@ -1049,7 +1048,6 @@ main(int argc, char *argv[])
     // TODO: Use a static function registration list to make it cleaner.
     // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
-        !sehist_register() ||
         !slev_register() ||
         !progmark2inst_register() || // TODO: Remove progmark2inst
         false)
