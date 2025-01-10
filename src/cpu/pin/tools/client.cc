@@ -16,7 +16,6 @@
 #include "debug.hh"
 #include "cpu/pin/regfile.h"
 #include "pmcount.hh"
-#include "uniqtrace.hh"
 #include "instlist.hh"
 #include "sehist.hh"
 #include "bbe.hh"
@@ -1054,7 +1053,6 @@ main(int argc, char *argv[])
     // FIXME: Migrate all of these to plugins.
     if (!bbv_register() ||
         !pmcount_register() ||
-        !qtrace_register() || // TODO: Remove qtrace.
         !instlist_register() ||
         !sehist_register() ||
         !bbe_register() ||
