@@ -317,8 +317,9 @@ with open(args.bbv, "wt") as f:
         insthist = bbhist_to_insthist(parse_bbhist(bbhist))
         f.write('T')
         for inst, count in insthist.items():
-            id = inst_to_id(inst)
-            f.write(f' :{id}:{count}')
+            if count > 0:
+                id = inst_to_id(inst)
+                f.write(f' :{id}:{count}')
         f.write('\n')
 
 # Generate bbv.info.txt.
