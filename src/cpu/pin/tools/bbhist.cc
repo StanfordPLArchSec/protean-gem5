@@ -2,7 +2,7 @@
 #include <map>
 #include <cassert>
 #include <iostream>
-#include <sstream>
+#include <string>
 #include <pin.H>
 
 #include "plugin.hh"
@@ -11,17 +11,6 @@
 namespace {
 
 KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "bbhist", "0", "Enable basic block histogram collection");
-
-struct Block {
-    std::vector<ADDRINT> insts;
-    ADDRINT count = 0;
-
-    Block(BBL bbl)
-    {
-        for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins))
-            insts.push_back(INS_Address(ins));
-    }
-};
 
 std::vector<ADDRINT>
 getInstVec(BBL bbl)
@@ -32,7 +21,31 @@ getInstVec(BBL bbl)
     return insts;
 }
 
-std::map<std::vector<ADDRINT>, ADDRINT> blocks;
+struct BlockData
+{
+    ADDRINT hits;
+    std::string name;
+
+    BlockData(BBL bbl)
+        : hits(0)
+    {
+        bool first = true;
+        for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+            char buf[256];
+            std::sprintf(buf, "%s%lx", first ? "" : ",", INS_Address(ins));
+            name += buf;
+            first = false;
+        }
+    }
+};
+
+std::map<std::vector<ADDRINT>, BlockData> blocks;
+
+BlockData &
+getBlockData(BBL bbl)
+{
+    return blocks.emplace(getInstVec(bbl), bbl).first->second;
+}
 
 void
 Analyze(ADDRINT *counter)
@@ -43,7 +56,7 @@ Analyze(ADDRINT *counter)
 void
 InstrumentBBL(BBL bbl)
 {
-    ADDRINT &counter = blocks[getInstVec(bbl)];
+    ADDRINT &counter = getBlockData(bbl).hits;
     BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) Analyze,
                    IARG_PTR, &counter,
                    IARG_END);
@@ -59,26 +72,18 @@ InstrumentTRACE(TRACE trace, void *)
 }
 
 void
-Dump(std::ostream &os)
+Dump(std::string &s)
 {
-    for (const auto &[insts, count] : blocks) {
-        if (count == 0)
-            continue;
-        os << std::dec << count << " ";
-        auto it = insts.begin();
-        assert(it != insts.end());
-        os << std::hex << *it++;
-        while (it != insts.end())
-            os << "," << *it++;
-        os << "\n";
-    }
+    for (const auto &[insts, block] : blocks)
+        if (block.hits)
+            s += std::to_string(block.hits) + ' ' + block.name + '\n';
 }
 
 void
 Reset()
 {
-    for (auto &[insts, count] : blocks)
-        count = 0;
+    for (auto &[insts, block] : blocks)
+        block.hits = 0;
 }
 
 struct BasicBlockHistogramPlugin final : Plugin
@@ -103,9 +108,7 @@ struct BasicBlockHistogramPlugin final : Plugin
             return false;
 
         if (args.at(0) == "dump") {
-            std::stringstream ss;
-            Dump(ss);
-            result = ss.str();
+            Dump(result);
             return true;
         } else if (args.at(0) == "reset") {
             Reset();
