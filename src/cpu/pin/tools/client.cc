@@ -35,6 +35,7 @@ static ADDRINT physical_vsyscall_base = 0;
 static uint64_t inst_count = 0;
 static std::unordered_map<ADDRINT, std::string> symbol_table;
 
+// FIXME: This should be its own plugin.
 constexpr bool enable_pc_hist = false;
 
 static uint64_t pinops_count = 0;
