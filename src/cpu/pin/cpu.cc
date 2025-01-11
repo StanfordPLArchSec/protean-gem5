@@ -465,19 +465,6 @@ CPU::syncSingleRegToPin(const char *regname, const RegId &reg)
     syncRegvalToPin(regname, data.data(), data.size());
 }
 
-// TODO: Make into class.
-static const std::tuple<const char *, RegIndex, uint8_t, bool> misc_regs[] = {
-    {"fs", X86ISA::misc_reg::Fs, 2, false},
-    {"gs", X86ISA::misc_reg::Gs, 2, false},
-    {"fs_base", X86ISA::misc_reg::FsBase, 8, true},
-    {"gs_base", X86ISA::misc_reg::GsBase, 8, true},
-    // {"cr4", X86ISA::misc_reg::Cr4, 4, false},
-    // {"ftw", X86ISA::misc_reg::Ftw, 2, false}, // NOTE: This is not supported natively by Pin.
-    {"fcw", X86ISA::misc_reg::Fcw, 2, false},
-    {"fsw", X86ISA::misc_reg::Fsw, 2, false},
-    {"ftag", X86ISA::misc_reg::Ftag, 2, false},
-};
-
 void
 CPU::syncStateToPin(bool full)
 {
