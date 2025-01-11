@@ -40,6 +40,8 @@ constexpr bool enable_pc_hist = false;
 
 static uint64_t pinops_count = 0;
 
+#define EXTRA_SAFE_AND_SLOW 0
+
 
 static void CopyOutRunResult(CONTEXT *ctx, const RunResult &result);
 
@@ -65,8 +67,10 @@ ContextSwitchToKernel(CONTEXT *ctx, RunResult result)
     // Set the return value.
     CopyOutRunResult(ctx, result);
 
+#if EXTRA_SAFE_AND_SLOW
     // TODO: Probably too conservative.
     PIN_RemoveInstrumentation();
+#endif
 }
 
 bool
