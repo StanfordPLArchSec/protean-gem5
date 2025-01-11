@@ -439,6 +439,7 @@ HandleOp_SET_REGS(const PinRegFile *user_regfile_ptr)
     set_reg(REG_FPTAG, rf.ftag);
 
     // Misc regs.
+    set_reg(REG_RFLAGS, rf.rflags);
     set_reg(REG_SEG_FS, rf.fs);
     set_reg(REG_SEG_GS, rf.gs);
     set_reg(REG_SEG_FS_BASE, rf.fs_base);
@@ -486,6 +487,7 @@ HandleOp_GET_REGS(PinRegFile *user_regfile_ptr)
     get_reg(REG_FPTAG, rf.ftag);
 
     // Misc regs.
+    get_reg(REG_RFLAGS, rf.rflags);
     get_reg(REG_SEG_FS, rf.fs);
     get_reg(REG_SEG_GS, rf.gs);
     get_reg(REG_SEG_FS_BASE, rf.fs_base);

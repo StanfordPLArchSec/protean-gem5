@@ -23,6 +23,7 @@
 #include "base/loader/symtab.hh"
 #include "base/output.hh"
 #include "sim/sim_exit.hh"
+#include "arch/x86/utility.hh"
 
 namespace gem5
 {
@@ -519,6 +520,7 @@ CPU::syncStateToPin(bool full)
     rf.ftag = tc->readMiscRegNoEffect(misc_reg::Ftag);
 
     // Misc registers.
+    rf.rflags = getRFlags(tc);
     rf.fs = tc->readMiscRegNoEffect(misc_reg::Fs);
     rf.gs = tc->readMiscRegNoEffect(misc_reg::Gs);
     rf.fs_base = tc->readMiscRegNoEffect(misc_reg::FsBase);
@@ -619,6 +621,7 @@ CPU::syncStateFromPin(bool full)
     tc->setMiscRegNoEffect(misc_reg::Ftw, rf.ftag); // TODO: Not sure if this is right, but it's what KVM does.
     
     // Misc registers.
+    setRFlags(tc, rf.rflags);
     tc->setMiscRegNoEffect(misc_reg::Fs, rf.fs);
     tc->setMiscRegNoEffect(misc_reg::Gs, rf.gs);
     tc->setMiscRegNoEffect(misc_reg::FsBase, rf.fs_base);

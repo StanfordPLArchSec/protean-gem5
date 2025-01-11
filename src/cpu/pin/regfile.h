@@ -19,6 +19,7 @@ struct PinRegFile
     uint16_t fcw, fsw, ftag;
 
     // Misc register file.
+    uint64_t rflags;
     uint16_t fs, gs;
     uint64_t fs_base, gs_base;
 };
