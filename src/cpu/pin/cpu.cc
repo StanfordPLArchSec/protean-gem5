@@ -294,7 +294,6 @@ CPU::startup()
         *it++ = pin_exe;
 
         // Pin args.
-        *it++ = "-smc_support"; *it++ = "0";
         if (std::getenv("PIN_APPDEBUG")) {
             *it++ = "-appdebug"; *it++ = "1";
         }
