@@ -120,6 +120,8 @@ class CPU final : public BaseCPU
 
     bool isPinRunning() const;
 
+    void mapCode();
+
   public:
     std::string executePinCommand(const std::string &command);
 };

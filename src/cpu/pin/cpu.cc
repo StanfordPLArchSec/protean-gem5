@@ -7,6 +7,7 @@
 #include <cstring>
 #include <sys/socket.h>
 #include <sys/times.h>
+#include <sys/mman.h>
 
 #include "cpu/simple_thread.hh"
 #include "params/BasePinCPU.hh"
@@ -350,6 +351,30 @@ CPU::startup()
 
     // Copy over initial state.
     syncStateToPin(true);
+
+    // Map in code.
+    mapCode();
+}
+
+void
+CPU::mapCode()
+{
+    const Addr min = tc->getProcessPtr()->image.minAddr();
+    const Addr max = tc->getProcessPtr()->image.maxAddr();
+    const TranslationGenPtr ptr = tc->getMMUPtr()->translateFunctional(min, max - min, tc, BaseMMU::Execute, 0);
+    for (const TranslationGen::Range &range : *ptr) {
+        if (range.fault != NoFault)
+            continue;
+        Message msg;
+        msg.type = Message::Map;
+        msg.map.vaddr = range.vaddr;
+        msg.map.paddr = range.paddr;
+        msg.map.size = range.size;
+        msg.map.prot = PROT_READ | PROT_EXEC;
+        msg.send(reqFd);
+        msg.recv(respFd);
+        panic_if(msg.type != Message::Ack, "unexpected response\n");
+    }
 }
 
 void
@@ -658,6 +683,7 @@ CPU::handlePageFault(Addr vaddr)
         Addr vaddr;
         Addr paddr;
         size_t size;
+        int prot;
     };
     std::list<Entry> mappings;
     MemState& mem_state = *tc->getProcessPtr()->memState;
@@ -665,30 +691,40 @@ CPU::handlePageFault(Addr vaddr)
     if (VMA *vma = mem_state.getVMA(vaddr)) {
         vaddr = vma->start();
         size = vma->size();
+        DPRINTF(Pin, "VMA: %#x %#x %s\n", vma->start(), vma->end(), vma->getName());
     }
     DPRINTF(Pin, "Preparing to map starting at vaddr=%#x size=%#x\n",
             vaddr, size);
-    const auto ptr = tc->getMMUPtr()->translateFunctional(vaddr, size, tc, BaseMMU::Read, 0);
-    for (const TranslationGen::Range& range : *ptr) {
-        panic_if(range.fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", range.vaddr, range.fault->name());
+
+#if 1
+    // Collect list of page mappings with permissions.
+    const auto translate_with_mode = [&] (BaseMMU::Mode mode) -> TranslationGenPtr {
+        return tc->getMMUPtr()->translateFunctional(vaddr, size, tc, mode, 0);
+    };
+    const auto r = translate_with_mode(BaseMMU::Read);
+    const auto w = translate_with_mode(BaseMMU::Write);
+    const auto x = translate_with_mode(BaseMMU::Execute);
+    for (auto r_it = r->begin(), w_it = w->begin(), x_it = x->begin();
+         r_it != r->end();
+         ++r_it, ++w_it, ++x_it) {
+        assert(w_it != w->end());
+        assert(x_it != x->end());
+        panic_if(r_it->fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", r_it->vaddr, r_it->fault->name());
         Entry entry;
-        entry.vaddr = range.vaddr;
-        entry.paddr = range.paddr;
-        entry.size = range.size;
+        entry.vaddr = r_it->vaddr;
+        entry.paddr = r_it->paddr;
+        entry.size = r_it->size;
+        entry.prot = PROT_READ;
+        if (w_it->fault == NoFault)
+            entry.prot |= PROT_WRITE;
+        if (x_it->fault == NoFault)
+            entry.prot |= PROT_EXEC;
         mappings.push_back(entry);
     }
-
-#if 0
-    // Find the VMA entry containing this address.
-    MemState& mem_state = *tc->getProcessPtr()->memState;
-    VMA& vma = mem_state.getVMA(vaddr);
-    struct Entry {
-        Addr vaddr;
-        Addr paddr;
-        size_t size;
-    };
-    std::list<Entry> mappings;
-    for (const TranslationGen::Range& range : *tc->getMMUPtr()->translateFunctional(vma.start(), vma.size(), tc, BaseMMU::Read, 0)) {
+#else
+    const auto ptr = tc->getMMUPtr()->translateFunctional(vaddr, size, tc, BaseMMU::Read, 0);
+    const auto exec_ptr = tc->getMMUPtr()->translateFunctional(vaddr, size, tc, BaseMMU::Execute, 0);
+    for (const TranslationGen::Range& range : *ptr) {
         panic_if(range.fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", range.vaddr, range.fault->name());
         Entry entry;
         entry.vaddr = range.vaddr;
@@ -708,7 +744,7 @@ CPU::handlePageFault(Addr vaddr)
         Entry& e1 = *it1;
         Entry& e2 = *it2;
         assert(e1.vaddr + e1.size == e2.vaddr);
-        if (e1.paddr + e1.size == e2.paddr) {
+        if (e1.prot == e2.prot && e1.paddr + e1.size == e2.paddr) {
             // Yes, can combine!
             e1.size += e2.size;
             mappings.erase(it2);
@@ -727,6 +763,7 @@ CPU::handlePageFault(Addr vaddr)
         msg.map.vaddr = e.vaddr;
         msg.map.paddr = e.paddr;
         msg.map.size = e.size;
+        msg.map.prot = e.prot;
         msg.send(reqFd);
         msg.recv(respFd);
         panic_if(msg.type != Message::Ack, "unexpected response\n");        

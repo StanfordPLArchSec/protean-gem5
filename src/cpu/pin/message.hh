@@ -52,6 +52,7 @@ struct Message
             uint64_t vaddr;
             uint64_t paddr;
             uint64_t size;
+            uint64_t prot;
         } map; // For Type::Map
 
         struct
