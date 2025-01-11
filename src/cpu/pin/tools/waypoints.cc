@@ -47,7 +47,7 @@ struct WaypointsPlugin final : Plugin
             return false;
         }
         ADDRINT waypoint;
-        while (f >> waypoint)
+        while (f >> std::hex >> waypoint)
             waypoints.insert(waypoint);
         std::cerr << "waypoints: parsed " << waypoints.size() << " waypoints\n";
 
