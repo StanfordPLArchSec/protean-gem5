@@ -13,6 +13,11 @@ class RingBuffer {
             x = value;
     }
 
+    RingBuffer()
+        : RingBuffer(T())
+    {
+    }
+
     void push(const T &value)
     {
         buf[next] = value;

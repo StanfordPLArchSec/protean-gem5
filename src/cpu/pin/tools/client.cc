@@ -35,9 +35,6 @@ static ADDRINT physical_vsyscall_base = 0;
 static uint64_t inst_count = 0;
 static std::unordered_map<ADDRINT, std::string> symbol_table;
 
-// FIXME: This should be its own plugin.
-constexpr bool enable_pc_hist = false;
-
 static uint64_t pinops_count = 0;
 
 #define EXTRA_SAFE_AND_SLOW 0
@@ -851,39 +848,6 @@ Instruction_Trace(INS ins, void *)
     INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleTrace, IARG_INST_PTR, IARG_END);
 }
 
-
-static RingBuffer<ADDRINT, 16> pc_hist(0);
-
-static void
-Handle_Trace_Hist(ADDRINT pc)
-{
-    pc_hist.push(pc);
-}
-
-static void
-Instrument_Trace_Hist(TRACE trace, void *)
-{
-    if (IsKernelCode(trace))
-        return;
-    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR) Handle_Trace_Hist,
-                       IARG_INST_PTR,
-                       IARG_END);
-    }
-}
-
-static void
-DumpHistory()
-{
-    std::vector<ADDRINT> hist;
-    pc_hist.get(std::back_inserter(hist));
-    std::cerr << "history:";
-    for (ADDRINT pc : hist)
-        std::cerr << " 0x" << std::hex << pc;
-    std::cerr << "\n";
-}
-
-
 static bool
 InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const EXCEPTION_INFO *info, void *)
 {
@@ -908,7 +872,6 @@ InterceptSEGV(THREADID tid, int32_t sig, CONTEXT *ctx, bool has_handler, const E
 
     if (fault_addr == 0) {
         std::cerr << "CLIENT: null pointer dereference; aborting\n";
-        DumpHistory();
         return true;
     }
 
@@ -1043,8 +1006,6 @@ main(int argc, char *argv[])
     // TODO: Reason better about ordering here.
     // INS_AddInstrumentFunction(Instrument_Instruction_PrintCall, nullptr);
 
-    if constexpr (enable_pc_hist)
-        TRACE_AddInstrumentFunction(Instrument_Trace_Hist, nullptr);
     if (enable_trace.Value())
         INS_AddInstrumentFunction(Instruction_Trace, nullptr);
     INS_AddInstrumentFunction(Instruction_Vsyscall, nullptr);

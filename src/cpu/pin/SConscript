@@ -119,6 +119,7 @@ if env['CONF']['BUILD_ISA']:
             'tools/breakpoint.cc',
             'tools/bbhist.cc',
             'tools/sysbreak.cc',
+            'tools/pchistory.cc',
         ],
         tags = 'pin',
     )
