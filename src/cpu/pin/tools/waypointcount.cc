@@ -57,5 +57,14 @@ struct WaypointCountPlugin final : Plugin
         RegisterCounter("waypoint", &waypointcount);
         return true;
     }
+
+    bool
+    command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) override
+    {
+        if (cmd != "waypointcount")
+            return false;
+        result = std::to_string(waypointcount);
+        return true;
+    }
 } plugin;
 }
