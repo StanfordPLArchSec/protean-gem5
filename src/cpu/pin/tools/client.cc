@@ -1071,7 +1071,10 @@ main(int argc, char *argv[])
 
     PIN_AddOutOfMemoryFunction(HandleOOM, nullptr);
 
+    PIN_SetSmcSupport(SMC_DISABLE);
+    
     std::cerr << "runtime: starting program\n";
+
 
     PIN_StartProgram();
 }
