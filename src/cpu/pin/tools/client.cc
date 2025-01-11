@@ -1046,6 +1046,8 @@ main(int argc, char *argv[])
     if (enable_trace.Value())
         INS_AddInstrumentFunction(Instruction_Trace, nullptr);
     INS_AddInstrumentFunction(Instruction_Vsyscall, nullptr);
+
+    // TODO: Remove this!
     if (enable_inst_count.Value())
         TRACE_AddInstrumentFunction(Instrument_Trace_InstCount, nullptr);
 
