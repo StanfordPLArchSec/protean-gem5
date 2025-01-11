@@ -9,6 +9,8 @@
 #include "waypoints.hh"
 #include "breakpoint.hh"
 
+// TODO: This should only check for basic blocks that have a non-zero waypoint count.
+
 static KNOB<bool> CountWaypoints(KNOB_MODE_WRITEONCE, "pintool", "waypointcount", "0", "Enable waypointcount plugin");
 
 // TODO: Make this static.
