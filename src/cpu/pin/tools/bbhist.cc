@@ -77,7 +77,8 @@ Dump(std::ostream &os)
 void
 Reset()
 {
-    blocks.clear();
+    for (auto &[insts, count] : blocks)
+        count = 0;
 }
 
 struct BasicBlockHistogramPlugin final : Plugin
