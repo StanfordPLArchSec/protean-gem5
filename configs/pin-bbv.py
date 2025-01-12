@@ -40,12 +40,14 @@
 #
 # "m5 test.py"
 
+# TODO: Compress bbv.txt. It's going to get huge for longer-running benchmarks.
+
 import argparse
+import collections
 import json
 import os
 import sys
 import types
-import collections
 
 from common import (
     CacheConfig,
@@ -111,15 +113,31 @@ parser.add_argument(
     default=os.path.join(gem5_root, "pintool", "build", "kernel"),
     help="Path to Pin guest kernel",
 )
-parser.add_argument("--pin-args", default = "")
-parser.add_argument("--pin-tool-args", default = "")
+parser.add_argument("--pin-args", default="")
+parser.add_argument("--pin-tool-args", default="")
 parser.add_argument("--stdout")
 parser.add_argument("--stderr")
-parser.add_argument("--bbv", required = True, help = "Path to basic block trace file")
-parser.add_argument("--bbvinfo", required = True, help = "Path to basic block extra info file")
-parser.add_argument("--warmup", required = True, type = int, help = "Warmup period, in number of instructions")
-parser.add_argument("--interval", required = True, type = int, help = "Interval size, in number of instructions")
-parser.add_argument("--waypoints", required = True, help = "Path to waypoints list")
+parser.add_argument(
+    "--bbv", required=True, help="Path to basic block trace file"
+)
+parser.add_argument(
+    "--bbvinfo", required=True, help="Path to basic block extra info file"
+)
+parser.add_argument(
+    "--warmup",
+    required=True,
+    type=int,
+    help="Warmup period, in number of instructions",
+)
+parser.add_argument(
+    "--interval",
+    required=True,
+    type=int,
+    help="Interval size, in number of instructions",
+)
+parser.add_argument(
+    "--waypoints", required=True, help="Path to waypoints list"
+)
 args = parser.parse_args()
 
 process = get_process(args.cmd, args)
@@ -207,8 +225,8 @@ root = Root(full_system=False, system=system)
 m5.instantiate()
 m5.startup()
 exit_sysnos = [
-    60, # exit
-    231, # exit_group
+    60,  # exit
+    231,  # exit_group
 ]
 for exit_sysno in exit_sysnos:
     cpu.executePinCommand(f"sysbreak {exit_sysno}")
@@ -216,19 +234,24 @@ for exit_sysno in exit_sysnos:
 clean_exit_cause = "exiting with last active thread context"
 break_exit_cause = "pin-breakpoint"
 
+
 def run_until(cmd: str):
     cpu.executePinCommand(cmd)
     exit_cause = m5.simulate()
     if exit_cause == clean_exit_cause:
         return True
     if exit_cause != break_exit_cause:
-        print(f"pin-bbv: expected exit cause '{break_exit_cause}', got '{exit_cause}'",
-              file = sys.stderr)
+        print(
+            f"pin-bbv: expected exit cause '{break_exit_cause}', got '{exit_cause}'",
+            file=sys.stderr,
+        )
         exit(1)
     return False
 
+
 class Exit(BaseException):
     pass
+
 
 def run_for_n(counter: str, n: int):
     # TODO: Should standardize command to 'count <name>'
@@ -238,14 +261,18 @@ def run_for_n(counter: str, n: int):
     if exit_cause == clean_exit_cause:
         raise Exit()
     if exit_cause != break_exit_cause:
-        print(f"pin-bbv: expected exit cause '{break_exit_cause}', got '{exit_cause}'",
-              file = sys.stderr)
+        print(
+            f"pin-bbv: expected exit cause '{break_exit_cause}', got '{exit_cause}'",
+            file=sys.stderr,
+        )
         exit(1)
+
 
 def run_for_n_insts_next_waypoint(n: int) -> (int, int):
     run_for_n("inst", n)
     run_for_n("waypoint", 1)
     return cpu.executePinCommand("waypointcount")
+
 
 # List of waypoint counts.
 warmups = [0]
@@ -256,12 +283,14 @@ try:
     # Prime the loop by running for <warmup> instructions
     # and then discarding and resetting the bbhist.
     intervals.append(run_for_n_insts_next_waypoint(args.warmup))
-    
+
     cpu.executePinCommand("bbhist reset")
 
     while True:
         # Run for <interval> - <warmup> instructions.
-        warmups.append(run_for_n_insts_next_waypoint(args.interval - args.warmup))
+        warmups.append(
+            run_for_n_insts_next_waypoint(args.interval - args.warmup)
+        )
 
         # Run to the end of the current interval (<warmup> instructions).
         intervals.append(run_for_n_insts_next_waypoint(args.warmup))
@@ -269,7 +298,7 @@ try:
         # Dump and reset the bbhist.
         bbhists.append(cpu.executePinCommand("bbhist dump"))
         cpu.executePinCommand("bbhist reset")
-        print(f"bbv: dumped interval {len(bbhists)}!", file = sys.stderr)
+        print(f"bbv: dumped interval {len(bbhists)}!", file=sys.stderr)
 
 except Exit:
     pass
@@ -282,18 +311,19 @@ except Exit:
 assert len(warmups) >= len(intervals) and len(warmups) >= len(bbhists)
 assert len(warmups) - len(intervals) <= 1 and len(warmups) - len(bbhists) <= 1
 
+
 def parse_bbhist(s: str) -> list:
-    lines = s.split('\n')
+    lines = s.split("\n")
     assert len(lines[-1]) == 0
     lines = lines[:-1]
     result = list()
-    
+
     for line in lines:
         count, block = line.split()
-        insts = block.split(',')
+        insts = block.split(",")
         result.append((insts, int(count)))
     return result
-    
+
 
 def bbhist_to_insthist(bbhist: list) -> dict:
     insthist = collections.defaultdict(int)
@@ -301,31 +331,34 @@ def bbhist_to_insthist(bbhist: list) -> dict:
         for inst in block:
             insthist[inst] += count
     return insthist
-    
+
 
 inst_to_id_dict = dict()
+
+
 def inst_to_id(inst: str) -> int:
     if inst not in inst_to_id_dict:
         inst_to_id_dict[inst] = len(inst_to_id_dict) + 1
     return inst_to_id_dict[inst]
 
+
 # Generate bbv.txt.
 bbhist_lines = []
-with open(args.bbv, "wt") as f:
+with open(args.bbv, "w") as f:
     for bbhist in bbhists:
         # Generate line to append to bbv.txt.
         insthist = bbhist_to_insthist(parse_bbhist(bbhist))
-        f.write('T')
+        f.write("T")
         for inst, count in insthist.items():
             if count > 0:
                 id = inst_to_id(inst)
-                f.write(f' :{id}:{count}')
-        f.write('\n')
+                f.write(f" :{id}:{count}")
+        f.write("\n")
 
 # Generate bbv.info.txt.
-with open(args.bbvinfo, "wt") as f:
+with open(args.bbvinfo, "w") as f:
     for i in range(len(bbhists)):
         warmup = warmups[i]
         interval_begin = intervals[i]
-        interval_end = intervals[i+1]
-        print(warmup, interval_begin, interval_end, file = f)
+        interval_end = intervals[i + 1]
+        print(warmup, interval_begin, interval_end, file=f)
