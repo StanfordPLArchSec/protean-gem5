@@ -95,7 +95,7 @@ def get_processes(args):
     for wrkld in workloads:
         process = Process(pid=100 + idx)
         process.executable = wrkld
-        process.cwd = os.getcwd()
+        process.cwd = os.getcwd() if args.chdir is None else args.chdir
         process.gid = os.getgid()
 
         if args.env:
@@ -131,6 +131,9 @@ warn(
 )
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--chdir", help="Set working directory of simulated process"
+)
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 
