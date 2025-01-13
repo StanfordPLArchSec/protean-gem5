@@ -71,57 +71,17 @@ from m5.util import (
 )
 
 from gem5.isas import ISA
-
-
-def get_process(cmd: str, args) -> Process:
-    process = Process(pid=100)
-    process.executable = cmd
-    process.cwd = os.getcwd() if args.chdir is None else args.chdir
-    process.gid = os.getgid()
-
-    # Clear out the environment.
-    process.env = []
-
-    process.cmd = [cmd, *args.args]
-
-    return process
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--chdir",
-    type=os.path.abspath,
-    help="Set working directory of simulated process",
+from multibin.Util import (
+    make_process,
+    make_parser,
 )
-Options.addCommonOptions(parser)
-Options.addSEOptions(parser)
-parser.add_argument("cmd", help="Executable to simulate")
-parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
-gem5_root = os.path.dirname(os.path.dirname(__file__))
+
+parser = make_parser()
 parser.add_argument(
-    "--pin",
-    default=os.path.join(gem5_root, "pin", "pin"),
-    help="Path to Intel Pin executable",
+    "--bbv", required=True, type=os.path.abspath, help="Path to basic block trace file"
 )
 parser.add_argument(
-    "--pin-tool",
-    default=os.path.join(gem5_root, "pintool", "build", "libclient.so"),
-    help="Path to host PinTool",
-),
-parser.add_argument(
-    "--pin-kernel",
-    default=os.path.join(gem5_root, "pintool", "build", "kernel"),
-    help="Path to Pin guest kernel",
-)
-parser.add_argument("--pin-args", default="")
-parser.add_argument("--pin-tool-args", default="")
-parser.add_argument("--stdout")
-parser.add_argument("--stderr")
-parser.add_argument(
-    "--bbv", required=True, help="Path to basic block trace file"
-)
-parser.add_argument(
-    "--bbvinfo", required=True, help="Path to basic block extra info file"
+    "--bbvinfo", required=True, type=os.path.abspath, help="Path to basic block extra info file"
 )
 parser.add_argument(
     "--warmup",
@@ -136,15 +96,10 @@ parser.add_argument(
     help="Interval size, in number of instructions",
 )
 parser.add_argument(
-    "--waypoints", required=True, help="Path to waypoints list"
+    "--waypoints", required=True, type=os.path.abspath, help="Path to waypoints list"
 )
 args = parser.parse_args()
-
-process = get_process(args.cmd, args)
-if args.stdout:
-    process.output = args.stdout
-if args.stderr:
-    process.errout = args.stderr
+process = make_process(args)
 
 # NHM-FIXME: Just read the kvm cpu directly?
 # To get mem mode: CPUClass.memory_mode()

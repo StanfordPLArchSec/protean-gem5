@@ -74,7 +74,7 @@ from multibin.Util import (
 )
 
 parser = make_parser()
-parser.add_argument("--bbhist", required = True, help = "Path to bbhist output file")
+parser.add_argument("--bbhist", required = True, type = os.path.abspath, help = "Path to bbhist output file")
 args = parser.parse_args()
 process = make_process(args)
 
