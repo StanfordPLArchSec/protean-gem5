@@ -68,71 +68,26 @@ from m5.util import (
 )
 
 from gem5.isas import ISA
-
-
-def get_process(cmd: str, args) -> Process:
-    process = Process(pid=100)
-    process.executable = cmd
-    process.cwd = os.getcwd() if args.chdir is None else args.chdir
-    process.gid = os.getgid()
-
-    # Clear out the environment.
-    process.env = []
-
-    process.cmd = [cmd, *args.args]
-
-    return process
-
-
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--chdir",
-    type=os.path.abspath,
-    help="Set working directory of simulated process",
+from multibin.Util import (
+    make_process,
+    make_parser,
 )
-Options.addCommonOptions(parser)
-Options.addSEOptions(parser)
-parser.add_argument("cmd", help="Executable to simulate")
-parser.add_argument("args", nargs="*", help="Arguments to pass to executable")
-gem5_root = os.path.dirname(os.path.dirname(__file__))
-parser.add_argument(
-    "--pin",
-    default=os.path.join(gem5_root, "pin", "pin"),
-    help="Path to Intel Pin executable",
-)
-parser.add_argument(
-    "--pin-tool",
-    default=os.path.join(gem5_root, "pintool", "build", "libclient.so"),
-    help="Path to host PinTool",
-),
-parser.add_argument(
-    "--pin-kernel",
-    default=os.path.join(gem5_root, "pintool", "build", "kernel"),
-    help="Path to Pin guest kernel",
-)
+
+parser = make_parser()
 parser.add_argument(
     "--simpoints-json",
     required=True,
+    type = os.path.abspath,
     help="Path to SimPoint JSON file under cpt/*",
 )
 parser.add_argument(
-    "--simpoints-warmup",
-    type=int,
-    required=True,
-    help="Warmup period, in instructions",
+    "--waypoints",
+    required = True,
+    type = os.path.abspath,
+    help = "Path to waypoints list",
 )
-parser.add_argument("--stdout")
-parser.add_argument("--stderr")
-parser.add_argument("--pin-args", default="")
-parser.add_argument("--pin-tool-args", default="")
-
 args = parser.parse_args()
-
-process = get_process(args.cmd, args)
-if args.stdout:
-    process.output = args.stdout
-if args.stderr:
-    process.errout = args.stderr
+process = make_process(args)
 
 # NHM-FIXME: Just read the kvm cpu directly?
 # To get mem mode: CPUClass.memory_mode()
@@ -178,11 +133,8 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu.pinArgs = args.pin_args
-cpu.pinToolArgs = args.pin_tool_args
-# cpu.pinToolArgs = f"-bbv 1 -bbv_interval {args.interval_size} -bbv_out {args.output}"
+cpu.pinToolArgs = f"-waypoints {args.waypoints} -waypointcount 1 -instcount 1 {args.pin_tool_args}"
 
-# for cpu in system.cpu:
-#     cpu.usePerf = True
 process.pinInSE = True
 cpu.countInsts = True
 
@@ -213,37 +165,44 @@ simpoints = None
 with open(args.simpoints_json) as f:
     simpoints = json.load(f)
     simpoints = [types.SimpleNamespace(**simpoint) for simpoint in simpoints]
-    simpoints.sort(key=lambda simpoint: simpoint.inst_range[0])
+    simpoints.sort(key=lambda simpoint: simpoint.waypoints[0])
 
 root = Root(full_system=False, system=system)
 # Simulation.run(args, root, system, CPUClass)
 
 
 def get_simpoint_start_inst(simpoint: dict) -> int:
-    start = max(simpoint.inst_range[0] - args.simpoints_warmup, 0)
-    warmup = simpoint.inst_range[0] - start
-    return (start, warmup)
+    return simpoint["waypoints"][0]
 
-cpu.simpoint_start_insts = [
-    get_simpoint_start_inst(simpoint)[0] for simpoint in simpoints
-]
-print("cpu.simpoint_start_insts:", *cpu.simpoint_start_insts, file=sys.stderr)
 m5.instantiate()
 m5.startup()
+
+# TODO: Support back-to-back intervals.
+# We don't support this for now because it makes the logic pretty complex
+# when you have to consider interleaved warmups and intervals.
+for a, b in zip(simpoints[:-1], simpoints[1:]):
+    a = a.interval
+    b = b.interval
+    assert a < b
+    assert a < b - 1
+
+def run_until_waypoint(waypoint):
+    cpu.executePinCommand(f"breakpoint waypoint {waypoint}")
+    exit_cause = m5.simulate().getCause()
+    if exit_cause != "pin-breakpoint":
+        print(f"Unexpected exit cause: {exit_cause}", file=sys.stderr)
+        exit(1)
+    return int(cpu.executePinCommand(f"instcount"))
 
 for simpoint in simpoints:
     # Assume instruction counting is already set up.
     # Just need to set up instruction count breakpoint.
-    start, warmup = get_simpoint_start_inst(simpoint)
-    # cpu.executePinCommand(f"instbreak {start}")
-    cpu.executePinCommand(f"breakpoint inst {start}")
+    wp1, wp2, wp3 = simpoint.waypoints
 
-    exit_event = m5.simulate()
-    exit_cause = exit_event.getCause()
-    if exit_cause != "pin-breakpoint":
-        print(f"Unexpected exit cause: {exit_cause}", file=sys.stderr)
-        exit(1)
-    # path = os.path.join(args.checkpoint_dir, name)
+    # Run until warmup begin.
+    inst1 = run_until_waypoint(wp1)
+
+    # Checkpoint.
     short_name = f"cpt.{simpoint.name}"
     path = os.path.join(m5.options.outdir, short_name)
     m5.checkpoint(path)
@@ -253,9 +212,16 @@ for simpoint in simpoints:
         file=sys.stderr,
     )
 
+    # Run until warmup end / interval begin.
+    inst2 = run_until_waypoint(wp2)
+
+    # Run until interval end.
+    inst3 = run_until_waypoint(wp3)
+
     # Symlink in long gem5 name.
-    interval = simpoint.inst_range[1] - simpoint.inst_range[0]
-    long_name = f"cpt.simpoint_{int(simpoint.name):02}_inst_{start}_weight_{simpoint.weight}_interval_{interval}_warmup_{warmup}"
+    interval = inst3 - inst2
+    warmup = inst2 - inst1
+    long_name = f"cpt.simpoint_{int(simpoint.name):02}_inst_{inst1}_weight_{simpoint.weight}_interval_{interval}_warmup_{warmup}"
     os.symlink(short_name, os.path.join(m5.options.outdir, long_name))
 
 # Run to completion.
@@ -263,5 +229,3 @@ exit_cause = m5.simulate().getCause()
 if exit_cause != "exiting with last active thread context":
     print(f"unexpected exit reason:", exit_cause);
     exit(1)
-
-
