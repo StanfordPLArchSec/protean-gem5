@@ -283,26 +283,18 @@ def parse_bbhist(s: str) -> list:
 
     for line in lines:
         count, block = line.split()
-        insts = block.split(",")
-        result.append((insts, int(count)))
+        block = block.split(",")
+        result.append((block, int(count)))
     return result
 
 
-def bbhist_to_insthist(bbhist: list) -> dict:
-    insthist = collections.defaultdict(int)
-    for block, count in bbhist:
-        for inst in block:
-            insthist[inst] += count
-    return insthist
+block_to_id_dict = dict()
 
-
-inst_to_id_dict = dict()
-
-
-def inst_to_id(inst: str) -> int:
-    if inst not in inst_to_id_dict:
-        inst_to_id_dict[inst] = len(inst_to_id_dict) + 1
-    return inst_to_id_dict[inst]
+def block_to_id(block: str) -> int:
+    block = str(block)
+    if block not in block_to_id_dict:
+        block_to_id_dict[block] = len(block_to_id_dict) + 1
+    return block_to_id_dict[block]
 
 
 # Generate bbv.txt.
@@ -310,12 +302,13 @@ bbhist_lines = []
 with open(args.bbv, "w") as f:
     for bbhist in bbhists:
         # Generate line to append to bbv.txt.
-        insthist = bbhist_to_insthist(parse_bbhist(bbhist))
+        bbhist = parse_bbhist(bbhist)
         f.write("T")
-        for inst, count in insthist.items():
+        for block, count in bbhist:
             if count > 0:
-                id = inst_to_id(inst)
-                f.write(f" :{id}:{count}")
+                id = block_to_id(block)
+                weight = count * len(block)
+                f.write(f" :{id}:{weight}")
         f.write("\n")
 
 # Generate bbv.info.txt.
