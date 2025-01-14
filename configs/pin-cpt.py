@@ -132,8 +132,7 @@ if args.elastic_trace_en:
 
 
 # Set pin params.
-cpu.pinArgs = args.pin_args
-cpu.pinToolArgs = f"-waypoints {args.waypoints} -waypointcount 1 -instcount 1 {args.pin_tool_args}"
+cpu.pinToolArgs = f"-waypoints {args.waypoints} -waypointcount 1 -instcount 1"
 
 process.pinInSE = True
 cpu.countInsts = True
@@ -165,7 +164,6 @@ simpoints = None
 with open(args.simpoints_json) as f:
     simpoints = json.load(f)
     simpoints = [types.SimpleNamespace(**simpoint) for simpoint in simpoints]
-    simpoints.sort(key=lambda simpoint: simpoint.waypoints[0])
 
 root = Root(full_system=False, system=system)
 # Simulation.run(args, root, system, CPUClass)
@@ -176,6 +174,8 @@ def get_simpoint_start_inst(simpoint: dict) -> int:
 
 m5.instantiate()
 m5.startup()
+
+m5.options.outdir = os.path.abspath(m5.options.outdir)
 
 # TODO: Support back-to-back intervals.
 # We don't support this for now because it makes the logic pretty complex

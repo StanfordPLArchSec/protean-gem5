@@ -59,6 +59,10 @@ from common import (
 )
 from common.Caches import *
 from common.FileSystemConfig import config_filesystem
+from multibin.Util import (
+    make_parser,
+    make_process,
+)
 
 import m5
 from m5.defines import buildEnv
@@ -71,17 +75,19 @@ from m5.util import (
 )
 
 from gem5.isas import ISA
-from multibin.Util import (
-    make_process,
-    make_parser,
-)
 
 parser = make_parser()
 parser.add_argument(
-    "--bbv", required=True, type=os.path.abspath, help="Path to basic block trace file"
+    "--bbv",
+    required=True,
+    type=os.path.abspath,
+    help="Path to basic block trace file",
 )
 parser.add_argument(
-    "--bbvinfo", required=True, type=os.path.abspath, help="Path to basic block extra info file"
+    "--bbvinfo",
+    required=True,
+    type=os.path.abspath,
+    help="Path to basic block extra info file",
 )
 parser.add_argument(
     "--warmup",
@@ -96,7 +102,10 @@ parser.add_argument(
     help="Interval size, in number of instructions",
 )
 parser.add_argument(
-    "--waypoints", required=True, type=os.path.abspath, help="Path to waypoints list"
+    "--waypoints",
+    required=True,
+    type=os.path.abspath,
+    help="Path to waypoints list",
 )
 args = parser.parse_args()
 process = make_process(args)
@@ -146,8 +155,7 @@ if args.elastic_trace_en:
 
 # Set pin params.
 cpu = system.cpu[0]
-cpu.pinToolArgs = f"-bbhist 1 -waypoints {args.waypoints} -waypointcount 1 {args.pin_tool_args}"
-cpu.pinArgs = args.pin_args
+cpu.pinToolArgs = f"-bbhist 1 -waypoints {args.waypoints} -waypointcount 1"
 cpu.countInsts = True
 
 # for cpu in system.cpu:
@@ -264,7 +272,7 @@ except Exit:
 #   - bbv.info.txt: Metadata about the vector file, organized into triples: warmup-begin warmup-end/interval-begin interval-end
 
 assert len(warmups) >= len(intervals) and len(warmups) >= len(bbhists)
-assert len(warmups) - len(intervals) <= 1 and len(warmups) - len(bbhists) <= 1
+assert len(warmups) - len(intervals) <= 1 and len(intervals) - len(bbhists) <= 1
 
 
 def parse_bbhist(s: str) -> list:
