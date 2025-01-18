@@ -362,9 +362,12 @@ CPU::mapCode()
     const Addr min = tc->getProcessPtr()->image.minAddr();
     const Addr max = tc->getProcessPtr()->image.maxAddr();
     const TranslationGenPtr ptr = tc->getMMUPtr()->translateFunctional(min, max - min, tc, BaseMMU::Execute, 0);
-    for (const TranslationGen::Range &range : *ptr) {
-        if (range.fault != NoFault)
+    for (TranslationGenConstIterator it = ptr->begin(); it != ptr->end(); ++it) {
+        const TranslationGen::Range &range = *it;
+        if (range.fault != NoFault) {
+            it.resetFault();
             continue;
+        }
         Message msg;
         msg.type = Message::Map;
         msg.map.vaddr = range.vaddr;
