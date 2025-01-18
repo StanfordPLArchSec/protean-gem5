@@ -237,10 +237,44 @@ def run_for_n_insts_next_waypoint(n: int) -> (int, int):
     return cpu.executePinCommand("waypointcount")
 
 
+
+def parse_bbhist(s: str) -> list:
+    lines = s.split("\n")
+    assert len(lines[-1]) == 0
+    lines = lines[:-1]
+    result = list()
+
+    for line in lines:
+        count, block = line.split()
+        block = block.split(",")
+        result.append((block, int(count)))
+    return result
+
+block_to_id_dict = dict()
+
+def block_to_id(block: str) -> int:
+    block = str(block)
+    if block not in block_to_id_dict:
+        block_to_id_dict[block] = len(block_to_id_dict) + 1
+    return block_to_id_dict[block]
+
+def dump_bbhist(s: str, f):
+    f.write("T")
+    for block, count in parse_bbhist(s):
+        assert count > 0
+        id = block_to_id(block)
+        weight = count * len(block)
+        f.write(f" :{id}:{weight}")
+    f.write("\n")
+
+
+
 # List of waypoint counts.
 warmups = [0]
 intervals = []
 bbhists = []
+
+f_bbv = open(args.bbv, "wt")
 
 try:
     # Prime the loop by running for <warmup> instructions
@@ -259,7 +293,9 @@ try:
         intervals.append(run_for_n_insts_next_waypoint(args.warmup))
 
         # Dump and reset the bbhist.
-        bbhists.append(cpu.executePinCommand("bbhist dump"))
+        bbhist = cpu.executePinCommand("bbhist dump")
+        dump_bbhist(bbhist, f_bbv)
+        bbhists.append(None)
         cpu.executePinCommand("bbhist reset")
         print(f"bbv: dumped interval {len(bbhists)}!", file=sys.stderr)
 
@@ -273,43 +309,6 @@ except Exit:
 
 assert len(warmups) >= len(intervals) and len(warmups) >= len(bbhists)
 assert len(warmups) - len(intervals) <= 1 and len(intervals) - len(bbhists) <= 1
-
-
-def parse_bbhist(s: str) -> list:
-    lines = s.split("\n")
-    assert len(lines[-1]) == 0
-    lines = lines[:-1]
-    result = list()
-
-    for line in lines:
-        count, block = line.split()
-        block = block.split(",")
-        result.append((block, int(count)))
-    return result
-
-
-block_to_id_dict = dict()
-
-def block_to_id(block: str) -> int:
-    block = str(block)
-    if block not in block_to_id_dict:
-        block_to_id_dict[block] = len(block_to_id_dict) + 1
-    return block_to_id_dict[block]
-
-
-# Generate bbv.txt.
-bbhist_lines = []
-with open(args.bbv, "w") as f:
-    for bbhist in bbhists:
-        # Generate line to append to bbv.txt.
-        bbhist = parse_bbhist(bbhist)
-        f.write("T")
-        for block, count in bbhist:
-            if count > 0:
-                id = block_to_id(block)
-                weight = count * len(block)
-                f.write(f" :{id}:{weight}")
-        f.write("\n")
 
 # Generate bbv.info.txt.
 with open(args.bbvinfo, "w") as f:
