@@ -513,7 +513,7 @@ class Commit
         statistics::Scalar regTaints, memTaints, xmitTaints;
     } stats;
 
-    static void printTaintDebug(const DynInstPtr &inst,  const char *type);
+    void printTaintDebug(const DynInstPtr &inst,  const char *type) const;
 };
 
 } // namespace o3

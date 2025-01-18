@@ -1746,7 +1746,7 @@ Commit::oldestReady()
 }
 
 void
-Commit::printTaintDebug(const DynInstPtr &inst, const char *type)
+Commit::printTaintDebug(const DynInstPtr &inst, const char *type) const
 {
     const Addr inst_addr = inst->pcState().instAddr();
     DPRINTFR(TPT, "TPT %s %#x :: %s\n",
