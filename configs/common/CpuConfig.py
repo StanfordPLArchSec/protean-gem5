@@ -82,6 +82,7 @@ def config_scheme(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         for cpu in cpu_list:
             cpu.speculationModel = options.speculation_model
+            cpu.ptexMem = options.ptex_mem
             cpu.tpt = options.tpt
             cpu.implicitChannel = options.implicit_channel
             cpu.moreTransmitInsts = options.more_transmit_insts
