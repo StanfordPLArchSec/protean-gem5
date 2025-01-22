@@ -702,6 +702,8 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     # [Jiyong,DDIFT] add options for DDIFT configurations
     parser.add_argument("--spt", action = "store_true",
             help="Whether using DDIFT as an optimization for InvisiSpec.")
+    parser.add_argument("--spt-bugfix", action = "store_true",
+                        help="[SPT] Enable bugfixes")
     parser.add_argument("--configImpFlow", default="Lazy", action="store", 
             choices=["Ignore", "Lazy", "Eager"],
             help="implicit flow handling mechanism")
