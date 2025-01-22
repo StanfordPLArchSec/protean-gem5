@@ -76,6 +76,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('JY')
     DebugFlag('ShadowL1')
     DebugFlag('Annotations')
+    DebugFlag('TransmitterStalls')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',

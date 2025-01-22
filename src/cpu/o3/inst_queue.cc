@@ -1120,6 +1120,7 @@ void
 InstructionQueue::deferMemInst(const DynInstPtr &deferred_inst)
 {
     assert(deferred_inst->fenceDelay() || deferred_inst->isSquashed());
+    deferred_inst->stallTick = curTick();
     deferredMemInsts.push_back(deferred_inst);
 }
 
@@ -1153,6 +1154,7 @@ InstructionQueue::getDeferredMemInstToExecute()
         if ((*it)->translationCompleted() || (*it)->isSquashed() || !(*it)->fenceDelay()) {
             DynInstPtr mem_inst = std::move(*it);
             deferredMemInsts.erase(it);
+            mem_inst->unstallTick = curTick();
             return mem_inst;
         }
     }
