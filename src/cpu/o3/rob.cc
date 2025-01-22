@@ -215,7 +215,7 @@ ROB::insertInst(const DynInstPtr &inst)
             if (inst->srcRegIdx(i).index() == 16)   // exclude zero register (zero register cannot be tainted)
                 continue;
             for (int j = 0; j < prevInst->numDestRegs(); j++){
-                if (inst->renamedSrcIdx(i) == prevInst->renamedDestIdx(j)){
+                if (inst->renamedSrcIdx(i) == prevInst->renamedDestIdx(j) && !inst->srcRegIdx(i).is(InvalidRegClass)) {
                     inst->setArgProducer(i, prevInst);
                 }
             }
