@@ -1148,7 +1148,7 @@ InstructionQueue::getDeferredMemInstToExecute()
 {
     for (ListIt it = deferredMemInsts.begin(); it != deferredMemInsts.end();
          ++it) {
-        if ((*it)->translationCompleted() || (*it)->isSquashed() || (*it)->fenceDelay()) {
+        if ((*it)->translationCompleted() || (*it)->isSquashed() || !(*it)->fenceDelay()) {
             DynInstPtr mem_inst = std::move(*it);
             deferredMemInsts.erase(it);
             return mem_inst;
