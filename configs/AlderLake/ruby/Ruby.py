@@ -126,7 +126,7 @@ def define_options(parser):
     )
 
     protocol = buildEnv["PROTOCOL"]
-    exec(f"from . import {protocol}")
+    exec(f"from . import {protocol}", globals())
     eval(f"{protocol}.define_options(parser)")
     Network.define_options(parser)
 
@@ -213,7 +213,7 @@ def create_topology(controllers, options):
     found in configs/topologies/BaseTopology.py
     This is a wrapper for the legacy topologies.
     """
-    exec(f"import topologies.{options.topology} as Topo")
+    exec(f"import topologies.{options.topology} as Topo", globals())
     topology = eval(f"Topo.{options.topology}(controllers)")
     return topology
 
@@ -247,7 +247,7 @@ def create_system(
         cpus = system.cpu
 
     protocol = buildEnv["PROTOCOL"]
-    exec(f"from . import {protocol}")
+    exec(f"from . import {protocol}", globals())
     try:
         (cpu_sequencers, dir_cntrls, topology) = eval(
             "%s.create_system(options, full_system, system, dma_ports,\
