@@ -47,6 +47,7 @@
 #include "cpu/o3/limits.hh"
 #include "debug/Fetch.hh"
 #include "debug/ROB.hh"
+#include "debug/TransmitterStallsVerbose.hh"
 #include "params/BaseO3CPU.hh"
 
 namespace gem5
@@ -631,6 +632,8 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
 
         // [TPT] If the address operand itself is protected.
         if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
+            DPRINTFR(TransmitterStallsVerbose, "tainting address of protected load %#x\n",
+                     inst->pcState().instAddr());
             inst->isAddrTainted(true);
             return;
         }
@@ -652,11 +655,17 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
         else if (inst->isLoad()) {
             for (int i = 0; i < inst->numSrcRegs(); i++){
                 if (inst->getArgProducer(i)) {
+                    assert(!inst->srcRegIdx(i).is(InvalidRegClass));
                     DynInstPtr argProducer = inst->getArgProducer(i);
                     assert(argProducer->threadNumber == tid);
                     if (argProducer->isDestTainted()
                         && !argProducer->isCommitted()) {
                         inst->isAddrTainted(true);
+                        DPRINTFR(TransmitterStallsVerbose, "tainting address of load %#x with tainted producer %#x of %s\n",
+                                 inst->pcState().instAddr(), argProducer->pcState().instAddr(),
+                                 inst->srcRegIdx(i));
+                        DPRINTFR(TransmitterStallsVerbose, "taint traceback of load %#x: %s\n",
+                                 inst->pcState().instAddr(), inst->printTaintTree());
                         return;
                     }
                 }

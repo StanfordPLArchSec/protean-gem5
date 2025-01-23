@@ -751,5 +751,27 @@ DynInst::numValidDests() const
     return n;
 }
 
+std::string
+DynInst::printTaintTree() const
+{
+    if (!(isArgsTainted() || isAddrTainted()))
+        return "(args not tainted)";
+
+    std::string s;
+    s += csprintf("%#x", pcState().instAddr());
+
+    // Otherwise, try to find argument that is tainted.
+    for (int src_idx = 0; src_idx < numSrcs(); ++src_idx) {
+        if (const DynInstPtr arg_producer = getArgProducer(src_idx)) {
+            if (arg_producer->isDestTainted() && !arg_producer->isCommitted()) {
+                // Found a tainted arg producer.
+                return s + csprintf(" -> %s %s", srcRegIdx(src_idx), arg_producer->isMemRef() ? "(memref)" : arg_producer->printTaintTree());
+            }
+        }
+    }
+
+    return s + " (??? - no tainted argproducer)";
+}
+
 } // namespace o3
 } // namespace gem5

@@ -1078,7 +1078,8 @@ class DynInst : public ExecContext, public RefCounted
     }
 
     /*** [Jiyong,STT] functions related to argProducer ***/
-    DynInstPtr getArgProducer(int idx)
+    DynInstPtr
+    getArgProducer(int idx) const
     {
         return _argProducers[idx];
     }
@@ -1089,6 +1090,7 @@ class DynInst : public ExecContext, public RefCounted
 
     void setArgProducer(int idx, DynInstPtr &inst)
     {
+        assert(!srcRegIdx(idx).is(InvalidRegClass));
         _argProducers[idx] = inst;
     }
 
@@ -1302,6 +1304,8 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
     unsigned numValidDests() const;
+
+    std::string printTaintTree() const;
 };
 
 } // namespace o3
