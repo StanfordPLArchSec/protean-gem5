@@ -1119,6 +1119,7 @@ InstructionQueue::replayMemInst(const DynInstPtr &replay_inst)
 void
 InstructionQueue::deferMemInst(const DynInstPtr &deferred_inst)
 {
+    assert(deferred_inst->fenceDelay() || deferred_inst->isSquashed());
     deferredMemInsts.push_back(deferred_inst);
 }
 
@@ -1148,6 +1149,7 @@ InstructionQueue::getDeferredMemInstToExecute()
 {
     for (ListIt it = deferredMemInsts.begin(); it != deferredMemInsts.end();
          ++it) {
+        assert(!(*it)->translationCompleted());
         if ((*it)->translationCompleted() || (*it)->isSquashed() || !(*it)->fenceDelay()) {
             DynInstPtr mem_inst = std::move(*it);
             deferredMemInsts.erase(it);
