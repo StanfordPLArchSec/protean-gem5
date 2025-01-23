@@ -66,6 +66,7 @@
 #include "params/BaseO3CPU.hh"
 #include "debug/JY.hh"
 #include "debug/ShadowL1.hh"
+#include "debug/SPTRetire.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
 #include "debug/Annotations.hh"
@@ -1449,6 +1450,22 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
             if (!head_inst->isDestIdxTainted(dest_idx))
                 ++stats.committedAnnotatedUnprotectedRegisterCount;
         }
+    }
+
+
+    // [SPT] [DEBUG] Print out taint of the inputs/outputs of the instruction.
+    if (debug::SPTRetire) {
+        const Addr pc = head_inst->pcState().instAddr();
+        DPRINTF(SPTRetire, "SPT %#x :: %s", pc, head_inst->staticInst->disassemble(pc));
+        DPRINTFR(SPTRetire, " tdests={");
+        for (int dest_idx = 0; dest_idx < head_inst->numDests(); ++dest_idx)
+            if (head_inst->isDestIdxTainted(dest_idx))
+                DPRINTFR(SPTRetire, "%s,", head_inst->destRegIdx(dest_idx));
+        DPRINTFR(SPTRetire, "} :: tsrcs={");
+        for (int src_idx = 0; src_idx < head_inst->numSrcs(); ++src_idx)
+            if (head_inst->isArgsIdxTainted(src_idx))
+                DPRINTFR(SPTRetire, "%s,", head_inst->srcRegIdx(src_idx));
+        DPRINTFR(SPTRetire, "}\n");
     }
 
     // Return true to indicate that we have committed an instruction.

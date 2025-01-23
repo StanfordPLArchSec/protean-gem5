@@ -72,6 +72,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
     DebugFlag('SPT')
+    DebugFlag('SPTRetire')
     DebugFlag('JY')
     DebugFlag('ShadowL1')
     DebugFlag('Annotations')
