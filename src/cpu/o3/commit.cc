@@ -1471,8 +1471,9 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->stallTick != -1) {
         assert(head_inst->unstallTick >= head_inst->stallTick);
         const Addr pc = head_inst->pcState().instAddr();
-        DPRINTFR(TransmitterStalls, "STALL: %#x %d :: %s\n",
-                 pc, head_inst->unstallTick - head_inst->stallTick,
+        DPRINTFR(TransmitterStalls, "STALL: %d %#x %d :: %s\n",
+                 cpu->totalOps(), pc,
+                 head_inst->unstallTick - head_inst->stallTick,
                  head_inst->staticInst->disassemble(pc));
     }
 
