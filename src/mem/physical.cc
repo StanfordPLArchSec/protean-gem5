@@ -543,11 +543,8 @@ PhysicalMemory::unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
     UNSERIALIZE_SCALAR(range_size);
 
     if (lazyCheckpointMem) {
-        memories[0]->setLazy(compressed_mem, range_size,
-                             32ULL * 1024 * 1024 /*32MiB*/);
-#if 0
-        munmap(pmem, range_size);
-#endif
+        memories[0]->setLazyUnpaged(compressed_mem, range_size,
+                                    32ULL * 1024 * 1024 /*32MiB*/);
         return;
     }
 
@@ -608,6 +605,12 @@ PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
     if (range_size != range.size())
         fatal("Memory range size has changed! Saw %lld, expected %lld\n",
               range_size, range.size());
+
+    if (lazyCheckpointMem) {
+        // TODO: Make the chunk size parameterized.
+        memories[0]->setLazyPaged(file_pages, file_ids, range_size, 4096); // 32ULL * 1024 * 1024 /*32MiB*/);
+        return;
+    }
 
     // Parse page table.
     std::vector<Page> pages;
