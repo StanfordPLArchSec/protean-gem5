@@ -628,56 +628,34 @@ ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
 void
 ROB::address_flow(ThreadID tid, DynInstPtr &inst)
 {
-    if (inst->isMemRef()) {
+    inst->isAddrTainted(false);
 
-        // [TPT] If the address operand itself is protected.
-        if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
-            DPRINTFR(TransmitterStallsVerbose, "tainting address of protected load %#x\n",
-                     inst->pcState().instAddr());
-            inst->isAddrTainted(true);
-            return;
-        }
+    if (!inst->isMemRef())
+        return;
+        
+    // [TPT] If the address operand itself is protected.
+    if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
+        DPRINTFR(TransmitterStallsVerbose, "tainting address of protected load %#x\n",
+                 inst->pcState().instAddr());
+        inst->isAddrTainted(true);
+        return;
+    }
 
-        if (inst->isStore()) {
-            // TPT-TODO: Fix bug here.
-            for (int i = 1; i < inst->numSrcRegs(); i++){
-                if (inst->getArgProducer(i)) {
-                    DynInstPtr argProducer = inst->getArgProducer(i);
-                    assert(argProducer->threadNumber == tid);
-                    if (argProducer->isDestTainted()
-                        && !argProducer->isCommitted()) {
-                        inst->isAddrTainted(true);
-                        return;
-                    }
+    for (int i = 0; i < inst->numSrcRegs(); ++i) {
+        if (inst->staticInst->srcTransmitted(i)) {
+            if (const DynInstPtr &producer = inst->getArgProducer(i)) {
+                assert(producer->threadNumber == tid);
+                if (producer->isDestTainted() && !producer->isCommitted()) {
+                    inst->isAddrTainted(true);
+                    DPRINTFR(TransmitterStallsVerbose, "tainting address of memref %#x with tainted producer %#x of %s\n",
+                             inst->pcState().instAddr(), producer->pcState().instAddr(),
+                             inst->srcRegIdx(i));
+                    DPRINTFR(TransmitterStallsVerbose, "taint traceback of memref %#x: %s\n",
+                             inst->pcState().instAddr(), inst->printTaintTree());
+                    return;                        
                 }
             }
         }
-        else if (inst->isLoad()) {
-            for (int i = 0; i < inst->numSrcRegs(); i++){
-                if (inst->getArgProducer(i)) {
-                    assert(!inst->srcRegIdx(i).is(InvalidRegClass));
-                    DynInstPtr argProducer = inst->getArgProducer(i);
-                    assert(argProducer->threadNumber == tid);
-                    if (argProducer->isDestTainted()
-                        && !argProducer->isCommitted()) {
-                        inst->isAddrTainted(true);
-                        DPRINTFR(TransmitterStallsVerbose, "tainting address of load %#x with tainted producer %#x of %s\n",
-                                 inst->pcState().instAddr(), argProducer->pcState().instAddr(),
-                                 inst->srcRegIdx(i));
-                        DPRINTFR(TransmitterStallsVerbose, "taint traceback of load %#x: %s\n",
-                                 inst->pcState().instAddr(), inst->printTaintTree());
-                        return;
-                    }
-                }
-            }
-        }
-        else {
-            panic("Unidentified instruction.\n");
-        }
-
-        inst->isAddrTainted(false);
-    } else {
-        inst->isAddrTainted(false);
     }
 }
 
