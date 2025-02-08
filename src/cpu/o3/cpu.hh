@@ -693,6 +693,8 @@ class CPU : public BaseCPU
      ** the byte is tainted
      **/
     std::unordered_map<Addr, bool> shadowL1;
+
+    bool sptBugfix;
 };
 
 } // namespace o3

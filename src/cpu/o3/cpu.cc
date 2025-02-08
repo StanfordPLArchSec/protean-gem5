@@ -114,7 +114,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       globalSeqNum(1),
       system(params.system),
       lastRunningCycle(curCycle()),
-      cpuStats(this)
+      cpuStats(this),
+      sptBugfix(params.sptBugfix)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -367,6 +368,7 @@ CPU::CPU(const BaseO3CPUParams &params)
     if (enableShadowL1)
         std::cout << "Shadow L1 bottomless? " << (bottomlessShadowL1 ? "yes" : "no") << std::endl;
     std::cout << "Untaint Rounds = " << untaintRounds << std::endl;
+    cprintf("sptBugfix = %d\n", sptBugfix);
 }
 
 void

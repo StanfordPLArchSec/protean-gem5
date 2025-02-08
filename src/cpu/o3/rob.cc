@@ -589,6 +589,9 @@ ROB::updateVisibleState()
             if (inst->isSpeculationPrimitive())
                 break;
         }
+
+        if (!cpu->disableUntaint)
+            propagateUntaint(tid);
     }
 }
 

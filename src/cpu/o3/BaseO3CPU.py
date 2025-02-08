@@ -199,6 +199,7 @@ class BaseO3CPU(BaseCPU):
 
     # [SPT]
     spt = Param.Bool(False, "[SPT] Enable SPT")
+    sptBugfix = Param.Bool(False, "[SPT] Enable SPT bugfixes")
     configImpFlow = Param.String('Ignore', "How to handle implicit flow")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
     disableUntaint = Param.Bool(False, "Whether to disable untainting")
