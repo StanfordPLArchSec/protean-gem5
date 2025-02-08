@@ -1138,7 +1138,11 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         ++stats.renamedOperands;
 
         // [Rutvik, SPT] When an inst is renamed, its dest regs start out with a clean slate
-        cpu->setTaint(rename_result.first, false);
+	if (cpu->sptBugfix) {
+            cpu->setTaint(rename_result.first, true);
+        } else {
+	    cpu->setTaint(rename_result.first, false);
+        }
     }
 }
 
