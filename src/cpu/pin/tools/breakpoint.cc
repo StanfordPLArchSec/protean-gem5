@@ -69,6 +69,10 @@ RegisterCounter(const std::string &name, const ADDRINT *counter)
 namespace {
 struct BreakpointPlugin final : Plugin
 {
+    const char *name() const override { return "breakpoint"; }
+
+    int priority() const override { return -1; }
+
     bool enabled() const override { return true; }
 
     bool

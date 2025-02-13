@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_set>
 #include <pin.H>
+#include <iostream>
 
 #include "plugin.hh"
 #include "client.hh"
@@ -43,9 +44,19 @@ InstrumentTRACE(TRACE trace, void *)
         InstrumentBBL(bbl);
 }
 
+static void
+Finish(int32_t code, void *)
+{
+    std::cerr << "waypointcount=" << std::dec << waypointcount << std::endl;
+}
+
 namespace {
 struct WaypointCountPlugin final : Plugin
 {
+    const char *name() const override { return "waypointcount"; }
+
+    int priority() const override { return 1; }
+
     bool
     enabled() const override
     {
@@ -57,6 +68,7 @@ struct WaypointCountPlugin final : Plugin
     {
         TRACE_AddInstrumentFunction(InstrumentTRACE, nullptr);
         RegisterCounter("waypoint", &waypointcount);
+        PIN_AddFiniFunction(Finish, nullptr);
         return true;
     }
 

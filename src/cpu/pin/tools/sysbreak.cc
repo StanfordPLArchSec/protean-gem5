@@ -34,6 +34,10 @@ Instrument(INS ins, void *)
 namespace {
 struct SyscallBreakpointPlugin final : Plugin
 {
+    const char *name() const override { return "sysbreak"; }
+
+    int priority() const override { return -1; }
+
     bool enabled() const override { return true; }
 
     bool

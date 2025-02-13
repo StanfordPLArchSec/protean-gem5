@@ -31,6 +31,8 @@ countStaticWaypoints(BBL bbl)
 namespace {
 struct WaypointsPlugin final : Plugin
 {
+    const char *name() const override { return "waypoints"; }
+
     bool
     enabled() const override
     {

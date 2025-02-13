@@ -1022,9 +1022,16 @@ main(int argc, char *argv[])
         return EXIT_FAILURE;
 
     // Register plugins.
+    std::map<int, std::vector<Plugin *>> prioritized_plugins;
     for (Plugin *plugin : plugins)
         if (plugin->enabled())
+            prioritized_plugins[plugin->priority()].push_back(plugin);
+    for (const auto &[_, plugins] : prioritized_plugins) {
+        for (Plugin *plugin : plugins) {
+            std::cerr << "Registering plugin '" << plugin->name() << "'\n";
             plugin->reg();
+        }
+    }
 
     INS_AddInstrumentFunction(Instruction, nullptr);
     INS_AddInstrumentFunction(Instrument_Instruction_PinOps, nullptr);

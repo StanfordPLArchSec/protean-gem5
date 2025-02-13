@@ -88,6 +88,10 @@ Reset()
 
 struct BasicBlockHistogramPlugin final : Plugin
 {
+    const char *name() const override { return "bbhist"; }
+
+    int priority() const override { return 1; }
+
     bool
     enabled() const override
     {

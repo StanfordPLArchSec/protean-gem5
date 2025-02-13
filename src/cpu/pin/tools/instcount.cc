@@ -2,6 +2,7 @@
 
 #include <pin.H>
 #include <string>
+#include <iostream>
 #include "client.hh"
 #include "plugin.hh"
 #include "breakpoint.hh"
@@ -29,9 +30,19 @@ Instrument(TRACE trace, void *)
     }
 }
 
+static void
+Finish(int32_t code, void *)
+{
+    std::cerr << "instcount=" << std::dec << instcount << std::endl;
+}
+
 namespace {
 struct InstCountPlugin final : Plugin
 {
+    const char *name() const override { return "instcount"; }
+
+    int priority() const override { return 1; }
+
     bool
     enabled() const override
     {
@@ -44,6 +55,7 @@ struct InstCountPlugin final : Plugin
         assert(enabled());
         TRACE_AddInstrumentFunction(Instrument, nullptr);
         RegisterCounter("inst", &instcount);
+        PIN_AddFiniFunction(Finish, nullptr);
         return true;
     }
 
