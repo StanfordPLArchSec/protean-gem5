@@ -102,6 +102,12 @@ parser.add_argument(
     help="Interval size, in number of instructions",
 )
 parser.add_argument(
+    "--tolerance",
+    type=int,
+    default=2,
+    help="Interval tolerance factor",
+)
+parser.add_argument(
     "--waypoints",
     required=True,
     type=os.path.abspath,
@@ -231,11 +237,12 @@ def run_for_n(counter: str, n: int):
         exit(1)
 
 
-def run_for_n_insts_next_waypoint(n: int) -> (int, int):
+def run_for_n_insts_next_waypoint(n: int):
     run_for_n("inst", n)
     run_for_n("waypoint", 1)
-    return cpu.executePinCommand("waypointcount")
-
+    icount = int(cpu.executePinCommand("instcount"))
+    wcount = int(cpu.executePinCommand("waypointcount"))
+    return wcount, icount
 
 
 def parse_bbhist(s: str) -> list:
@@ -244,11 +251,14 @@ def parse_bbhist(s: str) -> list:
     lines = lines[:-1]
     result = list()
 
+    total_insts = 0
     for line in lines:
         count, block = line.split()
+        count = int(count)
         block = block.split(",")
-        result.append((block, int(count)))
-    return result
+        result.append((block, count))
+        total_insts += count * len(block) # TODO: Just stick this in the output list directly. Not doing this now to avoid introducing new bugs.
+    return result, total_insts
 
 block_to_id_dict = dict()
 
@@ -258,19 +268,22 @@ def block_to_id(block: str) -> int:
         block_to_id_dict[block] = len(block_to_id_dict) + 1
     return block_to_id_dict[block]
 
-def dump_bbhist(s: str, f):
+def dump_bbhist(s: str, f, good: bool):
+    # Check if this interval is of a sane length.
     f.write("T")
-    for block, count in parse_bbhist(s):
-        assert count > 0
-        id = block_to_id(block)
-        weight = count * len(block)
-        f.write(f" :{id}:{weight}")
+    l, total_insts = parse_bbhist(s)
+    if total_insts <= args.interval * args.tolerance:
+        for block, count in l:
+            assert count > 0
+            id = block_to_id(block)
+            weight = count * len(block)
+            f.write(f" :{id}:{weight}")
+    else:
+        f.write(" :1:1")
     f.write("\n")
 
-
-
 # List of waypoint counts.
-warmups = [0]
+warmups = [(0, 0)]
 intervals = []
 bbhists = []
 
@@ -294,7 +307,12 @@ try:
 
         # Dump and reset the bbhist.
         bbhist = cpu.executePinCommand("bbhist dump")
-        dump_bbhist(bbhist, f_bbv)
+        idx = len(bbhists)
+        warmup = warmups[idx][1]
+        interval_begin = intervals[idx][1]
+        interval_end = intervals[idx+1][1]
+        good = interval_end - warmup <= (args.warmup + args.interval) * args.tolerance
+        dump_bbhist(bbhist, f_bbv, good)
         bbhists.append(None)
         cpu.executePinCommand("bbhist reset")
         print(f"bbv: dumped interval {len(bbhists)}!", file=sys.stderr)
@@ -313,7 +331,7 @@ assert len(warmups) - len(intervals) <= 1 and len(intervals) - len(bbhists) <= 1
 # Generate bbv.info.txt.
 with open(args.bbvinfo, "w") as f:
     for i in range(len(bbhists)):
-        warmup = warmups[i]
-        interval_begin = intervals[i]
-        interval_end = intervals[i + 1]
+        warmup = warmups[i][0]
+        interval_begin = intervals[i][0]
+        interval_end = intervals[i + 1][0]
         print(warmup, interval_begin, interval_end, file=f)
