@@ -953,6 +953,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
                 delayedReq.doneSeqNum  = fromCommit->commitInfo[tid].doneSeqNum;
                 delayedReq.pc.reset(fromCommit->commitInfo[tid].pc->clone());
                 delayedReq.branchTaken = fromCommit->commitInfo[tid].branchTaken;
+                delayedReq.misp_inst->stallTick = curTick();
                 delayedSquashReqList.insert(tid, std::move(delayedReq));
             }
             else {
@@ -989,6 +990,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
                                        it->branchTaken,
                                        tid);
                     squashedSeqNum = it->doneSeqNum;
+                    it->misp_inst->unstallTick = curTick();
                     it = delayedSquashReqList.delayedSquashes[tid].erase(it);
                     break;
                 }

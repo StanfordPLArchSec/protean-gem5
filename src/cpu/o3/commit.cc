@@ -1501,11 +1501,16 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         printTaintDebug(head_inst, "xmit");
     }
     if (head_inst->stallTick != -1) {
-        assert(head_inst->unstallTick >= head_inst->stallTick);
+        Tick unstallTick = head_inst->unstallTick;
+        if (unstallTick == -1) {
+            DPRINTF(TransmitterStalls, "WARNING: %#x has no unstallTick, defaulting to curTick()\n", pc);
+            unstallTick = curTick();
+        }
+        assert(unstallTick >= head_inst->stallTick);
         const Addr pc = head_inst->pcState().instAddr();
         DPRINTFR(TransmitterStalls, "STALL: %d %#x %d :: %s\n",
                  cpu->totalOps(), pc,
-                 head_inst->unstallTick - head_inst->stallTick,
+                 unstallTick - head_inst->stallTick,
                  head_inst->staticInst->disassemble(pc));
     }
 
