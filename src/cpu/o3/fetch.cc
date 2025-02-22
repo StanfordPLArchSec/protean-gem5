@@ -974,6 +974,7 @@ Fetch::checkSignalsAndUpdate(ThreadID tid)
                                        it->branchTaken,
                                        tid);
                     squashedSeqNum = it->doneSeqNum;
+                    it->misp_inst->unstallTick = curTick();
                     it = delayedSquashReqList.delayedSquashes[tid].erase(it);
                     break;
                 }

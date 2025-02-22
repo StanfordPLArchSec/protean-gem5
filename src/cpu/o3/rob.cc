@@ -748,6 +748,7 @@ ROB::getResolvedPendingSquashInst(ThreadID tid)
             && inst->isUnsquashable()   // SPT: a delayed branch wait until it reaches VP
             && !inst->isSquashed()  // if it's already squashed, we ignore it
             ) {
+            inst->unstallTick = curTick();
             return inst;
         }
     }
