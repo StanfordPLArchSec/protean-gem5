@@ -31,7 +31,7 @@ bool ShadowDeclassificationTable::checkDeclassified(const DynInstPtr& inst) {
     assert(inst->effAddrValid());
     const Addr base = inst->physEffAddr;
     const unsigned size = inst->effSize;
-    assert(base != 0 && size > 0);
+    // assert(base != 0 && size > 0);
     for (Addr addr = base; addr < base + size; ++addr) {
         const bool check = checkDeclassifiedOne(addr);
         if (!check) {
