@@ -351,8 +351,8 @@ DynInst::readyToIssue_UT() const
 {
     bool ret = status[CanIssue];
 
-    if (cpu->impChannel == ImplicitChannelMode::Eager && isControl())
-        ret &= !isArgsTainted();
+    if (cpu->impChannel == ImplicitChannelMode::Eager && isControl() && (isArgsTainted() || inputProtection() == Protected))
+        ret = false;
 
     switch (cpu->moreTransmitInsts) {
       case 0:
