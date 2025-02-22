@@ -188,7 +188,11 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
                "number of annotated loads with unprotected destinations that were committed"),
       ADD_STAT(committedAnnotatedUnprotectedLoadRate, statistics::units::Rate<statistics::units::Count,
                statistics::units::Count>::get(),
-               "fraction of committed, annotated loads that were unprotected")
+               "fraction of committed, annotated loads that were unprotected"),
+      ADD_STAT(protRegs, statistics::units::Count::get(),
+               "[SPT] number of retired protected destination registers"),
+      ADD_STAT(unprotRegs, statistics::units::Count::get(),
+               "[SPT] number of retiredp unprotected destination registers")
 {
     using namespace statistics;
 
@@ -1475,6 +1479,18 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
                  cpu->totalOps(), pc,
                  head_inst->unstallTick - head_inst->stallTick,
                  head_inst->staticInst->disassemble(pc));
+    }
+
+    // [SPT] STATS: Count retired protected registers.
+    for (int dest_idx = 0; dest_idx < head_inst->numDests(); ++dest_idx) {
+        const RegId &reg = head_inst->destRegIdx(dest_idx);
+        if (reg.is(InvalidRegClass))
+            continue;
+        if (head_inst->isDestIdxTainted(dest_idx)) {
+            ++stats.protRegs;
+        } else {
+            ++stats.unprotRegs;
+        }
     }
 
     // Return true to indicate that we have committed an instruction.

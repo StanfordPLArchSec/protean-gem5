@@ -503,6 +503,8 @@ class Commit
         statistics::Scalar committedAnnotatedLoadCount;
         statistics::Scalar committedAnnotatedUnprotectedLoadCount;
         statistics::Formula committedAnnotatedUnprotectedLoadRate;
+        statistics::Scalar protRegs;
+        statistics::Scalar unprotRegs;
     } stats;
 };
 
