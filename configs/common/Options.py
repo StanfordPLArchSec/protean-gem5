@@ -716,7 +716,7 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
             help="Whether to perform forward untainting")
     parser.add_argument("--bwdUntaint", default=None, action="store", type=int,
             help="Whether to perform backward untainting")
-    parser.add_argument("--idealUntaint", default=1, action="store", type=int,
+    parser.add_argument("--idealUntaint", default=0, action="store", type=int,
             help="Whether to perform ideal untainting")
     parser.add_argument("--enableShadowL1", default=None, action="store", type=int,
             help="Whether to use the shadow L1 cache")
