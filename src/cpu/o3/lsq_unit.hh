@@ -573,8 +573,6 @@ class LSQUnit
   public:
     typedef typename CircularQueue<LQEntry>::iterator LQIterator;
     typedef typename CircularQueue<SQEntry>::iterator SQIterator;
-
-    bool readCheckForwardSTT(SQIterator store_it, const DynInstPtr& load_inst, LSQRequest *req, int shift_amt);
 };
 
 } // namespace o3
