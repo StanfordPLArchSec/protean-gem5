@@ -538,6 +538,13 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="restore from a simpoint checkpoint taken with "
         + "--take-simpoint-checkpoints",
     )
+    parser.add_argument(
+        "--max-warmup",
+        type=int,
+        default="20000000",
+        help="Maximum warmup period. All warmup periods greater than this " \
+        "will be clamped to this value. 0 indicates no maximum.",
+    )
 
     # Checkpointing options
     # Note that performing checkpointing via python script files will override

@@ -182,6 +182,8 @@ def findCptDir(options, cptdir, testsys):
             weight_inst = float(match.group(3))
             interval_length = int(match.group(4))
             warmup_length = int(match.group(5))
+            if options.max_warmup > 0:
+                warmup_length = min(warmup_length, options.warmup_length)
         print("Resuming from", checkpoint_dir)
         simpoint_start_insts = []
         simpoint_start_insts.append(warmup_length)
