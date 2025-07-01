@@ -243,6 +243,9 @@ if ObjectList.is_kvm_cpu(CPUClass) or ObjectList.is_kvm_cpu(FutureClass):
         fatal("KvmCPU can only be used in SE mode with x86")
 
 for process in multiprocesses:
+    process.useArchPT = True
+
+for process in multiprocesses:
     process.maxStackSize = args.max_stack_size
 
 if CPUClass is X86PinCPU or FutureClass is X86PinCPU:
