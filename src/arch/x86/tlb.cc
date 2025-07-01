@@ -432,13 +432,17 @@ TLB::translate(const RequestPtr &req,
                 } else {
                     stats.wrMisses++;
                 }
+
+                // [PTeX] Initiate a page table walk in both full system and
+                // syscall emulation modes.
+                Fault fault = walker->start(tc, translation, req, mode);
+                if (timing || fault != NoFault) {
+                    // This gets ignored in atomic mode.
+                    delayedResponse = true;
+                    return fault;
+                }
+
                 if (FullSystem) {
-                    Fault fault = walker->start(tc, translation, req, mode);
-                    if (timing || fault != NoFault) {
-                        // This gets ignored in atomic mode.
-                        delayedResponse = true;
-                        return fault;
-                    }
                     entry = lookup(pageAlignedVaddr);
                     assert(entry);
                 } else {
