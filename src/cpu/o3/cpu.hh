@@ -601,6 +601,7 @@ class CPU : public BaseCPU
     /** [PTeX] */
     static const inline bool ptex = true;
     DeclassifyMode ptexMem;
+    bool ptexPages;
 
 
     // [TPT] Enable TPT.

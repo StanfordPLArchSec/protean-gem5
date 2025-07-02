@@ -115,6 +115,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
+      ptexPages(params.ptexPages),
       tptReg(params.tptReg),
       tptMem(params.tptMem),
       tptXmit(params.tptXmit)
@@ -356,6 +357,30 @@ CPU::CPU(const BaseO3CPUParams &params)
     }
     cprintf("applySTT = %d, implicit_channel = %s, moreTransmitInsts = %d bugfixes=%d\n",
             stt, imp_channel_str, moreTransmitInsts, sttBugfixes);
+
+    // Print PTeX configuration.
+    static const std::map<DeclassifyMode, std::string> ptex_mem_strtab = {
+        {DeclassifyMode::None, "None"},
+        {DeclassifyMode::ShadowL1, "ShadowL1"},
+        {DeclassifyMode::ShadowMem, "ShadowMem"},
+    };
+    cprintf("[*] PTeX configuration: ptexMem=%s ptexPages=%d\n",
+            ptex_mem_strtab.at(ptexMem), ptexPages);
+
+    // Print TPT configuration.
+    static const std::map<ImplicitChannelMode, std::string> tpt_imp_strtab = {
+        {ImplicitChannelMode::None, "None"},
+        {ImplicitChannelMode::Eager, "Eager"},
+        {ImplicitChannelMode::Lazy, "Lazy"},
+    };
+    static const std::map<TPTMode, std::string> tpt_mode_strtab = {
+        {TPTMode::Naive, "Naive"},
+        {TPTMode::Ideal, "Ideal"},
+        {TPTMode::YRoT, "YRoT"},
+        {TPTMode::None, "None"},
+    };
+    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptReg=%d tptMem=%d tptXmit=%d\n",
+            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), moreTransmitInsts, tpt_mode_strtab.at(tptMode), tptReg, tptMem, tptXmit);
 }
 
 void

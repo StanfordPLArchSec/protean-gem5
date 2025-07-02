@@ -212,6 +212,8 @@ class BaseO3CPU(BaseCPU):
         "ShadowL1",
         "[PTeX] Memory declassification implementation",
     )
+    ptexPages = Param.Bool(True, "[PTeX] Enable page extension")
+        
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
     sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")

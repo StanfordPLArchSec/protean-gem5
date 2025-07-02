@@ -706,6 +706,11 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         default="ShadowL1",
         help="[PTeX] Memory declassification method",
     )
+    parser.add_argument(
+        "--ptex-pages",
+        action="store_true",
+        help="[PTeX] Enable page extension",
+    )
 
     # [TPT]
     parser.add_argument("--tpt", action="store_true", help="[TPT] Enable")

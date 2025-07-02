@@ -501,6 +501,14 @@ TLB::translate(const RequestPtr &req,
                 panic_if(tlb_prot != pte_prot, "Mismatch in TLB entry (%d) and PTE (%d) PTex protections for %#x\n",
                          tlb_prot, pte_prot, vaddr);
             }
+
+            // [PTeX] Properly set the protection flag (only needed by loads).
+            if (entry->ptexProtected) {
+              auto flags = req->getFlags();
+              flags.set(Request::PTEX_PROTECTED);
+              req->setFlags(flags);
+            }
+            
         } else {
             //Use the address which already has segmentation applied.
             DPRINTF(TLB, "Paging disabled.\n");

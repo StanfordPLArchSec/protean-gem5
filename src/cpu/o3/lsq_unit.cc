@@ -271,7 +271,8 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
                "Number of times an access to memory failed due to the cache "
                "being blocked"),
       ADD_STAT(loadToUse, "Distribution of cycle latency between the "
-                "first time a load is issued and its completion")
+               "first time a load is issued and its completion"),
+      ADD_STAT(loadsFromUnprotPages, "[PTeX] Loads from unprotected pages.")
 {
     loadToUse
         .init(0, 299, 10)
@@ -1619,7 +1620,12 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
-        const Protection mem_prot = SSU.checkDeclassified(load_inst) ? Unprotected : Protected; // PTEX-FIXME: Should return protection type.
+        Protection mem_prot = SSU.checkDeclassified(load_inst) ? Unprotected : Protected; // PTEX-FIXME: Should return protection type.
+        if (cpu->ptexPages && !(load_inst->memReqFlags & Request::PTEX_PROTECTED)) {
+            mem_prot = Unprotected;
+            ++stats.loadsFromUnprotPages;
+        }
+        // (!cpu->ptexPages || (load_inst->memReqFlags & Request::PTEX_PROTECTED))) {
         if (mem_prot == Unprotected)
             load_inst->setReadUnprotectedMem();
     }

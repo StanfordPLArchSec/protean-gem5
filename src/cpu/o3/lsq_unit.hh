@@ -547,6 +547,9 @@ class LSQUnit
         /** Distribution of cycle latency between the first time a load
          * is issued and its completion */
         statistics::Distribution loadToUse;
+
+        /** Total unprotected loads from PTeX-unprotected pages. */
+        statistics::Scalar loadsFromUnprotPages;
     } stats;
 
   public:
