@@ -88,13 +88,16 @@ namespace X86ISA
         bool patBit;
         // Whether or not memory on this page can be executed.
         bool noExec;
+        // [PTeX]
+        bool ptexProtected;
         // A sequence number to keep track of LRU.
         uint64_t lruSeq;
 
         TlbEntryTrie::Handle trieHandle;
 
         TlbEntry(Addr asn, Addr _vaddr, Addr _paddr,
-                 bool uncacheable, bool read_only);
+                 bool uncacheable, bool read_only,
+                 bool ptex_protected);
         TlbEntry();
 
         void

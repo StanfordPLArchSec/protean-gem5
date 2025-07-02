@@ -77,9 +77,10 @@ namespace X86ISA
 
         void setConfigAddress(uint32_t addr);
         //concatenate Page Addr and pcid
-        inline Addr concAddrPcid(Addr vpn, uint64_t pcid)
+        static Addr
+        concAddrPcid(Addr vpn, uint64_t pcid)
         {
-          return (vpn | pcid);
+            return (vpn | pcid);
         }
 
       protected:
@@ -178,6 +179,9 @@ namespace X86ISA
          * @return A pointer to the walker port
          */
         Port *getTableWalkerPort() override;
+
+        static uint64_t getPcid(ThreadContext *tc);
+        static Addr pageAlignVaddr(Addr vaddr, ThreadContext *tc);
     };
 
 } // namespace X86ISA

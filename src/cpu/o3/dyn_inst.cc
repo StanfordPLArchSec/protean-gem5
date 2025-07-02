@@ -495,6 +495,10 @@ DynInst::writeMem(uint8_t *data, unsigned size, Addr addr,
                         const std::vector<bool> &byte_enable)
 {
     assert(byte_enable.size() == size);
+    // [PTeX] If this store is protected, then set the appropriate request
+    // flag.
+    if (storeProtection() == Protected)
+        flags.set(Request::PTEX_PROTECTED);
     return cpu->pushRequest(
         dynamic_cast<DynInstPtr::PtrType>(this),
         /* st */ false, data, size, addr, flags, res, nullptr,

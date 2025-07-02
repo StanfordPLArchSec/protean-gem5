@@ -56,6 +56,7 @@
 #include "sim/full_system.hh"
 #include "sim/process.hh"
 #include "sim/pseudo_inst.hh"
+#include "debug/PTeXPages.hh"
 
 namespace gem5
 {
@@ -402,21 +403,17 @@ TLB::translate(const RequestPtr &req,
         if (m5Reg.paging) {
             DPRINTF(TLB, "Paging enabled.\n");
             // The vaddr already has the segment base applied.
-
-            //Appending the pcid (last 12 bits of CR3) to the
-            //page aligned vaddr if pcide is set
-            CR4 cr4 = tc->readMiscRegNoEffect(misc_reg::Cr4);
-            Addr pageAlignedVaddr = vaddr & (~mask(X86ISA::PageShift));
-            CR3 cr3 = tc->readMiscRegNoEffect(misc_reg::Cr3);
-            uint64_t pcid;
-
-            if (cr4.pcide)
-                pcid = cr3.pcid;
-            else
-                pcid = 0x000;
-
-            pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
+            const Addr pageAlignedVaddr = pageAlignVaddr(vaddr, tc);
             TlbEntry *entry = lookup(pageAlignedVaddr);
+
+            // [PTeX] Is this TLB entry PTeX-protected?
+            if (mode == BaseMMU::Write && entry && !entry->ptexProtected &&
+                (req->getFlags() & Request::PTEX_PROTECTED)) {
+                // Evict the TLB entry.
+                DPRINTF(PTeXPages, "Evicting PTeX-unprotected TLB entry for PTeX-protected write to %#x\n",
+                        pageAlignedVaddr);
+                demapPage(pageAlignedVaddr, 0);
+            }
 
             if (mode == BaseMMU::Read) {
                 stats.rdAccesses++;
@@ -443,8 +440,15 @@ TLB::translate(const RequestPtr &req,
                     assert(entry);
                 } else {
                     Process *p = tc->getProcessPtr();
-                    const EmulationPageTable::Entry *pte =
+                    EmulationPageTable::Entry *pte =
                         p->pTable->lookup(vaddr);
+
+                    if (pte && mode == BaseMMU::Write && (req->getFlags() & Request::PTEX_PROTECTED) &&
+                        !(pte->flags & EmulationPageTable::PTeXProtected)) {
+                        DPRINTF(PTeXPages, "Marking PTE for %#x as PTeX-protected\n", vaddr);
+                        pte->flags |= EmulationPageTable::PTeXProtected;
+                    }
+
                     if (!pte) {
                         return std::make_shared<PageFault>(vaddr, true, mode,
                                                            true, false);
@@ -455,8 +459,9 @@ TLB::translate(const RequestPtr &req,
                         entry = insert(alignedVaddr, TlbEntry(
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
-                                pte->flags & EmulationPageTable::ReadOnly),
-                                pcid);
+                                pte->flags & EmulationPageTable::ReadOnly,
+                                pte->flags & EmulationPageTable::PTeXProtected),
+                                getPcid(tc));
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");
                 }
@@ -488,6 +493,14 @@ TLB::translate(const RequestPtr &req,
             req->setPaddr(paddr);
             if (entry->uncacheable)
                 req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
+
+            // [PTeX] Sanity check: make sure that the PTE and TLB entry agree on the PTeX protection.
+            if (!FullSystem) {
+                const bool tlb_prot = entry->ptexProtected;
+                const bool pte_prot = tc->getProcessPtr()->pTable->lookup(vaddr)->flags & EmulationPageTable::PTeXProtected;
+                panic_if(tlb_prot != pte_prot, "Mismatch in TLB entry (%d) and PTE (%d) PTex protections for %#x\n",
+                         tlb_prot, pte_prot, vaddr);
+            }
         } else {
             //Use the address which already has segmentation applied.
             DPRINTF(TLB, "Paging disabled.\n");
@@ -533,7 +546,16 @@ TLB::translateFunctional(const RequestPtr &req, ThreadContext *tc,
         paddr = insertBits(addr, logBytes - 1, 0, vaddr);
     } else {
         Process *process = tc->getProcessPtr();
-        const auto *pte = process->pTable->lookup(vaddr);
+        auto *pte = process->pTable->lookup(vaddr);
+
+        // [PTeX] Conservatively mark all functionally translated pages
+        // as PTeX-protected, for now at least.
+        if (pte && mode == BaseMMU::Write && !(pte->flags & EmulationPageTable::PTeXProtected)) {
+            DPRINTF(PTeXPages, "Marking functionally written page %#x as PTeX-protected\n", vaddr);
+            pte->flags |= EmulationPageTable::PTeXProtected;
+            // Evict any TLB entries.
+            demapPage(pageAlignVaddr(vaddr, tc), 0);
+        }
 
         if (!pte && mode != BaseMMU::Execute) {
             // Check if we just need to grow the stack.
@@ -630,6 +652,33 @@ Port *
 TLB::getTableWalkerPort()
 {
     return &walker->getPort("port");
+}
+
+uint64_t
+TLB::getPcid(ThreadContext *tc)
+{
+    CR3 cr3 = tc->readMiscRegNoEffect(misc_reg::Cr3);
+    CR4 cr4 = tc->readMiscRegNoEffect(misc_reg::Cr4);
+    
+    uint64_t pcid;
+
+    if (cr4.pcide)
+        pcid = cr3.pcid;
+    else
+        pcid = 0x000;
+
+    return pcid;
+}
+
+Addr
+TLB::pageAlignVaddr(Addr vaddr, ThreadContext *tc)
+{
+    Addr pageAlignedVaddr = vaddr & (~mask(X86ISA::PageShift));
+    const auto pcid = getPcid(tc);
+
+    pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
+
+    return pageAlignedVaddr;
 }
 
 } // namespace X86ISA

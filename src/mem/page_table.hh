@@ -98,6 +98,7 @@ class EmulationPageTable : public Serializable
         Clobber     = 1,
         Uncacheable = 4,
         ReadOnly    = 8,
+        PTeXProtected = 16,
     };
 
     // flag which marks the page table as shared among software threads
@@ -139,7 +140,7 @@ class EmulationPageTable : public Serializable
      * @param vaddr The virtual address.
      * @return The page table entry corresponding to vaddr.
      */
-    const Entry *lookup(Addr vaddr);
+    Entry *lookup(Addr vaddr);
 
     /**
      * Translate function

@@ -129,7 +129,7 @@ EmulationPageTable::isUnmapped(Addr vaddr, int64_t size)
     return true;
 }
 
-const EmulationPageTable::Entry *
+EmulationPageTable::Entry *
 EmulationPageTable::lookup(Addr vaddr)
 {
     Addr page_addr = pageAlign(vaddr);

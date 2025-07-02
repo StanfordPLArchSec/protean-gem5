@@ -75,6 +75,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
     DebugFlag('PTeX')
+    DebugFlag('PTeXPages')
     DebugFlag('TPT')
     DebugFlag('TPTRetire')
     DebugFlag('TransmitterStalls')
