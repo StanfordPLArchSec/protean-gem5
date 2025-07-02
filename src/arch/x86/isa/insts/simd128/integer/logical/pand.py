@@ -49,7 +49,7 @@ def macroop PAND_XMM_M {
 
 def macroop PAND_XMM_P {
     rdip t7
-    lea t1, seg, riprel, disp, dataSize=asz
+    lea t1, seg, riprel, disp, dataSize=asz, noProt=True
     ldfp ufp1, seg, [1, t0, t1], dataSize=8
     ldfp ufp2, seg, [1, t0, t1], 8, dataSize=8
     mand xmml, xmml, ufp1

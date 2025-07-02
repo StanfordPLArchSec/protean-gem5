@@ -336,7 +336,7 @@ let {{
     class BigLdStOp(X86Microop):
         def __init__(self, data, segment, addr, disp,
                 dataSize, addressSize, baseFlags, atCPL0, prefetch, nonSpec,
-                uncacheable):
+                uncacheable, noProt=False):
             self.data = data
             [self.scale, self.index, self.base] = addr
             self.disp = disp
@@ -357,6 +357,8 @@ let {{
             self.memFlags += \
                 " | ((log2i(%s) & AddrSizeFlagMask) << AddrSizeFlagShift)" % \
                 addressSize
+            if noProt:
+                self.instFlags += " | (1ULL << StaticInst::IsPTeXUnprotectedOverride)"
 
         def getAllocator(self, microFlags):
             allocString = '''
@@ -730,10 +732,10 @@ let {{
 
     class LeaOp(BigLdStOp):
         def __init__(self, data, segment, addr, disp = 0,
-                dataSize="env.dataSize", addressSize="env.addressSize"):
+                dataSize="env.dataSize", addressSize="env.addressSize", noProt=False):
             super().__init__(data, segment, addr, disp,
                     dataSize, addressSize, "0",
-                    False, False, False, False)
+                    False, False, False, False, noProt=noProt)
             self.className = "Lea"
             self.mnemonic = "lea"
 
