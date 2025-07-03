@@ -285,14 +285,16 @@ public:
          * which is serialized separately, we will serialize
          * just the base pointer
          */
-        paramOut(cp, "ptable.pointer", _basePtr);
+        ScopedCheckpointSection sec(cp, "ptable");
+        paramOut(cp, "pointer", _basePtr);
     }
 
     void
     unserialize(CheckpointIn &cp) override
     {
         EmulationPageTable::unserialize(cp);
-        paramIn(cp, "ptable.pointer", _basePtr);
+        ScopedCheckpointSection sec(cp, "ptable");
+        paramIn(cp, "pointer", _basePtr);
     }
 };
 
