@@ -563,6 +563,35 @@ HandleOp_READ_COMMAND_RESULT(ADDRINT buf_vptr, ADDRINT idx, ADDRINT len)
     PIN_SafeCopy(reinterpret_cast<void *>(buf_vptr), gCommandResult.data() + idx, len);
 }
 
+static std::string gSerializedState;
+static ADDRINT
+HandleOp_SERIALIZE_STATE(void)
+{
+    std::string &s = gSerializedState;
+    s.clear();
+
+    for (const Plugin *plugin : plugins) {
+        if (plugin->enabled()) {
+            const std::string state = plugin->getState();
+            if (!state.empty()) {
+                s += plugin->name();
+                s.push_back('\0');
+                s += state;
+                s.push_back('\0');
+            }
+        }
+    }
+
+    return gSerializedState.size();
+}
+
+static void
+HandleOp_READ_SERIALIZED_STATE(ADDRINT buf_vptr, ADDRINT idx, ADDRINT len)
+{
+    assert(idx + len <= gSerializedState.size());
+    PIN_SafeCopy(reinterpret_cast<void *>(buf_vptr), gSerializedState.data() + idx, len);
+}
+
 const std::string *
 GetSymbol(ADDRINT addr)
 {
@@ -690,6 +719,20 @@ Instrument_Instruction_PinOps(INS ins, void *)
 
       case PinOp::OP_READ_COMMAND_RESULT:
         INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_READ_COMMAND_RESULT,
+                                 IARG_REG_VALUE, REG_RDI,
+                                 IARG_REG_VALUE, REG_RSI,
+                                 IARG_REG_VALUE, REG_RDX,
+                                 IARG_END);
+        break;
+
+      case PinOp::OP_SERIALIZE_STATE:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_SERIALIZE_STATE,
+                                 IARG_RETURN_REGS, REG_RAX,
+                                 IARG_END);
+        break;
+
+      case PinOp::OP_READ_SERIALIZED_STATE:
+        INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleOp_READ_SERIALIZED_STATE,
                                  IARG_REG_VALUE, REG_RDI,
                                  IARG_REG_VALUE, REG_RSI,
                                  IARG_REG_VALUE, REG_RDX,

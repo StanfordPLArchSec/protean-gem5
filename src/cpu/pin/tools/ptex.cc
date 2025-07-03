@@ -1,6 +1,8 @@
 #include <pin.H>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
+#include <map>
 #include "plugin.hh"
 #include "client.hh"
 #include "xxhash.hh"
@@ -9,7 +11,7 @@ using Addr = ADDRINT;
 
 namespace {
 
-KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "ptex2", "0", "Enable PTeX fast-forwarding");
+KNOB<bool> enable(KNOB_MODE_WRITEONCE, "pintool", "ptex", "1", "Enable PTeX fast-forwarding");
 BUFFER_ID protstore_tracebuf_id;
 std::unordered_map<REG, int> g_protregs;
 
@@ -79,7 +81,7 @@ protstore_tracebuf_addr(Addr addr)
     // Newly protected page.
     ++num_prot_pages;
     prot = true;
-    newly_protected_pages.push_back(page);
+    newly_protected_pages.push_back(page << 12);
 }
 
 void *
@@ -261,6 +263,16 @@ struct PTeXPlugin final : Plugin
         protstore_tracebuf_id = PIN_DefineTraceBuffer(8, 4096 * 8, protstore_tracebuf_callback, nullptr); // ~128 MiB buffer.
         PIN_AddFiniFunction(finish, nullptr);
         return true;
+    }
+
+    std::string
+    getState() const override
+    {
+        std::ostringstream ss;
+        for (Addr page : newly_protected_pages)
+            ss << std::hex << page << "\n";
+        newly_protected_pages.clear();
+        return ss.str();
     }
 } plugin;
 

@@ -42,6 +42,8 @@ struct Message
         ExecCommand,
         CommandResult,
         Break,
+        GetState,
+        SetState,
         NumTypes
     } type;
     union
@@ -73,6 +75,8 @@ struct Message
 
         char command[64];
         uint64_t command_result_size;
+
+        uint64_t state_size;
     };
 
     uint64_t inst_count; // Valid for all responses to RUN requests.

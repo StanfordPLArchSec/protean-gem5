@@ -28,6 +28,8 @@ enum PinOp
     OP_ADD_SYMBOL,
     OP_EXEC_COMMAND,
     OP_READ_COMMAND_RESULT,
+    OP_SERIALIZE_STATE,
+    OP_READ_SERIALIZED_STATE,
     OP_COUNT,
 };
 
@@ -76,5 +78,9 @@ void pinop_add_symbol(const char *name, void *vaddr);
 /// Returns the number of bytes in the command result.
 size_t pinop_exec_command(const char *s);
 void pinop_read_command_result(char *buf, size_t idx, size_t size);
+
+// TODO: We could combine these two by just serializing when idx=0.
+size_t pinop_serialize_state(void);
+void pinop_read_serialized_state(char *buf, size_t idx, size_t size);
 
 #define pinop_abort() (pinop_abort)(__FILE__, __LINE__)

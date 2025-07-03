@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/times.h>
 #include <sys/mman.h>
+#include <string>
 
 #include "cpu/simple_thread.hh"
 #include "params/BasePinCPU.hh"
@@ -30,6 +31,8 @@ namespace gem5
 
 namespace pin
 {
+
+static std::string readFdString(int fd, std::size_t size);
 
 static std::vector<std::string_view>
 split_by_spaces(std::string_view str)
@@ -614,7 +617,38 @@ CPU::syncStateFromPin(bool full)
     tc->setMiscRegNoEffect(misc_reg::Fs, rf.fs);
     tc->setMiscRegNoEffect(misc_reg::Gs, rf.gs);
     tc->setMiscRegNoEffect(misc_reg::FsBase, rf.fs_base);
-    tc->setMiscRegNoEffect(misc_reg::GsBase, rf.gs_base);    
+    tc->setMiscRegNoEffect(misc_reg::GsBase, rf.gs_base);
+
+    // Sync any extra state.
+    msg.type = Message::GetState;
+    msg.send(reqFd);
+    msg.recv(respFd);
+    panic_if(msg.type != Message::SetState, "Got response other than SetState in response to GetState!\n");
+    DPRINTF(Pin, "receiving state of size %u\n", msg.state_size);
+    const std::string state = readFdString(respFd, msg.state_size);
+    for (auto state_it = state.begin(); state_it != state.end(); ) {
+        auto get = [&] () {
+            const std::string s = &*state_it;
+            state_it += s.size() + 1;
+            return s;
+        };
+        const std::string key = get();
+        const std::string value = get();
+
+        if (key == "ptex") {
+            // Update page table entry flags.
+            std::istringstream ss(value);
+            Addr page;
+            while (ss >> std::hex >> page) {
+                EmulationPageTable::Entry *entry =
+                    tc->getProcessPtr()->pTable->lookup(page);
+                assert(entry);
+                entry->flags |= EmulationPageTable::PTeXProtected;
+            }
+        } else {
+            panic("unhandled state: %s\n", key);
+        }
+    }
 }
 
 void
@@ -875,6 +909,21 @@ CPU::serializeThread(CheckpointOut &cp, ThreadID tid) const
     thread->serialize(cp);
 }
 
+static std::string
+readFdString(int fd, std::size_t size)
+{
+    std::string s;
+    while (size) {
+        char buf[1024];
+        const ssize_t bytes = read(fd, buf, std::min(size, sizeof buf));
+        panic_if(bytes <= 0, "read failed: read %u, rem=%u: %s\n", bytes,
+                 size, std::strerror(errno));
+        s.insert(s.end(), &buf[0], &buf[bytes]);
+        size -= bytes;
+    }
+    return s;
+}
+
 std::string
 CPU::executePinCommand(const std::string &command)
 {
@@ -886,17 +935,8 @@ CPU::executePinCommand(const std::string &command)
     msg.send(reqFd);
     msg.recv(respFd);
     panic_if(msg.type != Message::CommandResult, "Received message other than CommandResult!\n");
-    
-    size_t rem = msg.command_result_size;
-    std::string s;
-    while (rem > 0) {
-        char buf[1024];
-        const ssize_t bytes = read(respFd, buf, std::min(rem, sizeof buf));
-        if (bytes <= 0)
-            panic("read failed: rem=%u\n", rem);
-        s.insert(s.end(), &buf[0], &buf[bytes]);
-        rem -= bytes;
-    }
+
+    const std::string s = readFdString(respFd, msg.command_result_size);
     assert(s.size() == msg.command_result_size);
     return s;
 }

@@ -69,3 +69,11 @@ size_t __attribute__((naked)) pinop_exec_command(const char *cmd) {
 void __attribute__((naked)) pinop_read_command_result(char *buf, size_t idx, size_t size) {
     asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_READ_COMMAND_RESULT));
 }
+
+size_t __attribute__((naked)) pinop_serialize_state(void) {
+    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_SERIALIZE_STATE));
+}
+
+void __attribute__((naked)) pinop_read_serialized_state(char *buf, size_t idx, size_t size) {
+    asm volatile ("movb $0, (%0)\nret\n" :: "r"(pinops_addr_base + OP_READ_SERIALIZED_STATE));
+}

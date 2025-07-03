@@ -270,6 +270,25 @@ void main_event_loop(void) {
                 }
             }
             break;
+
+          case GetState:
+            {
+                const size_t bytes = pinop_serialize_state();
+                msg.type = SetState;
+                msg.state_size = bytes;
+                msg_write(&msg);
+
+                // TODO: Should just send null-terminated string, once we use buffered
+                // files on the gem5 end.
+                for (size_t i = 0; i != bytes; ) {
+                    char buf[1024];
+                    const size_t chunk = min(bytes - i, sizeof buf);
+                    pinop_read_serialized_state(buf, i, chunk);
+                    write_all(resp_fd, buf, chunk);
+                    i += chunk;
+                }
+            }
+            break;
               
           default:
             printf_("error: bad message type (%d)\n", msg.type);

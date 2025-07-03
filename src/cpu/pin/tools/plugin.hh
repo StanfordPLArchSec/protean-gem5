@@ -16,6 +16,8 @@ struct Plugin
     // TODO: Merge cmd into args, so we just have an arg vector (like main functions).
     // TODO: Consider making the result an ostream, not a string.
     virtual bool command(const std::string &cmd, const std::vector<std::string> &args, std::string &result) { return false; }
+
+    virtual std::string getState() const { return ""; }
 };
 
 extern std::vector<Plugin *> plugins;
