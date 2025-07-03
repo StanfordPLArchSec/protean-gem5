@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "plugin.hh"
 #include "client.hh"
+#include "xxhash.hh"
 
 using Addr = ADDRINT;
 
@@ -22,6 +23,7 @@ has_prot_prefix(INS ins)
     return prefix == prot_prefix;
 }
 
+#if 0
 void *
 protstore_tracebuf_callback(BUFFER_ID tracebuf_id, THREADID tid, const CONTEXT *ctx, void *buf_raw, uint64_t num_elements, void *)
 {
@@ -49,6 +51,49 @@ protstore_tracebuf_callback(BUFFER_ID tracebuf_id, THREADID tid, const CONTEXT *
 
     return buf_raw;
 }
+#else
+
+bool prot_page_hashes[1 << 24]; // Zero-initialized.
+std::vector<Addr> newly_protected_pages;
+uint64_t num_prot_pages = 0;
+// TODO: Collect a list of new pages and send them over to gem5.
+
+uint32_t
+page_to_index(uint64_t page) {
+    page ^= page >> 33;
+    page *= 0xff51afd7ed558ccdULL;
+    page ^= page >> 33;
+    page *= 0xc4ceb9fe1a85ec53ULL;
+    page ^= page >> 33;
+    return (uint32_t)(page & 0xFFFFFF);  // truncate to 24 bits
+}
+
+void
+protstore_tracebuf_addr(Addr addr)
+{
+    const Addr page = addr >> 12;
+    const uint32_t hash = page_to_index(page);
+    bool &prot = prot_page_hashes[hash >> 8];
+    if (prot)
+        return;
+    // Newly protected page.
+    ++num_prot_pages;
+    prot = true;
+    newly_protected_pages.push_back(page);
+}
+
+void *
+protstore_tracebuf_callback(BUFFER_ID tracebuf_id, THREADID tid, const CONTEXT *ctx, void *buf_raw, uint64_t num_elements, void *)
+{
+    Addr *buf_begin = static_cast<Addr *>(buf_raw);
+    Addr *buf_end = buf_begin + num_elements;
+# if 0
+    buf_end = std::unique(buf_begin, buf_end);
+# endif
+    std::for_each(buf_begin, buf_end, protstore_tracebuf_addr);
+    return buf_raw;
+}
+#endif
 
 int
 protstore_check_reg_prot(int *prot)
@@ -195,6 +240,12 @@ instrument_trace(TRACE trace, void *)
         instrument_bbl(bbl);
 }
 
+void
+finish(int32_t code, void *)
+{
+    std::cerr << "ptex: protected_pages=" << std::dec << num_prot_pages << "\n";
+}
+
 struct PTeXPlugin final : Plugin
 {
     const char *name() const override { return "ptex"; }
@@ -208,6 +259,7 @@ struct PTeXPlugin final : Plugin
     {
         TRACE_AddInstrumentFunction(instrument_trace, nullptr);
         protstore_tracebuf_id = PIN_DefineTraceBuffer(8, 4096 * 8, protstore_tracebuf_callback, nullptr); // ~128 MiB buffer.
+        PIN_AddFiniFunction(finish, nullptr);
         return true;
     }
 } plugin;
