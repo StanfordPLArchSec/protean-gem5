@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -23,4 +23,6 @@ while getopts "h" optc; do
     esac
 done
 
-wget -O- $PIN_URL | tar -x --gzip --strip-components=1
+dir="$(dirname "${BASH_SOURCE[0]}")"
+
+wget -O- $PIN_URL | tar -C "${dir}" -x --gzip --strip-components=1
