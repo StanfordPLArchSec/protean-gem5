@@ -128,7 +128,7 @@ I386Process::I386Process(const ProcessParams &params,
                          loader::ObjectFile *objFile) :
     X86Process(params, objFile)
 {
-    if (kvmInSE)
+    if (kvmInSE || pinInSE)
         panic("KVM CPU model does not support 32 bit processes");
 
     _gdtStart = 0xffffd000ULL;
@@ -179,7 +179,7 @@ X86_64Process::initState()
             vsyscallPage.base + vsyscallPage.vgettimeofdayOffset,
             vgettimeofdayBlob, sizeof(vgettimeofdayBlob));
 
-    if (kvmInSE) {
+    if (kvmInSE || pinInSE) {
         PortProxy physProxy = system->physProxy;
 
         Addr syscallCodePhysAddr = seWorkload->allocPhysPages(1);
