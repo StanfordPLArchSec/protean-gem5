@@ -174,6 +174,7 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
       ADD_STAT(stalledBranchMispredicts, statistics::units::Cycle::get(), "Number of delayed branch squashes"),
       ADD_STAT(stalledMemoryViolations, statistics::units::Cycle::get(),
                "Number of delayed memory violation squashes"),
+      ADD_STAT(ptexProtStores, statistics::units::Count::get(), "[PTeX] Number of protected stores"),
       ADD_STAT(regTaints, statistics::units::Count::get(),
                "[TPT] Number of r-taint primitives"),
       ADD_STAT(memTaints, statistics::units::Count::get(),
@@ -1434,6 +1435,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->isMemTaintPrimitive()) {
         stats.memTaints++;
         printTaintDebug(head_inst, "mem");
+        DPRINTFR(TPT, "TPT mem-page %#x\n", head_inst->effAddr & ~Addr(0xFFF));
     }
     if (head_inst->isProtectedTransmitter()) {
         stats.xmitTaints++;
@@ -1452,6 +1454,9 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
                  unstallTick - head_inst->stallTick,
                  head_inst->staticInst->disassemble(pc));
     }
+
+    if (head_inst->isStore() && head_inst->storeProtection() == Protected)
+        stats.ptexProtStores++;
 
     // Return true to indicate that we have committed an instruction.
     return true;

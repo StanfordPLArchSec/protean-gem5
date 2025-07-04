@@ -54,6 +54,7 @@
 #include "debug/O3PipeView.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -272,7 +273,13 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
                "being blocked"),
       ADD_STAT(loadToUse, "Distribution of cycle latency between the "
                "first time a load is issued and its completion"),
-      ADD_STAT(loadsFromUnprotPages, "[PTeX] Loads from unprotected pages.")
+      ADD_STAT(loadsFromUnprotPages, "[PTeX] Loads from unprotected pages."),
+      ADD_STAT(ptexUnprotUnprotForwards, "[PTeX] Forwards from unprotected store to unprotected load"),
+      ADD_STAT(ptexProtUnprotForwards, "[PTeX] Forwards from protected store to unprotected load"),
+      ADD_STAT(ptexProtProtForwards, "[PTeX] Forwards from protected store to protected store"),
+      ADD_STAT(ptexUnprotProtForwards, "[PTeX] Forwards from unprotected store to protected store"),
+      ADD_STAT(tptUnprotUnprotForwards, "[TPT] Forwards from unprotected store with no prior "
+               "taint primitives to unprotected load")
 {
     loadToUse
         .init(0, 299, 10)
@@ -616,6 +623,13 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
 
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
+
+    // [PTeX] EXPERIMENTAL: If the translation completed and didn't
+    // read PTeX-protected, we can mark the load as reading from unprotected
+    // memory.
+    if (cpu->ptexPages && inst->translationCompleted() && load_fault == NoFault &&
+        !(inst->memReqFlags & Request::PTEX_PROTECTED))
+        inst->setReadUnprotectedMem();
 
     if (load_fault != NoFault && inst->translationCompleted() &&
             inst->savedRequest->isPartialFault()
@@ -1568,6 +1582,28 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // Thus, we won't do the following:
                 // if (cpu->tpt && load_inst->loadProtection() == Unprotected)
                 //     load_inst->setReadUnprotectedMem();
+                const Protection load_prot = load_inst->loadProtection();
+                const DynInstPtr &store_inst = store_it->instruction();
+                const Protection store_prot = store_inst->storeProtection();
+                if (load_prot == Unprotected && store_prot == Unprotected) {
+                    stats.ptexUnprotUnprotForwards++;
+                    if (!store_inst->isArgsTainted()) {
+                        stats.tptUnprotUnprotForwards++;
+                        load_inst->setReadUnprotectedMem();
+                    } else {
+                        DPRINTFR(TPT, "TPT forw %#x %#x :: %s :: %s\n",
+                                 store_inst->pcState().instAddr(),
+                                 load_inst->pcState().instAddr(),
+                                 store_inst->disassembleWithProt(),
+                                 load_inst->disassembleWithProt());
+                    }
+                } else if (load_prot == Unprotected && store_prot == Protected) {
+                    stats.ptexProtUnprotForwards++;
+                } else if (load_prot == Protected && store_prot == Protected) {
+                    stats.ptexProtProtForwards++;
+                } else if (load_prot == Protected && store_prot == Unprotected) {
+                    stats.ptexUnprotProtForwards++;
+                }
 
                 return NoFault;
             } else if (
@@ -1625,7 +1661,6 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
             mem_prot = Unprotected;
             ++stats.loadsFromUnprotPages;
         }
-        // (!cpu->ptexPages || (load_inst->memReqFlags & Request::PTEX_PROTECTED))) {
         if (mem_prot == Unprotected)
             load_inst->setReadUnprotectedMem();
     }

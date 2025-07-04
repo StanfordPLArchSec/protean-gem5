@@ -550,6 +550,13 @@ class LSQUnit
 
         /** Total unprotected loads from PTeX-unprotected pages. */
         statistics::Scalar loadsFromUnprotPages;
+
+        /** [PTeX] Types of store-to-load forwards. */
+        statistics::Scalar ptexUnprotUnprotForwards;
+        statistics::Scalar ptexProtUnprotForwards;
+        statistics::Scalar ptexProtProtForwards;
+        statistics::Scalar ptexUnprotProtForwards;
+        statistics::Scalar tptUnprotUnprotForwards; 
     } stats;
 
   public:

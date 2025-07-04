@@ -632,6 +632,8 @@ X86_64Process::initState()
             tc->setMiscReg(misc_reg::Cr4, cr4);
         }
     }
+
+    pTable->unprotectAll();    
 }
 
 void

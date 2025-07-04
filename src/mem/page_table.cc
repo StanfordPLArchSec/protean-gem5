@@ -230,4 +230,11 @@ EmulationPageTable::externalize() const
     return ss.str();
 }
 
+void
+EmulationPageTable::unprotectAll()
+{
+    for (auto &[_, entry] : pTable)
+        entry.flags &= ~PTeXProtected;
+}
+
 } // namespace gem5
