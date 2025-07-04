@@ -52,6 +52,8 @@
 #include "mem/port.hh"
 #include "params/BaseCPU.hh"
 #include "sim/full_system.hh"
+#include "arch/generic/mmu.hh"
+#include "sim/process.hh"
 
 namespace gem5
 {
@@ -262,6 +264,13 @@ takeOverFrom(ThreadContext &ntc, ThreadContext &otc)
         assert(ntc.getSystemPtr() == otc.getSystemPtr());
 
     otc.setStatus(ThreadContext::Halted);
+}
+
+void
+ThreadContext::setUnprotected(Addr addr)
+{
+    getMMUPtr()->setUnprotected(addr, this);
+    getProcessPtr()->pTable->setUnprotected(addr);
 }
 
 } // namespace gem5

@@ -180,4 +180,11 @@ BaseMMU::takeOverFrom(BaseMMU *old_mmu)
     dtb->takeOverFrom(old_mmu->dtb);
 }
 
+void
+BaseMMU::setUnprotected(Addr vaddr, ThreadContext *tc)
+{
+    dtb->setUnprotected(vaddr, tc);
+    itb->setUnprotected(vaddr, tc);
+}
+
 } // namespace gem5

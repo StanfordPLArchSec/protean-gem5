@@ -237,4 +237,11 @@ EmulationPageTable::unprotectAll()
         entry.flags &= ~PTeXProtected;
 }
 
+void
+EmulationPageTable::setUnprotected(Addr addr)
+{
+    if (Entry *entry = lookup(addr))
+        entry->flags &= ~PTeXProtected;
+}
+
 } // namespace gem5

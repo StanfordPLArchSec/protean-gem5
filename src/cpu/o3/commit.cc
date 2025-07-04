@@ -1458,6 +1458,10 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->isStore() && head_inst->storeProtection() == Protected)
         stats.ptexProtStores++;
 
+    // [PTeX] HACK: Mark the instruction page as unprotected. We can't do this
+    // earlier because gem5 SE mode doesn't track which pages are executable.
+    head_inst->tcBase()->setUnprotected(head_inst->pcState().instAddr());
+
     // Return true to indicate that we have committed an instruction.
     return true;
 }

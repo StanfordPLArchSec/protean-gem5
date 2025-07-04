@@ -156,6 +156,8 @@ class BaseMMU : public SimObject
 
     virtual void takeOverFrom(BaseMMU *old_mmu);
 
+    void setUnprotected(Addr vaddr, ThreadContext *tc);
+
   public:
     BaseTLB* dtb;
     BaseTLB* itb;

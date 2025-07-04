@@ -233,6 +233,8 @@ class ThreadContext : public PCEventScope
                                      HtmFailureFaultCause cause) = 0;
     virtual BaseHTMCheckpointPtr& getHtmCheckpointPtr() = 0;
     virtual void setHtmCheckpointPtr(BaseHTMCheckpointPtr cpt) = 0;
+
+    void setUnprotected(Addr vaddr);
 };
 
 /** @{ */

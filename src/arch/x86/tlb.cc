@@ -63,6 +63,12 @@ namespace gem5
 
 namespace X86ISA {
 
+static void
+ptexDemapPage(ThreadContext *tc, Addr addr)
+{
+    tc->getMMUPtr()->demapPage(addr, 0);
+}
+
 TLB::TLB(const Params &p)
     : BaseTLB(p), configAddress(0), size(p.size),
       tlb(size), lruSeq(0), m5opRange(p.system->m5opRange()), stats(this)
@@ -412,7 +418,8 @@ TLB::translate(const RequestPtr &req,
                 // Evict the TLB entry.
                 DPRINTF(PTeXPages, "Evicting PTeX-unprotected TLB entry for PTeX-protected write to %#x\n",
                         pageAlignedVaddr);
-                demapPage(pageAlignedVaddr, 0);
+                ptexDemapPage(tc, pageAlignedVaddr);
+                entry = nullptr;
             }
 
             if (mode == BaseMMU::Read) {
@@ -447,6 +454,7 @@ TLB::translate(const RequestPtr &req,
                         !(pte->flags & EmulationPageTable::PTeXProtected)) {
                         DPRINTF(PTeXPages, "Marking PTE for %#x as PTeX-protected\n", vaddr);
                         pte->flags |= EmulationPageTable::PTeXProtected;
+                        ptexDemapPage(tc, pageAlignedVaddr);
                     }
 
                     if (!pte) {
@@ -562,7 +570,7 @@ TLB::translateFunctional(const RequestPtr &req, ThreadContext *tc,
             DPRINTF(PTeXPages, "Marking functionally written page %#x as PTeX-protected\n", vaddr);
             pte->flags |= EmulationPageTable::PTeXProtected;
             // Evict any TLB entries.
-            demapPage(pageAlignVaddr(vaddr, tc), 0);
+            ptexDemapPage(tc, pageAlignVaddr(vaddr, tc));
         }
 
         if (!pte && mode != BaseMMU::Execute) {
@@ -687,6 +695,13 @@ TLB::pageAlignVaddr(Addr vaddr, ThreadContext *tc)
     pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
 
     return pageAlignedVaddr;
+}
+
+void
+TLB::setUnprotected(Addr addr, ThreadContext *tc)
+{
+    if (TlbEntry *entry = lookup(pageAlignVaddr(addr, tc)))
+        entry->ptexProtected = false;
 }
 
 } // namespace X86ISA

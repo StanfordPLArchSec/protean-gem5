@@ -125,6 +125,8 @@ class BaseTLB : public SimObject
     TypeTLB type() const { return _type; }
 
     BaseTLB* nextLevel() const { return _nextLevel; }
+
+    virtual void setUnprotected(Addr vaddr, ThreadContext *tc) = 0;
 };
 
 /** Implementing the "&" bitwise operator for TypeTLB allows us to handle

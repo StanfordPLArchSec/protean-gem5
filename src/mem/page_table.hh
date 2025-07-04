@@ -201,6 +201,7 @@ class EmulationPageTable : public Serializable
     void unserialize(CheckpointIn &cp) override;
 
     void unprotectAll();
+    void setUnprotected(Addr vaddr);
 };
 
 } // namespace gem5

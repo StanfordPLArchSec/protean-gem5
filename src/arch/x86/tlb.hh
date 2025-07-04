@@ -182,6 +182,7 @@ namespace X86ISA
 
         static uint64_t getPcid(ThreadContext *tc);
         static Addr pageAlignVaddr(Addr vaddr, ThreadContext *tc);
+        void setUnprotected(Addr addr, ThreadContext *tc) override;
     };
 
 } // namespace X86ISA
