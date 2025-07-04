@@ -130,6 +130,7 @@ cpu.pinToolArgs = args.pin_tool_args
 # for cpu in system.cpu:
 #     cpu.usePerf = True
 process.pinInSE = True
+process.useArchPT = True # TODO: Is there a way to force this if Pin is set?
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.

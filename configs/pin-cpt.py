@@ -135,6 +135,7 @@ if args.elastic_trace_en:
 cpu.pinToolArgs = f"-waypoints {args.waypoints} -waypointcount 1 -instcount 1"
 
 process.pinInSE = True
+process.useArchPT = True
 cpu.countInsts = True
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common

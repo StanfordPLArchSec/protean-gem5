@@ -167,6 +167,7 @@ cpu.countInsts = True
 # for cpu in system.cpu:
 #     cpu.usePerf = True
 process.pinInSE = True
+process.useArchPT = True
 
 # All cpus belong to a common cpu_clk_domain, therefore running at a common
 # frequency.
