@@ -640,10 +640,9 @@ CPU::syncStateFromPin(bool full)
             std::istringstream ss(value);
             Addr page;
             while (ss >> std::hex >> page) {
-                EmulationPageTable::Entry *entry =
-                    tc->getProcessPtr()->pTable->lookup(page);
-                assert(entry);
-                entry->flags |= EmulationPageTable::PTeXProtected;
+                if (EmulationPageTable::Entry *entry =
+                    tc->getProcessPtr()->pTable->lookup(page))
+                    entry->flags |= EmulationPageTable::PTeXProtected;
             }
         } else {
             panic("unhandled state: %s\n", key);
@@ -728,21 +727,23 @@ CPU::handlePageFault(Addr vaddr)
         return tc->getMMUPtr()->translateFunctional(vaddr, size, tc, mode, 0);
     };
     const auto r = translate_with_mode(BaseMMU::Read);
-    const auto w = translate_with_mode(BaseMMU::Write);
+    // const auto w = translate_with_mode(BaseMMU::Write);
     const auto x = translate_with_mode(BaseMMU::Execute);
-    for (auto r_it = r->begin(), w_it = w->begin(), x_it = x->begin();
+    for (auto r_it = r->begin(), /* w_it = w->begin(), */ x_it = x->begin();
          r_it != r->end();
-         ++r_it, ++w_it, ++x_it) {
-        assert(w_it != w->end());
+         ++r_it, /* ++w_it, */ ++x_it) {
+        // assert(w_it != w->end());
         assert(x_it != x->end());
         panic_if(r_it->fault != NoFault, "Page fault: vaddr=%#x fault=%s\n", r_it->vaddr, r_it->fault->name());
         Entry entry;
         entry.vaddr = r_it->vaddr;
         entry.paddr = r_it->paddr;
         entry.size = r_it->size;
-        entry.prot = PROT_READ;
+        entry.prot = PROT_READ | PROT_WRITE;
+        /*
         if (w_it->fault == NoFault)
             entry.prot |= PROT_WRITE;
+        */
         if (x_it->fault == NoFault)
             entry.prot |= PROT_EXEC;
         mappings.push_back(entry);

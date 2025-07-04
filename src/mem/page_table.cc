@@ -129,7 +129,7 @@ EmulationPageTable::isUnmapped(Addr vaddr, int64_t size)
     return true;
 }
 
-const EmulationPageTable::Entry *
+EmulationPageTable::Entry *
 EmulationPageTable::lookup(Addr vaddr)
 {
     Addr page_addr = pageAlign(vaddr);
@@ -228,6 +228,13 @@ EmulationPageTable::externalize() const
         ss << std::hex << it->first << ":" << it->second.paddr << ";";
     }
     return ss.str();
+}
+
+void
+EmulationPageTable::unprotectAll()
+{
+    for (auto &[_, entry] : pTable)
+        entry.flags &= ~PTeXProtected;
 }
 
 } // namespace gem5

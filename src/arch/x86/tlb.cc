@@ -533,7 +533,14 @@ TLB::translateFunctional(const RequestPtr &req, ThreadContext *tc,
         paddr = insertBits(addr, logBytes - 1, 0, vaddr);
     } else {
         Process *process = tc->getProcessPtr();
-        const auto *pte = process->pTable->lookup(vaddr);
+        auto *pte = process->pTable->lookup(vaddr);
+
+        // [PTeX] Conservatively mark all functionally translated pages
+        // as PTeX-protected, for now at least.
+        if (pte && mode == BaseMMU::Write &&
+            !(pte->flags & EmulationPageTable::PTeXProtected)) {
+            pte->flags |= EmulationPageTable::PTeXProtected;
+        }
 
         if (!pte && mode != BaseMMU::Execute) {
             // Check if we just need to grow the stack.
