@@ -797,28 +797,29 @@ Commit::commit()
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
+          const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
           if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy &&
-              (fromIEW->instCausingSquash[tid]->isArgsTainted() ||
-               (fromIEW->instCausingSquash[tid]->inputProtection() == Protected && fromIEW->instCausingSquash[tid]->isUnsquashable()))) {
+              (inst_causing_squash->isArgsTainted() ||
+               (inst_causing_squash->inputProtection() == Protected &&
+                !inst_causing_squash->isUnsquashable()))) {
                 if (fromIEW->mispredictInst[tid]) {
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
-                            fromIEW->instCausingSquash[tid]->seqNum,
-                            fromIEW->instCausingSquash[tid]->seqNum,
-                            fromIEW->instCausingSquash[tid]->pcState());
+                            inst_causing_squash->seqNum,
+                            inst_causing_squash->seqNum,
+                            inst_causing_squash->pcState());
                     ++stats.stalledBranchMispredicts;
                 } else {
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A load mispredictInst [sn:%lli,0x%lx] PC %s is made pending.\n", 
                             tid,
-                            fromIEW->instCausingSquash[tid]->seqNum,
-                            fromIEW->instCausingSquash[tid]->seqNum,
-                            fromIEW->instCausingSquash[tid]->pcState());
+                            inst_causing_squash->seqNum,
+                            inst_causing_squash->seqNum,
+                            inst_causing_squash->pcState());
                     ++stats.stalledMemoryViolations;
                 }
-                fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
-                DynInstPtr& inst = fromIEW->instCausingSquash[tid];
-                if (inst->stallTick == -1)
-                    inst->stallTick = curTick();
+                inst_causing_squash->hasPendingSquash(true);
+                if (inst_causing_squash->stallTick == -1)
+                    inst_causing_squash->stallTick = curTick();
                 goto done;
             }
 
