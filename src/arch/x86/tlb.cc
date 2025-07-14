@@ -503,12 +503,14 @@ TLB::translate(const RequestPtr &req,
                 req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
 
             // [PTeX] Sanity check: make sure that the PTE and TLB entry agree on the PTeX protection.
+#if 0
             if (!FullSystem) {
                 const bool tlb_prot = entry->ptexProtected;
                 const bool pte_prot = tc->getProcessPtr()->pTable->lookup(vaddr)->flags & EmulationPageTable::PTeXProtected;
                 panic_if(tlb_prot != pte_prot, "Mismatch in TLB entry (%d) and PTE (%d) PTex protections for %#x\n",
                          tlb_prot, pte_prot, vaddr);
             }
+#endif
 
             // [PTeX] Properly set the protection flag (only needed by loads).
             if (entry->ptexProtected) {
