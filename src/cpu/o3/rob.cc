@@ -49,6 +49,7 @@
 #include "debug/ROB.hh"
 #include "debug/TransmitterStallsVerbose.hh"
 #include "params/BaseO3CPU.hh"
+#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -559,8 +560,10 @@ ROB::ROBStats::ROBStats(statistics::Group *parent)
     ADD_STAT(reads, statistics::units::Count::get(),
         "The number of ROB reads"),
     ADD_STAT(writes, statistics::units::Count::get(),
-        "The number of ROB writes")
+             "The number of ROB writes"),
+    ADD_STAT(tptConsumedTaints, statistics::units::Count::get(), "[TPT] Consumed taints")
 {
+    tptConsumedTaints.init(16);
 }
 
 DynInstPtr
@@ -607,6 +610,27 @@ ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
         inst->hasExplicitFlow(true);
         return;
     }
+
+    if (!inst->isMemRef() && !inst->isRegTaintPrimitive()) {
+        std::set<InstSeqNum> tainted_producers;
+        for (int i = 0; i < inst->numSrcRegs(); i++) {
+            if (inst->getArgProducer(i)) {
+                DynInstPtr argProducer = inst->getArgProducer(i);
+                assert(argProducer->threadNumber == tid);
+                if (argProducer->isDestTainted() && !argProducer->isCommitted())
+                    tainted_producers.insert(argProducer->seqNum);
+            }
+        }
+        stats.tptConsumedTaints[tainted_producers.size()] += 1;
+        if (!inst->tptConsumedTaintsPrinted) {
+            inst->tptConsumedTaintsPrinted = true;
+            const std::string prot = inst->outputProtection() == Protected ? "prot" : "unprot";
+            DPRINTFR(TPT, "TPT consume %d %s %#x\n",
+                     tainted_producers.size(),
+                     prot, inst->pcState().instAddr());
+        }
+    }
+    
         
     for (int i = 0; i < inst->numSrcRegs(); i++){
         // TPT-TODO: Need to set hasExplicitFlow(true)

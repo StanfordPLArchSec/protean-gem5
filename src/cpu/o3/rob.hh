@@ -367,6 +367,8 @@ class ROB
         statistics::Scalar reads;
         // The number of rob_writes
         statistics::Scalar writes;
+
+        statistics::Vector tptConsumedTaints;
     } stats;
 };
 

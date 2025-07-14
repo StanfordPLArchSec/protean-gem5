@@ -1306,6 +1306,8 @@ class DynInst : public ExecContext, public RefCounted
     unsigned numValidDests() const;
 
     std::string printTaintTree() const;
+
+    bool tptConsumedTaintsPrinted = false;
 };
 
 } // namespace o3
