@@ -1179,12 +1179,17 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         }
     }
 
-    // Need to insert instruction into queue to commit
+    // [Mieros-Track] Need to insert instruction into queue to commit
     if (inst->stallWritebackUntilNonspeculative()) {
         delaySpeculativeWriteback(inst);
     } else {
         iewStage->instToCommit(inst);
     }
+
+    // [Mieros-Track] Update predictor.
+    assert(inst->isLoad());
+    cpu->accessPred.update(*inst, inst->readUnprotectedMem() ? Unprotected : Protected);
+    DPRINTFR(TPT, "access-update %#x\n", inst->pcState().instAddr());
 
     iewStage->activityThisCycle();
 

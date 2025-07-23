@@ -51,6 +51,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
 #include "params/BaseO3CPU.hh"
+#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -713,6 +714,30 @@ Rename::renameInsts(ThreadID tid)
         renameSrcRegs(inst, inst->threadNumber);
 
         renameDestRegs(inst, inst->threadNumber);
+
+        // [PTeX] Predict if load will access protected memory.
+        // NOTE: In theory, can be implemented as a parallel lookup
+        // with rename. But we only use the results if the output register
+        // is unprotected.
+        if (inst->isLoad() && inst->loadProtection() == Unprotected) {
+            switch (cpu->tptMode) {
+              case TPTMode::Ideal:
+              case TPTMode::Protected:
+                break;
+
+              case TPTMode::Unprotected:
+                inst->setPredictedNoAccess();
+                break;
+
+              case TPTMode::Predict:
+                if (cpu->accessPred.predict(*inst) == Unprotected)
+                    inst->setPredictedNoAccess();
+                DPRINTFR(TPT, "TPT rename-predict %#x\n", inst->pcState().instAddr());
+                break;
+
+              default: panic("unreachable!\n");
+            }
+        }
 
         if (inst->isAtomic() || inst->isStore()) {
             storesInProgress[tid]++;

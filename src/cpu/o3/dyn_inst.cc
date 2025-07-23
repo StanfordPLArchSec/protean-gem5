@@ -704,21 +704,9 @@ DynInst::isAccess()
       case TPTMode::Protected:
         return true;
 
-      case TPTMode::Unprotected:
-        setPredictedNoAccess();
-        return false;
-
-      case TPTMode::Predict:
-        switch (cpu->accessPred.predict(*this)) {
-          case Protected:
-            return true;
-
-          case Unprotected:
-            setPredictedNoAccess();
-            return false;
-
-          default: panic("unreachable\n");
-        }
+    case TPTMode::Unprotected:
+    case TPTMode::Predict:
+      return !predictedNoAccess();
 
       default: panic("unreachable\n");
     }

@@ -1230,10 +1230,12 @@ Commit::commitInsts()
                     onInstBoundary && cpu->checkInterrupts(0))
                     squashAfter(tid, head_inst);
 
+#if 0
                 // [TPT] Update the access predictor.
                 if (head_inst->isLoad())
                     cpu->accessPred.update(*head_inst, head_inst->readUnprotectedMem() ?
                                            Unprotected : Protected);
+#endif
             } else {
                 DPRINTF(Commit, "Unable to commit head instruction PC:%s "
                         "[tid:%i] [sn:%llu].\n",

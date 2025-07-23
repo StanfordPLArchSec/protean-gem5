@@ -668,6 +668,28 @@ Decode::decodeInsts(ThreadID tid)
             continue;
         }
 
+#if 0
+        // Predict if load will access protected memory.
+        if (inst->isLoad() && inst->loadProtection() == Unprotected) {
+            switch (cpu->tptMode) {
+              case TPTMode::Ideal:
+              case TPTMode::Protected:
+                break;
+
+              case TPTMode::Unprotected:
+                inst->setPredictedNoAccess();
+                break;
+
+              case TPTMode::Predict:
+                if (cpu->accessPred.predict(*inst) == Unprotected)
+                    inst->setPredictedNoAccess();
+                break;
+
+              default: panic("unreachable!\n");
+            }
+        }
+#endif
+
         // Also check if instructions have no source registers.  Mark
         // them as ready to issue at any time.  Not sure if this check
         // should exist here or at a later stage; however it doesn't matter
