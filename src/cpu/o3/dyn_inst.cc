@@ -781,7 +781,22 @@ DynInst::stallWritebackUntilNonspeculative() const
     assert(cpu->tptMode == TPTMode::Unprotected ||
            cpu->tptMode == TPTMode::Predict);
 
-    return !readUnprotectedMem();
+    // Don't stall if it's nonspeculative.
+    if (isUnsquashable())
+        return false;
+
+    // If it didn't read unprotected memory, then stall.
+    if (!readUnprotectedMem())
+        return true;
+
+    // If it read unprotected memory but forwarded from a
+    // still-tainted store, then wait.
+    if (taintedStFwdInst && !taintedStFwdInst->isUnsquashable() &&
+        taintedStFwdInst->isArgsTainted())
+        return true;
+
+    // Otherwise, we odn't need to stall anymore.
+    return false;
 }
 
 

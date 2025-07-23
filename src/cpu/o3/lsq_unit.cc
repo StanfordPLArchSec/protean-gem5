@@ -1511,8 +1511,6 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;
 
-                load_inst->stFwdInst = store_it->instruction();
-
                 // Allocate memory if this is the first time a load is issued.
                 if (!load_inst->memData) {
                     load_inst->memData =
@@ -1597,6 +1595,10 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // TODO: We can setReadUnprotectedMem() even if the output protection is protected...
                 if (load_prot == Unprotected && store_prot == Unprotected) {
                     stats.ptexUnprotUnprotForwards++;
+                    // NOTE: If the store is tainted, then we'll mark it as a condition for the load
+                    // to delay writeback on.
+                    if (store_inst->isArgsTainted())
+                        load_inst->taintedStFwdInst = store_inst;
                     load_inst->setReadUnprotectedMem();
                 } else if (load_prot == Unprotected && store_prot == Protected) {
                     stats.ptexProtUnprotForwards++;
@@ -1652,7 +1654,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     DPRINTF(LSQUnit, "Doing memory access for inst [sn:%lli] PC %s\n",
             load_inst->seqNum, load_inst->pcState());
 
-    if (cpu->tpt) {
+    if (cpu->tpt && load_inst->loadProtection() == Unprotected) {
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
@@ -1770,15 +1772,15 @@ LSQUnit::tick()
         if (inst->isSquashed()) {
             it = delayedWritebackQueue.erase(it);
             DPRINTF(TPT, "Removing squashed load [sn:%u] from delayed writeback queue\n", inst->seqNum);
-        } else if (inst->isUnsquashable()) {
-            iewStage->instToCommit(inst);
-            iewStage->activityThisCycle();
-            it = delayedWritebackQueue.erase(it);
-            stats.delayedWritebackTicks += curTick() - inst->delayedWritebackTick;
-            stats.delayedWritebackCount++;
-            inst->unstallTick = curTick();
-            DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
-                    inst->seqNum, delayedWritebackQueue.size());
+        } else if (!inst->stallWritebackUntilNonspeculative()) {
+          iewStage->instToCommit(inst);
+          iewStage->activityThisCycle();
+          it = delayedWritebackQueue.erase(it);
+          stats.delayedWritebackTicks += curTick() - inst->delayedWritebackTick;
+          stats.delayedWritebackCount++;
+          inst->unstallTick = curTick();
+          DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
+                  inst->seqNum, delayedWritebackQueue.size());
         } else {
             if (inst->isAccess())
                 cpu->iew.instQueue.wakeDependentsTainted(*it);

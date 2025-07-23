@@ -708,10 +708,6 @@ ROB::compute_taint()
             if (inst->isAccess() && !inst->isUnsquashable()) {
                 inst->isDestTainted(true);
             }
-
-            if (inst->stFwdInst && inst->stFwdInst->isArgsTainted() && !inst->isUnsquashable()) {
-                inst->isDestTainted(true);
-            }
         }
     }
 }

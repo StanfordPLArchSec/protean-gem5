@@ -391,7 +391,7 @@ class DynInst : public ExecContext, public RefCounted
     /** Pointer to the data forwarded from store **/
     uint8_t *stFwdData = nullptr;
     int      stFwdDataSize = 0;
-    DynInstPtr stFwdInst;
+    DynInstPtr taintedStFwdInst;
 
     /** If load-store forwarding happens but need extra dummy load **/
     bool alreadyForwarded;
