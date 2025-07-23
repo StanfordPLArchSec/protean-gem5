@@ -1162,7 +1162,9 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            if (cpu->tpt && inst->taintedXmits()) {
+            // [Mieros-Track] Stall loads/stores with tainted inputs.
+            assert(inst->isLoad() || inst->isStore());
+            if (cpu->tpt && cpu->tptXmit && inst->taintedXmits()) {
                 assert(!inst->translationStarted());
                 instQueue.deferMemInst(inst);
                 continue;
@@ -1183,15 +1185,6 @@ IEW::executeInsts()
                     continue;
                 }
             } else if (inst->isLoad()) {
-                // [Mieros-Track] If the load is tainted, then defer.
-                if (inst->taintedXmits()) {
-                    assert(!inst->translationStarted());
-                    DPRINTF(TPT, "Stalling tainted load [sn:%lli] [yrot:%lli] %#x\n",
-                            inst->seqNum, inst->yrotXmits, inst->pcState().instAddr());
-                    instQueue.deferMemInst(inst);
-                    continue;
-                }
-
                 fault = ldstQueue.executeLoad(inst);
 
                 if (inst->isTranslationDelayed() &&

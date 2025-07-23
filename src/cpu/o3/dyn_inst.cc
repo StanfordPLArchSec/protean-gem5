@@ -732,8 +732,7 @@ DynInst::translationStarted(bool f)
     instFlags[TranslationStarted] = f;
 
     // [Mieros-Track] Sanity checks.
-    if (f)
-        assert(!taintedXmits());
+    assert(!(cpu->tpt && cpu->tptXmit && f && taintedXmits()));
 }
     
 
@@ -744,7 +743,7 @@ DynInst::setExecuted()
 
     // [Mieros-Track] Sanity checks.
     if ((isLoad() || isStore()) && !isSquashed())
-        assert(!taintedXmits());
+        assert(!(cpu->tpt && cpu->tptXmit && taintedXmits()));
 }
 
 } // namespace o3
