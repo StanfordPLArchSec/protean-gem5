@@ -119,6 +119,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       tptMode(params.tptMode),
       tptAcc(params.tptAcc),
       tptXmit(params.tptXmit),
+      tptDelayOpt(params.tptDelayOpt),
       accessPred(params.tptPred, params.tptPredProt)
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -379,9 +380,10 @@ CPU::CPU(const BaseO3CPUParams &params)
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptAcc=%d tptXmit=%d tptPred=%d\n",
+    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptAcc=%d "
+            "tptXmit=%d tptDelayOpt=%d tptPred=%d\n",
             tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), moreTransmitInsts, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
-            params.tptPred);
+            tptDelayOpt, params.tptPred);
 }
 
 void

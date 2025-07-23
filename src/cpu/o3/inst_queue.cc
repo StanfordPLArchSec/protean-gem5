@@ -1084,6 +1084,10 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
 int
 InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 {
+    // Only do this if we've enabled the delay optimizations.
+    if (!cpu->tptDelayOpt)
+        return 0;
+
     DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
             completed_inst->disassembleWithProt());
     assert(!completed_inst->isUnsquashable());

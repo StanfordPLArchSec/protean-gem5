@@ -226,7 +226,8 @@ class BaseO3CPU(BaseCPU):
     tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
     tptAcc = Param.Bool(True, "[TPT] Enable access tracking")
     tptXmit = Param.Bool(True, "[TPT] Enable protected transmitters")
-    tptPred = Param.Int(0, "[TPT] Enable access predictor")
+    tptPred = Param.Int(1024, "[TPT] Enable access predictor")
     tptPredProt = Param.Bool(
         False, "[TPT] Predict access for protected loads, too"
     )
+    tptDelayOpt = Param.Bool(False, "[TPT] Enable wakeup delay optimization -- allow wakeup of protected dependents")

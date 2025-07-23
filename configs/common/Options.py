@@ -752,6 +752,11 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         action="store_true",
         help="[TPT] Also predict access for protected loads",
     )
+    parser.add_argument(
+        "--tpt-delay-opt",
+        action="store_true",
+        help="[TPT] Delay optimizations",
+    )
 
 
 def addSEOptions(parser):

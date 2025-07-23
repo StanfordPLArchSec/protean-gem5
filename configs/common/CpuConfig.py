@@ -92,3 +92,4 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.tptXmit = options.tpt_xmit
             cpu.tptPred = options.tpt_pred
             cpu.tptPredProt = options.tpt_pred_prot
+            cpu.tptDelayOpt = options.tpt_delay_opt

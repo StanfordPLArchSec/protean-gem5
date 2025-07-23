@@ -623,6 +623,7 @@ class CPU : public BaseCPU
 
     // [TPT] Enable r-taint, m-taint, x-taint primitives.
     const bool tptAcc, tptXmit;
+    const bool tptDelayOpt;
 
     AccessPredictor accessPred;
 
