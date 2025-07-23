@@ -171,7 +171,6 @@ class DynInst : public ExecContext, public RefCounted
                                  /// instructions ahead of it
         SerializeAfter,          /// Needs to serialize instructions behind it
         SerializeHandled,        /// Serialization has been handled
-        InStallList,             /// [STT] instruction is ready to issue(regsReady) but argsTainted
         NumStatus
     };
 
@@ -800,12 +799,6 @@ class DynInst : public ExecContext, public RefCounted
 
     /** Clears this instruction being able to issue. */
     void clearCanIssue() { status.reset(CanIssue); }
-
-    void addToStallList() { status.set(InStallList); }
-
-    void removeFromStallList() { status.reset(InStallList); }
-
-    bool isInStallList() const { return status[InStallList]; }
 
     /** Sets this instruction as issued from the IQ. */
     void setIssued() { status.set(Issued); }
