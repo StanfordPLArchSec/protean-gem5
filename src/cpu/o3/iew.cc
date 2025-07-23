@@ -1162,12 +1162,10 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            if (cpu->sttBugfixes) {
-                if (inst->taintedXmits()) {
-                    assert(!inst->translationStarted());
-                    instQueue.deferMemInst(inst);
-                    continue;
-                }
+            if (cpu->tpt && inst->taintedXmits()) {
+                assert(!inst->translationStarted());
+                instQueue.deferMemInst(inst);
+                continue;
             }
 
             // Tell the LDSTQ to execute this instruction (if it is a load).

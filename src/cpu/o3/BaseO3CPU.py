@@ -214,7 +214,6 @@ class BaseO3CPU(BaseCPU):
 
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
-    sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")
     implicitChannel = Param.Bool(True, "[Mieros-Track] Secure implicit channels")
     tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
     tptAcc = Param.Bool(True, "[TPT] Enable access tracking")

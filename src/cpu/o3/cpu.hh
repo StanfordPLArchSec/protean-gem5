@@ -612,10 +612,6 @@ class CPU : public BaseCPU
     // [TPT] whether add implicit flow protection
     bool impChannel;
 
-    /** [STT] Whether to enable bugfixes to restore security of STT. */
-    // TODO: Should elide this and/or hardcode to true.
-    bool sttBugfixes;
-
     // [TPT] Operating mode.
     TPTMode tptMode;
 

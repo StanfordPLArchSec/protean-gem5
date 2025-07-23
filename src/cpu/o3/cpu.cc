@@ -336,7 +336,6 @@ CPU::CPU(const BaseO3CPUParams &params)
 
     /*** [STT] additional configurations ***/
     tpt = params.tpt;
-    sttBugfixes = params.sttBugfixes;
     impChannel = params.implicitChannel;
 
     // Print PTeX configuration.
@@ -355,9 +354,9 @@ CPU::CPU(const BaseO3CPUParams &params)
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%d tptMode=%s tptAcc=%d "
+    cprintf("[*] TPT configuration: tpt=%d impChannel=%d tptMode=%s tptAcc=%d "
             "tptXmit=%d tptDelayOpt=%d tptPred=%d\n",
-            tpt, sttBugfixes, impChannel, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
+            tpt, impChannel, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
             tptDelayOpt, params.tptPred);
 }
 
