@@ -75,7 +75,6 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
     instFlags[MemAccPredicate] = true;
     /*** [Jiyong,STT] ***/
     instFlags[HasPendingSquash] = false;
-    alreadyForwarded = false;
 
 #ifndef NDEBUG
     ++cpu->instcount;
@@ -272,9 +271,6 @@ DynInst::~DynInst()
     delete [] memData;
     delete traceData;
     fault = NoFault;
-
-    if (stFwdData)
-      delete [] stFwdData;
 
 #ifndef NDEBUG
     --cpu->instcount;
@@ -698,16 +694,6 @@ DynInst::isTransmitter() const
         if (srcTransmitted(i))
             return true;
     return false;
-}
-
-unsigned
-DynInst::numValidDests() const
-{
-    unsigned n = 0;
-    for (unsigned i = 0; i < numDests(); ++i)
-        if (!destRegIdx(i).is(InvalidRegClass))
-            ++n;
-    return n;
 }
 
 bool

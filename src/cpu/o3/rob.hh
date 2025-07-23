@@ -306,15 +306,6 @@ class ROB
     /** Number of instructions that can be squashed in a single cycle. */
     unsigned squashWidth;
 
-    /*** [Jiyong,STT] explicit flow and implicit flow logic ***/
-    /*   they are private because they can only be called by compute_taint()  */
-    // if this instr has explicit flow wrt its producers
-    void explicit_flow(ThreadID tid, DynInstPtr &inst);
-    // if this instr has explicit flow w.r.t its preceding branches
-    void implicit_flow(ThreadID tid, DynInstPtr &inst, bool &prev_implicit_flow);
-    // if this instr has its address tainted(only for memory instructions)
-    void address_flow(ThreadID tid, DynInstPtr &inst);
-
   public:
     /** Iterator pointing to the instruction which is the last instruction
      *  in the ROB.  This may at times be invalid (ie when the ROB is empty),
@@ -362,8 +353,6 @@ class ROB
         statistics::Scalar reads;
         // The number of rob_writes
         statistics::Scalar writes;
-
-        statistics::Vector tptConsumedTaints;
     } stats;
 };
 

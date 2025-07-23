@@ -1226,13 +1226,6 @@ Commit::commitInsts()
                 if (!interrupt && avoidQuiesceLiveLock &&
                     onInstBoundary && cpu->checkInterrupts(0))
                     squashAfter(tid, head_inst);
-
-#if 0
-                // [TPT] Update the access predictor.
-                if (head_inst->isLoad())
-                    cpu->accessPred.update(*head_inst, head_inst->readUnprotectedMem() ?
-                                           Unprotected : Protected);
-#endif
             } else {
                 DPRINTF(Commit, "Unable to commit head instruction PC:%s "
                         "[tid:%i] [sn:%llu].\n",
@@ -1499,7 +1492,7 @@ Commit::getInsts()
     int insts_to_process = std::min((int)renameWidth, fromRename->size);
 
     for (int inst_num = 0; inst_num < insts_to_process; ++inst_num) {
-        DynInstPtr inst = fromRename->insts[inst_num];
+        const DynInstPtr &inst = fromRename->insts[inst_num];
         ThreadID tid = inst->threadNumber;
 
         if (!inst->isSquashed() &&

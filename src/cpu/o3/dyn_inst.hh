@@ -377,14 +377,8 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t sqIdx = -1;
     typename LSQUnit::SQIterator sqIt;
 
-    /*** [Jiyong,STT] ***/
-    /** Pointer to the data forwarded from store **/
-    uint8_t *stFwdData = nullptr;
-    int      stFwdDataSize = 0;
+    /** [Mieros-Taint] The tainted instruction we forwarded from. */
     DynInstPtr taintedStFwdInst;
-
-    /** If load-store forwarding happens but need extra dummy load **/
-    bool alreadyForwarded;
 
     /** [Mieros-Track] YRoT among transmitter's sensitive
      * input registers.
@@ -1269,7 +1263,6 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
     bool isTransmitter() const;
-    unsigned numValidDests() const;
 };
 
 } // namespace o3

@@ -530,10 +530,8 @@ ROB::ROBStats::ROBStats(statistics::Group *parent)
     ADD_STAT(reads, statistics::units::Count::get(),
         "The number of ROB reads"),
     ADD_STAT(writes, statistics::units::Count::get(),
-             "The number of ROB writes"),
-    ADD_STAT(tptConsumedTaints, statistics::units::Count::get(), "[TPT] Consumed taints")
+             "The number of ROB writes")
 {
-    tptConsumedTaints.init(16);
 }
 
 DynInstPtr

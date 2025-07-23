@@ -1135,13 +1135,6 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         inst->setExecuted();
 
         if (inst->fault == NoFault) {
-            // Jiyong, STT: writeback forwarded data
-            if (inst->alreadyForwarded) {
-                ++stats.forwLoads;
-                ++stats.taintedForwLoads;
-                assert(cpu->stt && cpu->impChannel != ImplicitChannelMode::None);
-                memcpy(inst->memData, inst->stFwdData, inst->stFwdDataSize);
-            }
             // Complete access to copy data to proper place.
             inst->completeAcc(pkt);
         } else {
