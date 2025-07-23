@@ -1088,11 +1088,12 @@ InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
     if (!cpu->tptDelayOpt)
         return 0;
 
+    assert(cpu->mieros != Mieros::None);
+
     DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
             completed_inst->disassembleWithProt());
     assert(!completed_inst->isUnsquashable());
     assert(!completed_inst->isSquashed());
-    assert(cpu->tptAcc);
 
     DPRINTF(IQ, "Waking dependents of completed but tainted instruction.\n");
 

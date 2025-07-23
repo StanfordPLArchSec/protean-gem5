@@ -640,10 +640,12 @@ DynInst::isProtectedTransmitter() const
 bool
 DynInst::isAccess()
 {
-    // Nothing is an access instruction if we haven't enabled access tracking.
-    if (!cpu->tptAcc)
+    // MIEROS-TODO: Do we need this???
+    // Nothing is an access instruction when Mieros is disabled.
+    if (cpu->mieros == Mieros::None)
         return false;
 
+    // MIEROS-TODO: Hmm, shouldn't need to check this anymore.
     // If any register inputs are protected, then it's an access instruction.
     if (inputProtection() == Protected)
         return true;

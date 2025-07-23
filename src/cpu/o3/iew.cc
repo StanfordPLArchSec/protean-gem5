@@ -1245,7 +1245,7 @@ IEW::executeInsts()
 
             inst->setExecuted();
 
-            if (cpu->tptAcc && !inst->isUnsquashable() && inst->delayWakeup()) {
+            if (inst->delayWakeup()) {
                 ldstQueue.thread[inst->threadNumber].delaySpeculativeWriteback(inst);
                 instQueue.wakeDependentsTainted(inst);
             } else {
