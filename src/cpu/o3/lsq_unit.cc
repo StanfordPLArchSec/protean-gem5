@@ -1511,6 +1511,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 int shift_amt = request->mainReq()->getVaddr() -
                     store_it->instruction()->effAddr;
 
+                load_inst->stFwdInst = store_it->instruction();
+
                 // Allocate memory if this is the first time a load is issued.
                 if (!load_inst->memData) {
                     load_inst->memData =
@@ -1595,16 +1597,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // TODO: We can setReadUnprotectedMem() even if the output protection is protected...
                 if (load_prot == Unprotected && store_prot == Unprotected) {
                     stats.ptexUnprotUnprotForwards++;
-                    if (!store_inst->isArgsTainted()) {
-                        stats.tptUnprotUnprotForwards++;
-                        load_inst->setReadUnprotectedMem();
-                    } else {
-                        DPRINTFR(TPT, "TPT forw %#x %#x :: %s :: %s\n",
-                                 store_inst->pcState().instAddr(),
-                                 load_inst->pcState().instAddr(),
-                                 store_inst->disassembleWithProt(),
-                                 load_inst->disassembleWithProt());
-                    }
+                    load_inst->setReadUnprotectedMem();
                 } else if (load_prot == Unprotected && store_prot == Protected) {
                     stats.ptexProtUnprotForwards++;
                 } else if (load_prot == Protected && store_prot == Protected) {

@@ -647,6 +647,9 @@ ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
             }
         }
     }
+
+    // Is this a load that forwarded from a store? If so, taint its output. 
+    
     inst->hasExplicitFlow(false);
     return;
 }
@@ -703,6 +706,10 @@ ROB::compute_taint()
             inst->isDestTainted(inst->isArgsTainted());
 
             if (inst->isAccess() && !inst->isUnsquashable()) {
+                inst->isDestTainted(true);
+            }
+
+            if (inst->stFwdInst && inst->stFwdInst->isArgsTainted() && !inst->isUnsquashable()) {
                 inst->isDestTainted(true);
             }
         }
