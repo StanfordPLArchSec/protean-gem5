@@ -1497,72 +1497,37 @@ InstructionQueue::addToProducers(const DynInstPtr &new_inst)
 void
 InstructionQueue::addIfReady(const DynInstPtr &inst)
 {
-    // MIEROS-TODO: refactor
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
-    if (!cpu->tpt) {
-        if (inst->readyToIssue()) {
-            //Add the instruction to the proper ready list.
-            if (inst->isMemRef()) {
+    if (inst->readyToIssue()) {
+        //Add the instruction to the proper ready list.
+        if (inst->isMemRef()) {
 
-                DPRINTF(IQ, "(regular) Checking if memory instruction [sn:%lli] can issue.\n", inst->seqNum);
+            DPRINTF(IQ, "Checking if memory instruction [sn:%lli] can issue.\n", inst->seqNum);
 
-                // Message to the mem dependence unit that this instruction has
-                // its registers ready.
-                memDepUnit[inst->threadNumber].regsReady(inst);
+            // Message to the mem dependence unit that this instruction has
+            // its registers ready.
+            memDepUnit[inst->threadNumber].regsReady(inst);
 
-                return;
-            }
-
-            OpClass op_class = inst->opClass();
-
-            DPRINTF(IQ, "(addIfReady, regular) Instruction is ready to issue, putting it onto "
-                    "the ready list, PC %s opclass:%i [sn:%lli].\n",
-                    inst->pcState(), op_class, inst->seqNum);
-
-            readyInsts[op_class].push(inst);
-
-            // Will need to reorder the list if either a queue is not on the list,
-            // or it has an older instruction than last time.
-            if (!queueOnList[op_class]) {
-                addToOrderList(op_class);
-            } else if (readyInsts[op_class].top()->seqNum  <
-                       (*readyIt[op_class]).oldestInst) {
-                listOrder.erase(readyIt[op_class]);
-                addToOrderList(op_class);
-            }
+            return;
         }
-    } else {
-        if (inst->readyToIssue()) {
-            //Add the instruction to the proper ready list.
-            if (inst->isMemRef()) {
 
-                DPRINTF(IQ, "(strict) Checking if memory instruction [sn:%lli] can issue.\n", inst->seqNum);
+        OpClass op_class = inst->opClass();
 
-                // Message to the mem dependence unit that this instruction has
-                // its registers ready.
-                memDepUnit[inst->threadNumber].regsReady(inst);
+        DPRINTF(IQ, "(addIfReady) Instruction is ready to issue, putting it onto "
+                "the ready list, PC %s opclass:%i [sn:%lli].\n",
+                inst->pcState(), op_class, inst->seqNum);
 
-                return;
-            }
+        readyInsts[op_class].push(inst);
 
-            OpClass op_class = inst->opClass();
-
-            DPRINTF(IQ, "(addIfReady, strict) Instruction is ready to issue, putting it onto "
-                    "the ready list, PC %s opclass:%i [sn:%lli].\n",
-                    inst->pcState(), op_class, inst->seqNum);
-
-            readyInsts[op_class].push(inst);
-
-            // Will need to reorder the list if either a queue is not on the list,
-            // or it has an older instruction than last time.
-            if (!queueOnList[op_class]) {
-                addToOrderList(op_class);
-            } else if (readyInsts[op_class].top()->seqNum  <
-                       (*readyIt[op_class]).oldestInst) {
-                listOrder.erase(readyIt[op_class]);
-                addToOrderList(op_class);
-            }
+        // Will need to reorder the list if either a queue is not on the list,
+        // or it has an older instruction than last time.
+        if (!queueOnList[op_class]) {
+            addToOrderList(op_class);
+        } else if (readyInsts[op_class].top()->seqNum  <
+                   (*readyIt[op_class]).oldestInst) {
+            listOrder.erase(readyIt[op_class]);
+            addToOrderList(op_class);
         }
     }
 }
