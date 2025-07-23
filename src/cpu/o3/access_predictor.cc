@@ -11,7 +11,7 @@ AccessPredictor::AccessPredictor(std::size_t num_entries, bool predict_protected
     : numEntries(num_entries),
       predictProtected(predict_protected)
 {
-    fatal_if(!isPowerOf2(size()), "AccessPredictor's number of entries must be power of 2 (got %u)\n",
+    fatal_if(size() > 0 && !isPowerOf2(size()), "AccessPredictor's number of entries must be power of 2 (got %u)\n",
              size());
     DPRINTF(AccessPredictor, "Initialized access predictor with %u entries\n",
             size());
