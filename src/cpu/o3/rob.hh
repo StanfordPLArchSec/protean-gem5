@@ -274,11 +274,6 @@ class ROB
     /** Registers statistics. */
     void regStats();
 
-    /*** [Jiyong, STT] taint/untaint logic run every cycle ***/
-    // compute the taint from the head of ROB all the way until the end of ROB
-    // depends on explicit_flow() and implicit_flow()
-    void compute_taint();
-
     // compute the number of cycles from an instruction being issued to it being !argsTainted
     // used to evaluate
 

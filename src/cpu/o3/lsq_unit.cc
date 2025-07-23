@@ -1602,7 +1602,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     stats.ptexUnprotUnprotForwards++;
                     // NOTE: If the store is tainted, then we'll mark it as a condition for the load
                     // to delay writeback on.
-                    if (store_inst->isArgsTainted())
+                    if (store_inst->taintedSrcs())
                         load_inst->taintedStFwdInst = store_inst;
                     load_inst->setReadUnprotectedMem();
                 } else if (load_prot == Unprotected && store_prot == Protected) {
@@ -1746,26 +1746,6 @@ LSQUnit::getStoreHeadSeqNum()
         return storeQueue.front().instruction()->seqNum;
     else
         return 0;
-}
-
-// [SafeSpec] update FenceDelay State
-/*** [Jiyong,STT] update logic for STT ***/
-void
-LSQUnit::updateVisibleState()
-{
-    //iterate all the loads and update its fencedelay state accordingly
-    for (const LQEntry &load_ent : loadQueue) {
-        const DynInstPtr &inst = load_ent.instruction();
-        inst->fenceDelay(cpu->stt && inst->isAddrTainted());
-    }
-
-    // Also iterate over stores.
-    if (cpu->sttBugfixes) {
-        for (const SQEntry &store_ent : storeQueue) {
-            const DynInstPtr &inst = store_ent.instruction();
-            inst->fenceDelay(cpu->stt && inst->isAddrTainted());
-        }
-    }
 }
 
 void

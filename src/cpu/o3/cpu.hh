@@ -74,6 +74,7 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/o3/access_predictor.hh"
+#include "cpu/ptex.hh"
 
 namespace gem5
 {
@@ -607,16 +608,14 @@ class CPU : public BaseCPU
 
     // [TPT] Enable TPT.
     bool tpt;
-    const bool &stt = tpt;
+    const bool &stt = tpt; // TODO: Remove this.
 
     // [TPT] whether add implicit flow protection
-    ImplicitChannelMode impChannel;
+    ImplicitChannelMode impChannel; // TODO: Hardcode this to boolean. Get rid of eager.
 
     /** [STT] Whether to enable bugfixes to restore security of STT. */
+    // TODO: Should elide this and/or hardcode to true.
     bool sttBugfixes;
-
-    // [TPT] whether consider more transmit instructions
-    int moreTransmitInsts;
 
     // [TPT] Operating mode.
     TPTMode tptMode;
@@ -626,6 +625,9 @@ class CPU : public BaseCPU
     const bool tptDelayOpt;
 
     AccessPredictor accessPred;
+
+    // [Mieros-Track] The last nonspeculative instruction.
+    InstSeqNum untaintBroadcast = NoYRoT;
 
     friend class LSQUnit;
 };

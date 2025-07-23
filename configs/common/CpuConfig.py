@@ -86,7 +86,6 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.ptexPages = options.ptex_pages
             cpu.tpt = options.tpt
             cpu.implicitChannel = options.implicit_channel
-            cpu.moreTransmitInsts = options.more_transmit_insts
             cpu.tptMode = options.tpt_mode
             cpu.tptAcc = options.tpt_acc
             cpu.tptXmit = options.tpt_xmit

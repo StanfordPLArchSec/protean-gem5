@@ -57,6 +57,7 @@
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
+#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -1162,12 +1163,11 @@ IEW::executeInsts()
                     "reference.\n");
 
             if (cpu->sttBugfixes) {
-                if (inst->fenceDelay()) {
-                    assert(!(inst->isAddrTainted() && inst->translationStarted()));
+                if (inst->taintedXmits()) {
+                    assert(!inst->translationStarted());
                     instQueue.deferMemInst(inst);
                     continue;
                 }
-                assert(!inst->isAddrTainted());
             }
 
             // Tell the LDSTQ to execute this instruction (if it is a load).
@@ -1185,22 +1185,14 @@ IEW::executeInsts()
                     continue;
                 }
             } else if (inst->isLoad()) {
-                // Loads will mark themselves as executed, and their writeback
-                // event adds the instruction to the queue to commit
-
-                // [SafeSpec] a lifetime of a load
-                // always let it translate --> translation not complete, defer
-                // if !loadInExec, need to check whether there
-                // is a virtual fence ahead
-                // --> if existing virtual fence, defer
-                if (inst->fenceDelay()){
-                    DPRINTF(IEW, "Deferring load due to virtual fence.\n");
-                    assert(!(inst->isAddrTainted() && inst->translationStarted())); // It better not have started translating its address if it's tainted.
+                // [Mieros-Track] If the load is tainted, then defer.
+                if (inst->taintedXmits()) {
+                    assert(!inst->translationStarted());
+                    DPRINTF(TPT, "Stalling tainted load [sn:%lli] [yrot:%lli] %#x\n",
+                            inst->seqNum, inst->yrotXmits, inst->pcState().instAddr());
                     instQueue.deferMemInst(inst);
-
                     continue;
                 }
-                assert(!inst->isAddrTainted());
 
                 fault = ldstQueue.executeLoad(inst);
 
@@ -1451,8 +1443,6 @@ IEW::tick()
         checkSignalsAndUpdate(tid);
         dispatch(tid);
     }
-
-    ldstQueue.updateVisibleState();
 
     if (exeStatus != Squashing) {
         executeInsts();

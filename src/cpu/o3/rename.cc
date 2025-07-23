@@ -711,33 +711,40 @@ Rename::renameInsts(ThreadID tid)
             serializeAfter(insts_to_rename, tid);
         }
 
-        renameSrcRegs(inst, inst->threadNumber);
-
-        renameDestRegs(inst, inst->threadNumber);
-
-        // [PTeX] Predict if load will access protected memory.
+        // [Mieros-Track] Predict if load will access protected memory.
         // NOTE: In theory, can be implemented as a parallel lookup
         // with rename. But we only use the results if the output register
         // is unprotected.
-        if (inst->isLoad() && inst->loadProtection() == Unprotected) {
+        if (inst->isLoad() && !inst->hasProtPrefix()) {
             switch (cpu->tptMode) {
               case TPTMode::Ideal:
               case TPTMode::Protected:
                 break;
-
               case TPTMode::Unprotected:
                 inst->setPredictedNoAccess();
                 break;
-
               case TPTMode::Predict:
                 if (cpu->accessPred.predict(*inst) == Unprotected)
                     inst->setPredictedNoAccess();
-                DPRINTFR(TPT, "TPT rename-predict %#x\n", inst->pcState().instAddr());
                 break;
-
               default: panic("unreachable!\n");
             }
         }
+
+        renameSrcRegs(inst, inst->threadNumber);
+
+        // [Mieros-Track] Compute the initial dest prot as follows.
+        // Initialize it to the YRoT among all sources.
+        // Then, if we have a load that is predicted to access
+        // protected memory, then set the instruction to be the YRoT.
+        assert(yrotValid(inst->yrotSrcs) && yrotValid(inst->yrotXmits) &&
+               !yrotValid(inst->yrotDests));
+        inst->yrotDests = inst->yrotSrcs;
+        if (inst->isLoad() && !inst->predictedNoAccess())
+            inst->yrotDests = inst->seqNum;
+        assert(yrotValid(inst->yrotDests));
+        
+        renameDestRegs(inst, inst->threadNumber);
 
         if (inst->isAtomic() || inst->isStore()) {
             storesInProgress[tid]++;
@@ -1041,6 +1048,17 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
     unsigned num_src_regs = inst->numSrcRegs();
     auto *isa = tc->getIsaPtr();
 
+    // [Mieros-Track] Track the running YRoT among all inputs.
+    // 1. Initialize to NoYRot (0).
+    // 2. For each source:
+    //    a. If protected, mark instruction as its own YRoT.
+    //    b. If unprotected, take the youngest of the running YRoT and 
+    //       the source's YRoT.
+    assert(!yrotValid(inst->yrotXmits));
+    inst->yrotXmits = NoYRoT;
+    assert(!yrotValid(inst->yrotSrcs));
+    inst->yrotSrcs = NoYRoT;
+
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
     for (int src_idx = 0; src_idx < num_src_regs; src_idx++) {
@@ -1102,6 +1120,24 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
                     renamed_reg->className());
         }
 
+        // [Mieros-Track] Update YRoT for transmitters and dests.
+        const bool src_transmitted = inst->srcTransmitted(src_idx);
+        switch (rename_entry.prot) {
+          case Protected:
+            // If this protected source is transmitted,
+            // then the transmitter's YRoT is itself.
+            if (src_transmitted)
+                inst->yrotXmits = inst->seqNum;
+            inst->yrotSrcs = std::max(inst->yrotSrcs, inst->seqNum);
+            break;
+          case Unprotected:
+            if (src_transmitted)
+                inst->yrotXmits = std::max(inst->yrotXmits, rename_entry.yrot);
+            inst->yrotSrcs = std::max(inst->yrotSrcs, rename_entry.yrot);
+            break;
+          default: panic("bad protection\n");
+        }
+
         ++stats.lookups;
     }
 }
@@ -1122,8 +1158,10 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         RegId flat_dest_regid = dest_reg.flatten(*isa);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());
 
+        // [PTeX]
         const Protection prot = inst->computeDestProtection(dest_idx);
-        rename_result = map->rename(flat_dest_regid, prot);
+
+        rename_result = map->rename(flat_dest_regid, prot, inst->yrotDests);
 
         inst->flattenedDestIdx(dest_idx, flat_dest_regid);
 

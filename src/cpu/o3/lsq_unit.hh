@@ -277,12 +277,6 @@ class LSQUnit
     /** Writes back stores. */
     void writebackStores();
 
-    /** [mengjia] Update Visbible State.
-     * In the mode defence relying on fence: setup fenceDelay state.
-     * In the mode defence relying on invisibleSpec:
-     * setup readyToExpose*/
-    void updateVisibleState();
-
     /** Completes the data access that has been returned from the
      * memory system. */
     void completeDataAccess(PacketPtr pkt);

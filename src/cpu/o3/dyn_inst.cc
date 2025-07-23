@@ -62,7 +62,7 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
       _flatDestIdx(arrays.flatDestIdx), _destIdx(arrays.destIdx),
       _prevDestIdx(arrays.prevDestIdx), _srcIdx(arrays.srcIdx),
       _readySrcIdx(arrays.readySrcIdx), _srcProt(arrays.srcProt),
-      _destProt(arrays.destProt), _argProducers(arrays.argProducers),
+      _destProt(arrays.destProt),
       macroop(_macroop)
 {
     std::fill(_readySrcIdx, _readySrcIdx + (numSrcs() + 7) / 8, 0);
@@ -178,12 +178,8 @@ DynInst::operator new(size_t count, Arrays &arrays)
         roundUp(src_prot + src_prot_size, alignof(Protection));
     size_t dest_prot_size = sizeof(*arrays.destProt) * num_dests;
 
-    uintptr_t arg_producers =
-        roundUp(dest_prot + dest_prot_size, alignof(DynInstPtr));
-    size_t arg_producers_size = sizeof(*arrays.argProducers) * num_srcs;
-
     // Figure out how much space we need in total.
-    size_t total_size = arg_producers + arg_producers_size;
+    size_t total_size = dest_prot + dest_prot_size;
 
     // Actually allocate it.
     uint8_t *buf = (uint8_t *)::operator new(total_size);
@@ -196,7 +192,6 @@ DynInst::operator new(size_t count, Arrays &arrays)
     arrays.readySrcIdx = (uint8_t *)(buf + ready_src_idx);
     arrays.srcProt = (Protection *)(buf + src_prot);
     arrays.destProt = (Protection *)(buf + dest_prot);
-    arrays.argProducers = (DynInstPtr *)(buf + arg_producers);
 
     // Initialize all the extra components.
     new (arrays.flatDestIdx) RegId[num_dests];
@@ -206,7 +201,6 @@ DynInst::operator new(size_t count, Arrays &arrays)
     new (arrays.readySrcIdx) uint8_t[roundUp(num_srcs, 8) / 8];
     new (arrays.srcProt) Protection[num_srcs];
     new (arrays.destProt) Protection[num_dests];
-    new (arrays.argProducers) DynInstPtr[num_srcs];
 
     return buf;
 }
@@ -349,32 +343,11 @@ DynInst::markSrcRegReady(RegIndex src_idx)
 bool
 DynInst::readyToIssue_UT() const
 {
+    // TODO: Simplify.
     bool ret = status[CanIssue];
 
-    if (cpu->impChannel == ImplicitChannelMode::Eager && isControl() && (isArgsTainted() || inputProtection() == Protected))
+    if (cpu->impChannel == ImplicitChannelMode::Eager && isControl() && taintedXmits())
         ret = false;
-
-    switch (cpu->moreTransmitInsts) {
-      case 0:
-        break;
-
-      case 1:
-        // consider int div and fp div
-        if (opClass() == IntDivOp   ||
-            opClass() == FloatDivOp ||
-            opClass() == FloatSqrtOp)
-            ret = ret && (!instFlags[IsArgsTainted]);
-        break;
-
-      case 2:
-        if (opClass() == IntDivOp ||
-            isFloating())
-            ret = ret && (!instFlags[IsArgsTainted]);
-        break;
-
-      default:
-        panic("moreTransmitInsts=%d\n", cpu->moreTransmitInsts);
-    }
 
     return ret;
 }
@@ -737,28 +710,6 @@ DynInst::numValidDests() const
     return n;
 }
 
-std::string
-DynInst::printTaintTree() const
-{
-    if (!(isArgsTainted() || isAddrTainted()))
-        return "(args not tainted)";
-
-    std::string s;
-    s += csprintf("%#x", pcState().instAddr());
-
-    // Otherwise, try to find argument that is tainted.
-    for (int src_idx = 0; src_idx < numSrcs(); ++src_idx) {
-        if (const DynInstPtr arg_producer = getArgProducer(src_idx)) {
-            if (arg_producer->isDestTainted() && !arg_producer->isCommitted()) {
-                // Found a tainted arg producer.
-                return s + csprintf(" -> %s %s", srcRegIdx(src_idx), arg_producer->isMemRef() ? "(memref)" : arg_producer->printTaintTree());
-            }
-        }
-    }
-
-    return s + " (??? - no tainted argproducer)";
-}
-
 bool
 DynInst::stallWritebackUntilNonspeculative() const
 {
@@ -780,13 +731,49 @@ DynInst::stallWritebackUntilNonspeculative() const
     // If it read unprotected memory but forwarded from a
     // still-tainted store, then wait.
     if (taintedStFwdInst && !taintedStFwdInst->isUnsquashable() &&
-        taintedStFwdInst->isArgsTainted())
+        taintedStFwdInst->yrotSrcs > cpu->untaintBroadcast)
         return true;
 
     // Otherwise, we odn't need to stall anymore.
     return false;
 }
 
+bool
+DynInst::taintedXmits() const
+{
+    if (isUnsquashable())
+        assert(yrotXmits <= cpu->untaintBroadcast);
+    return yrotXmits > cpu->untaintBroadcast;
+}
+
+bool
+DynInst::taintedSrcs() const
+{
+    if (isUnsquashable())
+        assert(yrotSrcs <= cpu->untaintBroadcast);
+    return yrotSrcs > cpu->untaintBroadcast;
+}
+
+void
+DynInst::translationStarted(bool f)
+{
+    instFlags[TranslationStarted] = f;
+
+    // [Mieros-Track] Sanity checks.
+    if (f)
+        assert(!taintedXmits());
+}
+    
+
+void
+DynInst::setExecuted()
+{
+    status.set(Executed);
+
+    // [Mieros-Track] Sanity checks.
+    if ((isLoad() || isStore()) && !isSquashed())
+        assert(!taintedXmits());
+}
 
 } // namespace o3
 } // namespace gem5

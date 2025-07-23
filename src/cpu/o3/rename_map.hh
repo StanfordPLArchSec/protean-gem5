@@ -66,11 +66,12 @@ struct RenameEntry
 {
     PhysRegIdPtr physReg;
     Protection prot;
+    InstSeqNum yrot = -1; // [Mieros-Track]
 
     RenameEntry() = default;
 
-    RenameEntry(PhysRegIdPtr phys_reg, Protection prot)
-        : physReg(phys_reg), prot(prot)
+    RenameEntry(PhysRegIdPtr phys_reg, Protection prot, InstSeqNum yrot)
+        : physReg(phys_reg), prot(prot), yrot(yrot)
     {
     }
 
@@ -135,7 +136,7 @@ class SimpleRenameMap
      * @return A RenameInfo pair indicating both the new and previous
      * physical registers.
      */
-    RenameInfo rename(const RegId& arch_reg, Protection prot);
+    RenameInfo rename(const RegId& arch_reg, Protection prot, InstSeqNum yrot);
 
     /**
      * Look up the physical register mapped to an architectural register.
@@ -227,7 +228,7 @@ class UnifiedRenameMap
      * physical registers.
      */
     RenameInfo
-    rename(const RegId& arch_reg, Protection prot)
+    rename(const RegId& arch_reg, Protection prot, InstSeqNum yrot)
     {
         if (!arch_reg.isRenameable()) {
             // misc regs aren't really renamed, just remapped
@@ -237,7 +238,7 @@ class UnifiedRenameMap
             return RenameInfo(entry, entry);
         }
 
-        return renameMaps[arch_reg.classValue()].rename(arch_reg, prot);
+        return renameMaps[arch_reg.classValue()].rename(arch_reg, prot, yrot);
     }
 
     /**
@@ -252,14 +253,14 @@ class UnifiedRenameMap
     {
         auto reg_class = arch_reg.classValue();
         if (reg_class == InvalidRegClass) {
-            return RenameEntry(&invalidPhysRegId, Unprotected);
+            return RenameEntry(&invalidPhysRegId, Unprotected, NoYRoT);
          } else if (reg_class == MiscRegClass) {
             // misc regs aren't really renamed, they keep the same
             // mapping throughout the execution.
             // [PTeX] Misc regs are unprotected.
             return RenameEntry(
                 regFile->getMiscRegId(arch_reg.index()),
-                Unprotected);
+                Unprotected, NoYRoT);
         }
         return renameMaps[reg_class].lookup(arch_reg);
     }

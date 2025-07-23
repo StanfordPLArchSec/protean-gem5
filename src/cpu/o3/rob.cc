@@ -208,22 +208,6 @@ ROB::insertInst(const DynInstPtr &inst)
 
     ThreadID tid = inst->threadNumber;
 
-    /*** [Jiyong,STT] add logic for setting argProducers ***/
-    // TPT-FIXME: This can be optimized.
-    for (auto prevInstIt = instList[tid].begin(); prevInstIt != instList[tid].end(); prevInstIt++){
-        // find matched physical reg between prev instr and inst
-        DynInstPtr prevInst = (*prevInstIt);
-        for (int i = 0; i < inst->numSrcRegs(); i++) {
-            // The zero register has no producers.
-            if (inst->srcRegIdx(i).is(InvalidRegClass))
-                continue;
-
-            for (int j = 0; j < prevInst->numDestRegs(); j++)
-                if (inst->renamedSrcIdx(i) == prevInst->renamedDestIdx(j))
-                    inst->setArgProducer(i, prevInst);
-        }
-    }
-
     instList[tid].push_back(inst);
 
     //Set Up head iterator if this is the 1st instruction in the ROB
@@ -272,20 +256,6 @@ ROB::retireHead(ThreadID tid)
 
     head_inst->clearInROB();
     head_inst->setCommitted();
-
-    /*** [Jiyong,STT] add logic for clearing argProducers ***/
-    for (auto nextInstIt = std::next(instList[tid].begin()); nextInstIt != instList[tid].end(); nextInstIt++){
-        // find matched physical reg between head_inst and next instr
-        DynInstPtr nextInst = (*nextInstIt);
-        for (int i = 0; i < nextInst->numSrcRegs(); i++){
-            if (nextInst->getArgProducer(i) == head_inst)
-                nextInst->clearArgProducer(i);
-        }
-    }
-
-    // clear argProducer for head_inst
-    for (int i = 0; i < head_inst->numSrcRegs(); i++)
-        head_inst->clearArgProducer(i);
 
     //Update "Global" Head of ROB
     updateHead();
@@ -591,123 +561,12 @@ ROB::updateVisibleState()
             if (inst->isSquashed())
                 break;
 
-            // TPE-TODO: Rename.
+            // Mark insturction as nonspeculative.
             inst->setUnsquashable();
+            cpu->untaintBroadcast = inst->seqNum;
 
             if (inst->isSpeculationPrimitive())
                 break;
-        }
-    }
-}
-
-/*
- * [Jiyong, STT] routines for STT
- */
-void
-ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
-{
-    if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
-        inst->hasExplicitFlow(true);
-        return;
-    }
-
-    if (!inst->isMemRef()) {
-        std::set<InstSeqNum> tainted_producers;
-        for (int i = 0; i < inst->numSrcRegs(); i++) {
-            if (inst->getArgProducer(i)) {
-                DynInstPtr argProducer = inst->getArgProducer(i);
-                assert(argProducer->threadNumber == tid);
-                if (argProducer->isDestTainted() && !argProducer->isCommitted())
-                    tainted_producers.insert(argProducer->seqNum);
-            }
-        }
-        stats.tptConsumedTaints[tainted_producers.size()] += 1;
-        if (!inst->tptConsumedTaintsPrinted) {
-            inst->tptConsumedTaintsPrinted = true;
-            const std::string prot = inst->outputProtection() == Protected ? "prot" : "unprot";
-#if 0
-            DPRINTFR(TPT, "TPT consume %d %s %#x\n",
-                     tainted_producers.size(),
-                     prot, inst->pcState().instAddr());
-#endif
-        }
-    }
-
-
-    for (int i = 0; i < inst->numSrcRegs(); i++){
-        // TPT-TODO: Need to set hasExplicitFlow(true)
-        // if it's a protected transmitter.
-        if (inst->getArgProducer(i)) {
-            DynInstPtr argProducer = inst->getArgProducer(i);
-            assert(argProducer->threadNumber == tid);
-            if (argProducer->isDestTainted()
-                && !argProducer->isCommitted()) {
-                inst->hasExplicitFlow(true);
-                return;
-            }
-        }
-    }
-
-    // Is this a load that forwarded from a store? If so, taint its output. 
-    
-    inst->hasExplicitFlow(false);
-    return;
-}
-
-void
-ROB::address_flow(ThreadID tid, DynInstPtr &inst)
-{
-    inst->isAddrTainted(false);
-
-    if (!inst->isMemRef())
-        return;
-
-    // [TPT] If the address operand itself is protected.
-    if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
-        DPRINTFR(TransmitterStallsVerbose, "tainting address of protected load %#x\n",
-                 inst->pcState().instAddr());
-        inst->isAddrTainted(true);
-        return;
-    }
-
-    for (int i = 0; i < inst->numSrcRegs(); ++i) {
-        if (inst->staticInst->srcTransmitted(i)) {
-            if (const DynInstPtr &producer = inst->getArgProducer(i)) {
-                assert(producer->threadNumber == tid);
-                if (producer->isDestTainted() && !producer->isCommitted()) {
-                    inst->isAddrTainted(true);
-                    DPRINTFR(TransmitterStallsVerbose, "tainting address of memref %#x with tainted producer %#x of %s\n",
-                             inst->pcState().instAddr(), producer->pcState().instAddr(),
-                             inst->srcRegIdx(i));
-                    DPRINTFR(TransmitterStallsVerbose, "taint traceback of memref %#x: %s\n",
-                             inst->pcState().instAddr(), inst->printTaintTree());
-                    return;
-                }
-            }
-        }
-    }
-}
-
-void
-ROB::compute_taint()
-{
-    assert(cpu->stt);
-
-    for (ThreadID tid : *activeThreads) {
-        if (instList[tid].empty())
-            continue;
-
-        for (DynInstPtr &inst : instList[tid]) {
-            explicit_flow(tid, inst);
-            address_flow(tid, inst);
-
-            inst->isArgsTainted(inst->hasExplicitFlow());
-
-            inst->isDestTainted(inst->isArgsTainted());
-
-            if (inst->isAccess() && !inst->isUnsquashable()) {
-                inst->isDestTainted(true);
-            }
         }
     }
 }
@@ -718,7 +577,7 @@ ROB::getResolvedPendingSquashInst(ThreadID tid)
     for (auto instIt = instList[tid].begin(); instIt != instList[tid].end(); instIt++) {
         auto inst = (*instIt);
         if (inst->hasPendingSquash()
-            && !inst->isArgsTainted()
+            && !inst->taintedXmits()
             && !inst->isSquashed()  // if it's already squashed, we ignore it
             ) {
             return inst;

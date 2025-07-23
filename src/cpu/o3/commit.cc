@@ -802,10 +802,7 @@ Commit::commit()
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
           const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
-          if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy &&
-              (inst_causing_squash->isArgsTainted() ||
-               (inst_causing_squash->inputProtection() == Protected &&
-                !inst_causing_squash->isUnsquashable()))) {
+          if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy && inst_causing_squash->taintedXmits()) {
                 if (fromIEW->mispredictInst[tid]) {
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
@@ -1413,8 +1410,10 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
     // Update the commit rename map
     for (int i = 0; i < head_inst->numDestRegs(); i++) {
+        assert(yrotValid(head_inst->yrotDests));
         const RenameEntry rename_entry(head_inst->renamedDestIdx(i),
-                                       head_inst->outputProtection());
+                                       head_inst->outputProtection(),
+                                       head_inst->yrotDests);
         renameMap[tid]->setEntry(head_inst->flattenedDestIdx(i),
 				 rename_entry);
     }
@@ -1545,11 +1544,6 @@ Commit::markCompletedInsts()
 
     // [TPE, STT, SPT] Recompute which instructions are nonspeculative.
     rob->updateVisibleState();
-
-    // [Jiyong, STT]
-    // taint/untaint rob instructions
-    if (cpu->stt)
-        rob->compute_taint();
 }
 
 void

@@ -720,13 +720,6 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[TPT] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
-        "--more-transmit-insts",
-        default=0,
-        action="store",
-        type=int,
-        help="[TPT] Include more transmit instruction types.",
-    )
-    parser.add_argument(
         "--tpt-mode",
         type=str,
         help="[TPT] Access prediction mode",

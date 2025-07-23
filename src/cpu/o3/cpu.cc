@@ -259,7 +259,7 @@ CPU::CPU(const BaseO3CPUParams &params)
                 // [PTeX] All registers are unprotected at startup.
                 // PTEX-TODO: If we add register protection type as
                 // architectural state, may need to restore here.
-                const RenameEntry rename_entry(phys_reg, Unprotected);
+                const RenameEntry rename_entry(phys_reg, Unprotected, NoYRoT);
                 renameMap[tid].setEntry(id, rename_entry);
                 commitRenameMap[tid].setEntry(id, rename_entry);
             }
@@ -338,8 +338,6 @@ CPU::CPU(const BaseO3CPUParams &params)
     tpt = params.tpt;
     sttBugfixes = params.sttBugfixes;
     impChannel = params.implicitChannel;
-    moreTransmitInsts = params.moreTransmitInsts;
-    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
 
     const char *imp_channel_str = nullptr;
     switch (impChannel) {
@@ -356,8 +354,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       imp_channel_str = "(bad)";
       break;
     }
-    cprintf("applySTT = %d, implicit_channel = %s, moreTransmitInsts = %d bugfixes=%d\n",
-            stt, imp_channel_str, moreTransmitInsts, sttBugfixes);
+    cprintf("applySTT = %d, implicit_channel = %s, bugfixes=%d\n",
+            stt, imp_channel_str, sttBugfixes);
 
     // Print PTeX configuration.
     static const std::map<DeclassifyMode, std::string> ptex_mem_strtab = {
@@ -380,9 +378,9 @@ CPU::CPU(const BaseO3CPUParams &params)
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptAcc=%d "
+    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s tptMode=%s tptAcc=%d "
             "tptXmit=%d tptDelayOpt=%d tptPred=%d\n",
-            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), moreTransmitInsts, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
+            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
             tptDelayOpt, params.tptPred);
 }
 
@@ -681,7 +679,7 @@ CPU::insertThread(ThreadID tid)
         for (auto &id: *regClasses.at(type)) {
             PhysRegIdPtr phys_reg = freeList.getReg(type);
             // [PTeX] Initialize all registers to unprotected at startup.
-            renameMap[tid].setEntry(id, RenameEntry(phys_reg, Unprotected));
+            renameMap[tid].setEntry(id, RenameEntry(phys_reg, Unprotected, NoYRoT));
             scoreboard.setReg(phys_reg);
         }
     }

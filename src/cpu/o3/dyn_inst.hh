@@ -95,7 +95,6 @@ class DynInst : public ExecContext, public RefCounted
         uint8_t *readySrcIdx;
         Protection *srcProt;
         Protection *destProt;
-        DynInstPtr *argProducers;
     };
 
     static void *operator new(size_t count, Arrays &arrays);
@@ -196,12 +195,6 @@ class DynInst : public ExecContext, public RefCounted
                                /// execute the instruction
         ReadyToExpose,
         Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
-        // [Jiyong,STT] The following are STT flags
-        IsDestTainted,
-        IsArgsTainted,
-        IsAddrTainted,
-        HasExplicitFlow,
-        HasImplicitFlow,
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
         // [TPT]
         ReadUnprotectedMem,      /// [TPT] An unprotected load read from unprotected memory.
@@ -263,9 +256,6 @@ class DynInst : public ExecContext, public RefCounted
     // even if the macro-op has a PROT prefix, because special registers
     // aren't protected.
     Protection *_destProt;
-
-    // [STT] Arg producers
-    DynInstPtr *_argProducers;
 
   public:
     size_t numSrcs() const { return _numSrcs; }
@@ -396,7 +386,16 @@ class DynInst : public ExecContext, public RefCounted
     /** If load-store forwarding happens but need extra dummy load **/
     bool alreadyForwarded;
 
+    /** [Mieros-Track] YRoT among transmitter's sensitive
+     * input registers.
+     * If this is valid, then we need to stall the transmission
+     * until this yrot is nonspec. */
+    InstSeqNum yrotXmits = InvalidYRoT;
+    InstSeqNum yrotSrcs = InvalidYRoT;
+    InstSeqNum yrotDests = InvalidYRoT;
 
+    bool taintedXmits() const;
+    bool taintedSrcs() const;
 
     /////////////////////// TLB Miss //////////////////////
     /**
@@ -420,22 +419,6 @@ class DynInst : public ExecContext, public RefCounted
     /** Whether or not the memory operation is done. */
     bool memOpDone() const { return instFlags[MemOpDone]; }
     void memOpDone(bool f) { instFlags[MemOpDone] = f; }
-
-    bool fenceDelay() const { return instFlags[ReadyToExpose]; }
-    void fenceDelay(bool f) { instFlags[ReadyToExpose] = f; }
-
-    /*** [Jiyong,STT] STT Flags setter and accessor ***/
-    bool isDestTainted() const { return instFlags[IsDestTainted]; }
-    void isDestTainted(bool f) { instFlags[IsDestTainted] = f; }
-
-    bool isArgsTainted() const { return instFlags[IsArgsTainted]; }
-    void isArgsTainted(bool f) { instFlags[IsArgsTainted] = f; }
-
-    bool isAddrTainted() const { return instFlags[IsAddrTainted]; }
-    void isAddrTainted(bool f) { instFlags[IsAddrTainted] = f; }
-
-    bool hasExplicitFlow() const { return instFlags[HasExplicitFlow]; }
-    void hasExplicitFlow(bool f) { instFlags[HasExplicitFlow] = f; }
 
     bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
     void hasPendingSquash(bool f) { instFlags[HasPendingSquash] = f; }
@@ -470,7 +453,7 @@ class DynInst : public ExecContext, public RefCounted
 
     /** True if the DTB address translation has started. */
     bool translationStarted() const { return instFlags[TranslationStarted]; }
-    void translationStarted(bool f) { instFlags[TranslationStarted] = f; }
+    void translationStarted(bool f);
 
     /** True if the DTB address translation has completed. */
     bool
@@ -844,7 +827,7 @@ class DynInst : public ExecContext, public RefCounted
     void clearIssued() { status.reset(Issued); }
 
     /** Sets this instruction as executed. */
-    void setExecuted() { status.set(Executed); }
+    void setExecuted();
 
     /** Returns whether or not this instruction has executed. */
     bool isExecuted() const { return status[Executed]; }
@@ -1078,23 +1061,6 @@ class DynInst : public ExecContext, public RefCounted
         return cpu->getCpuAddrMonitor(threadNumber);
     }
 
-    /*** [Jiyong,STT] functions related to argProducer ***/
-    DynInstPtr
-    getArgProducer(int idx) const
-    {
-        return _argProducers[idx];
-    }
-
-    void clearArgProducer(int idx){
-        _argProducers[idx] = nullptr;
-    }
-
-    void setArgProducer(int idx, DynInstPtr &inst)
-    {
-        assert(!srcRegIdx(idx).is(InvalidRegClass));
-        _argProducers[idx] = inst;
-    }
-
   private:
     // hardware transactional memory
     uint64_t htmUid = -1;
@@ -1304,10 +1270,6 @@ class DynInst : public ExecContext, public RefCounted
     bool srcTransmitted(int src_idx) const;
     bool isTransmitter() const;
     unsigned numValidDests() const;
-
-    std::string printTaintTree() const;
-
-    bool tptConsumedTaintsPrinted = false;
 };
 
 } // namespace o3

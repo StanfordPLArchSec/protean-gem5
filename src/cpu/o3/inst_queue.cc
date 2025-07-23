@@ -1180,7 +1180,7 @@ InstructionQueue::replayMemInst(const DynInstPtr &replay_inst)
 void
 InstructionQueue::deferMemInst(const DynInstPtr &deferred_inst)
 {
-    assert(deferred_inst->fenceDelay());
+    assert(deferred_inst->taintedXmits());
     deferred_inst->stallTick = curTick();
     deferredMemInsts.push_back(deferred_inst);
 }
@@ -1217,7 +1217,7 @@ InstructionQueue::getDeferredMemInstToExecute()
         // 2. virtual fence ahead
         // 3. not ready to expose and gets a TLB miss
         // for both (2, 3) we need to restart the translation
-        if ((*it)->translationCompleted() || (*it)->isSquashed() || !(*it)->fenceDelay()) {
+        if ((*it)->translationCompleted() || (*it)->isSquashed() || (*it)->taintedXmits()) {
             DynInstPtr mem_inst = std::move(*it);
             deferredMemInsts.erase(it);
             mem_inst->unstallTick = curTick();
@@ -1564,7 +1564,7 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
             }
         } else if (inst->readyToIssue()) {
             // [Jiyong, STT]: if ready but tainted, we put it in stallList
-            assert (inst->isArgsTainted());
+            assert(inst->taintedXmits());
             if (!inst->isInStallList()) {
                 inst->addToStallList();
                 stalledTaintedInstList[inst->threadNumber].push_back(inst);
