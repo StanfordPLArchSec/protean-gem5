@@ -780,8 +780,8 @@ DynInst::hasPendingSquash(bool f)
     instFlags[HasPendingSquash] = f;
 
     // [Mieros] Sanity check.
-    if (f)
-        assert(cpu->mieros != Mieros::None && cpu->impChannel);
+    panic_if(f && !cpu->mierosImp,
+             "hasPendingSquash() when mierosImp disabled!\n");
 }
 
 } // namespace o3

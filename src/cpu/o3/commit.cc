@@ -802,7 +802,7 @@ Commit::commit()
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
           const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
-          if (cpu->mieros != Mieros::None && cpu->impChannel && inst_causing_squash->taintedXmits()) {
+          if (cpu->mierosImp && inst_causing_squash->taintedXmits()) {
                 if (fromIEW->mispredictInst[tid]) {
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,

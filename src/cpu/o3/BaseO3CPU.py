@@ -216,7 +216,7 @@ class BaseO3CPU(BaseCPU):
 
     # [TPT]
     mieros = Param.Mieros("None", "[Mieros] Enable Mieros-Delay/Track defense")
-    implicitChannel = Param.Bool(True, "[Mieros-Track] Secure implicit channels")
+    mierosImp = Param.Bool(True, "[Mieros-Track] Secure implicit channels")
     tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
     tptAcc = Param.Bool(True, "[TPT] Enable access tracking")
     tptXmit = Param.Bool(True, "[TPT] Enable protected transmitters")

@@ -609,7 +609,7 @@ class CPU : public BaseCPU
     Mieros mieros;
 
     // [TPT] whether add implicit flow protection
-    bool impChannel;
+    bool mierosImp;
 
     // [TPT] Operating mode.
     TPTMode tptMode;
