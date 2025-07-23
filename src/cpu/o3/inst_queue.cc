@@ -1563,13 +1563,6 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
                 listOrder.erase(readyIt[op_class]);
                 addToOrderList(op_class);
             }
-        } else if (inst->readyToIssue()) {
-            // [Jiyong, STT]: if ready but tainted, we put it in stallList
-            assert(inst->taintedXmits());
-            if (!inst->isInStallList()) {
-                inst->addToStallList();
-                stalledTaintedInstList[inst->threadNumber].push_back(inst);
-            }
         }
     }
 }
@@ -1703,28 +1696,6 @@ InstructionQueue::dumpInsts()
 
         inst_list_it++;
         ++num;
-    }
-}
-
-/*** [Jiyong,STT] ***/
-void
-InstructionQueue::wakeUntaintInsts()
-{
-    assert(cpu->tpt);
-    for (ThreadID tid : *activeThreads) {
-        for (auto it = stalledTaintedInstList[tid].begin(); it != stalledTaintedInstList[tid].end(); ) {
-            DynInstPtr inst = *it;
-            if (inst->isSquashed()) {
-                inst->removeFromStallList();
-                it = stalledTaintedInstList[tid].erase(it);
-            } else if (inst->readyToIssue()) {
-                inst->removeFromStallList();
-                addIfReady(inst);
-                it = stalledTaintedInstList[tid].erase(it);
-            } else {
-                it++;
-            }
-        }
     }
 }
 
