@@ -685,6 +685,9 @@ DynInst::isTransmitter() const
 bool
 DynInst::stallWritebackUntilNonspeculative() const
 {
+    if (!cpu->tpt)
+        return false;
+
     if (!predictedNoAccess())
         return false;
 
@@ -734,7 +737,7 @@ DynInst::translationStarted(bool f)
     // [Mieros-Track] Sanity checks.
     assert(!(cpu->tpt && cpu->tptXmit && f && taintedXmits()));
 }
-    
+
 
 void
 DynInst::setExecuted()
