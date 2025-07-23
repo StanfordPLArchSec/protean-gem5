@@ -572,16 +572,13 @@ ROB::updateVisibleState()
 DynInstPtr
 ROB::getResolvedPendingSquashInst(ThreadID tid)
 {
-    for (auto instIt = instList[tid].begin(); instIt != instList[tid].end(); instIt++) {
-        auto inst = (*instIt);
+    for (const DynInstPtr &inst : instList[tid])
         if (inst->hasPendingSquash()
             && !inst->taintedXmits()
             && !inst->isSquashed()  // if it's already squashed, we ignore it
-            ) {
+            )
             return inst;
-        }
-    }
-    return NULL;
+    return nullptr;
 }
 
 } // namespace o3

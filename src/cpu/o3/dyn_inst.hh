@@ -413,7 +413,7 @@ class DynInst : public ExecContext, public RefCounted
     void memOpDone(bool f) { instFlags[MemOpDone] = f; }
 
     bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
-    void hasPendingSquash(bool f) { instFlags[HasPendingSquash] = f; }
+    void hasPendingSquash(bool f);
 
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }

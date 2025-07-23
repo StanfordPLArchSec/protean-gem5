@@ -746,5 +746,15 @@ DynInst::setExecuted()
         assert(!(cpu->tpt && cpu->tptXmit && taintedXmits()));
 }
 
+void
+DynInst::hasPendingSquash(bool f)
+{
+    instFlags[HasPendingSquash] = f;
+
+    // [Mieros-Track] Sanity check.
+    if (f)
+        assert(cpu->tpt && cpu->impChannel);
+}
+
 } // namespace o3
 } // namespace gem5
