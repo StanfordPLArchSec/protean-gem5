@@ -1532,7 +1532,7 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
             }
         }
     } else {
-        if (inst->readyToIssue_UT()) {
+        if (inst->readyToIssue()) {
             //Add the instruction to the proper ready list.
             if (inst->isMemRef()) {
 
@@ -1723,13 +1723,11 @@ InstructionQueue::wakeUntaintInsts()
             if (inst->isSquashed()) {
                 inst->removeFromStallList();
                 it = stalledTaintedInstList[tid].erase(it);
-            }
-            else if (inst->readyToIssue_UT()) {
+            } else if (inst->readyToIssue()) {
                 inst->removeFromStallList();
                 addIfReady(inst);
                 it = stalledTaintedInstList[tid].erase(it);
-            }
-            else {
+            } else {
                 it++;
             }
         }

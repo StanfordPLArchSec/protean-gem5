@@ -335,20 +335,6 @@ DynInst::markSrcRegReady(RegIndex src_idx)
     markSrcRegReady();
 }
 
-/*** [Jiyong,STT] ***/
-bool
-DynInst::readyToIssue_UT() const
-{
-    // TODO: Simplify.
-    bool ret = status[CanIssue];
-
-    if (cpu->impChannel == ImplicitChannelMode::Eager && isControl() && taintedXmits())
-        ret = false;
-
-    return ret;
-}
-
-
 void
 DynInst::setSquashed()
 {

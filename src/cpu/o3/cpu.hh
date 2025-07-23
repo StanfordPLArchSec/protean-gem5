@@ -70,7 +70,6 @@
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
 #include "enums/TPTMode.hh"
-#include "enums/ImplicitChannelMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/o3/access_predictor.hh"
@@ -611,7 +610,7 @@ class CPU : public BaseCPU
     const bool &stt = tpt; // TODO: Remove this.
 
     // [TPT] whether add implicit flow protection
-    ImplicitChannelMode impChannel; // TODO: Hardcode this to boolean. Get rid of eager.
+    bool impChannel;
 
     /** [STT] Whether to enable bugfixes to restore security of STT. */
     // TODO: Should elide this and/or hardcode to true.

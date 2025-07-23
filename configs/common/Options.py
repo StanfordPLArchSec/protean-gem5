@@ -712,43 +712,44 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[PTeX] Enable page extension",
     )
 
-    # [TPT]
-    parser.add_argument("--tpt", action="store_true", help="[TPT] Enable")
+    # [Mieros-Track]
+    parser.add_argument("--mieros", action="store_true", help="[TPT] Enable")
     parser.add_argument(
-        "--implicit-channel",
-        choices=["None", "Eager", "Lazy"],
-        help="[TPT] Whether enabling defense mechanism for implicit channel",
+        "--mieros-imp",
+        action="store_true",
+        help="[Mieros-Track] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
-        "--tpt-mode",
+        "--mieros-mode",
         type=str,
-        help="[TPT] Access prediction mode",
+        default="Predict",
+        help="[Mieros-Track] Access prediction mode",
     )
     parser.add_argument(
-        "--tpt-acc",
+        "--mieros-acc",
         action="store_true",
-        help="[TPT] Enable access instructions",
+        help="[Mieros-Track] Enable access instructions",
     )
     parser.add_argument(
-        "--tpt-xmit",
+        "--mieros-xmit",
         action="store_true",
-        help="[TPT] Mitigate x-taint primitives",
+        help="[Mieros-Track] Mitigate x-taint primitives",
     )
     parser.add_argument(
-        "--tpt-pred",
+        "--mieros-pred",
         type=int,
-        default=256,
-        help="[TPT] Number of access predictor entries (0 = disabled)",
+        default=1024,
+        help="[Mieros-Track] Number of access predictor entries (0 = disabled)",
     )
     parser.add_argument(
-        "--tpt-pred-prot",
+        "--mieros-pred-prot",
         action="store_true",
-        help="[TPT] Also predict access for protected loads",
+        help="[Mieros-Track] Also predict access for protected loads",
     )
     parser.add_argument(
-        "--tpt-delay-opt",
+        "--mieros-delay-opt",
         action="store_true",
-        help="[TPT] Delay optimizations",
+        help="[Mieros-Track] Delay optimizations",
     )
 
 

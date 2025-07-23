@@ -339,24 +339,6 @@ CPU::CPU(const BaseO3CPUParams &params)
     sttBugfixes = params.sttBugfixes;
     impChannel = params.implicitChannel;
 
-    const char *imp_channel_str = nullptr;
-    switch (impChannel) {
-    case ImplicitChannelMode::None:
-      imp_channel_str = "none";
-      break;
-    case ImplicitChannelMode::Eager:
-      imp_channel_str = "eager";
-      break;
-    case ImplicitChannelMode::Lazy:
-      imp_channel_str = "lazy";
-      break;
-    default:
-      imp_channel_str = "(bad)";
-      break;
-    }
-    cprintf("applySTT = %d, implicit_channel = %s, bugfixes=%d\n",
-            stt, imp_channel_str, sttBugfixes);
-
     // Print PTeX configuration.
     static const std::map<DeclassifyMode, std::string> ptex_mem_strtab = {
         {DeclassifyMode::None, "None"},
@@ -367,20 +349,15 @@ CPU::CPU(const BaseO3CPUParams &params)
             ptex_mem_strtab.at(ptexMem), ptexPages);
 
     // Print TPT configuration.
-    static const std::map<ImplicitChannelMode, std::string> tpt_imp_strtab = {
-        {ImplicitChannelMode::None, "None"},
-        {ImplicitChannelMode::Eager, "Eager"},
-        {ImplicitChannelMode::Lazy, "Lazy"},
-    };
     static const std::map<TPTMode, std::string> tpt_mode_strtab = {
         {TPTMode::Ideal, "Ideal"},
         {TPTMode::Protected, "Protected"},
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s tptMode=%s tptAcc=%d "
+    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%d tptMode=%s tptAcc=%d "
             "tptXmit=%d tptDelayOpt=%d tptPred=%d\n",
-            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
+            tpt, sttBugfixes, impChannel, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
             tptDelayOpt, params.tptPred);
 }
 

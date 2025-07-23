@@ -70,10 +70,6 @@ class TPTMode(ScopedEnum):
     vals = ["Protected", "Unprotected", "Predict", "Ideal"]
 
 
-class ImplicitChannelMode(ScopedEnum):
-    vals = ["None", "Eager", "Lazy"]
-
-
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
     cxx_class = "gem5::o3::CPU"
@@ -219,10 +215,7 @@ class BaseO3CPU(BaseCPU):
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
     sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")
-    implicitChannel = Param.ImplicitChannelMode(
-        "None", "[TPT] How to handle implicit channels"
-    )
-    moreTransmitInsts = Param.Int(0, "More transmit instruction types")
+    implicitChannel = Param.Bool(True, "[Mieros-Track] Secure implicit channels")
     tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
     tptAcc = Param.Bool(True, "[TPT] Enable access tracking")
     tptXmit = Param.Bool(True, "[TPT] Enable protected transmitters")

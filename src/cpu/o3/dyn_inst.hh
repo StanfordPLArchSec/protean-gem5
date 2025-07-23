@@ -799,9 +799,6 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns whether or not this instruction is ready to issue. */
     bool readyToIssue() const { return status[CanIssue]; }
 
-    /** [STT] */
-    bool readyToIssue_UT() const;
-
     /** Clears this instruction being able to issue. */
     void clearCanIssue() { status.reset(CanIssue); }
 
