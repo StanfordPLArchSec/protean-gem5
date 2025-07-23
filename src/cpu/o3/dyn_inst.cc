@@ -683,10 +683,26 @@ DynInst::isTransmitter() const
 }
 
 bool
-DynInst::stallWritebackUntilNonspeculative() const
+DynInst::delayWakeup() const
 {
-    if (!cpu->tpt)
+    switch (cpu->mieros) {
+      case Mieros::None:
         return false;
+
+      case Mieros::Delay:
+        return delayWakeupDelay();
+
+      case Mieros::Track:
+        return delayWakeupTrack();
+
+      default: panic("Bad Mieros mode\n");
+    }
+}
+
+bool
+DynInst::delayWakeupTrack() const
+{
+    assert(cpu->mieros == Mieros::Track);
 
     if (!predictedNoAccess())
         return false;
@@ -714,6 +730,12 @@ DynInst::stallWritebackUntilNonspeculative() const
 }
 
 bool
+DynInst::delayWakeupDelay() const
+{
+    panic("delayWakeupDelay: unimplemented!\n");
+}
+
+bool
 DynInst::taintedXmits() const
 {
     if (isUnsquashable())
@@ -735,7 +757,9 @@ DynInst::translationStarted(bool f)
     instFlags[TranslationStarted] = f;
 
     // [Mieros-Track] Sanity checks.
-    assert(!(cpu->tpt && cpu->tptXmit && f && taintedXmits()));
+    panic_if(cpu->mieros != Mieros::None &&
+             cpu->tptXmit && f && taintedXmits(),
+             "translationStarted for tainted transmitter!\n");
 }
 
 
@@ -745,8 +769,9 @@ DynInst::setExecuted()
     status.set(Executed);
 
     // [Mieros-Track] Sanity checks.
-    if ((isLoad() || isStore()) && !isSquashed())
-        assert(!(cpu->tpt && cpu->tptXmit && taintedXmits()));
+    panic_if(cpu->mieros != Mieros::None && cpu->tptXmit &&
+             isMemRef() && !isSquashed() && taintedXmits(),
+             "setExecuted for tainted transmitter!\n");
 }
 
 void
@@ -754,9 +779,9 @@ DynInst::hasPendingSquash(bool f)
 {
     instFlags[HasPendingSquash] = f;
 
-    // [Mieros-Track] Sanity check.
+    // [Mieros] Sanity check.
     if (f)
-        assert(cpu->tpt && cpu->impChannel);
+        assert(cpu->mieros != Mieros::None && cpu->impChannel);
 }
 
 } // namespace o3

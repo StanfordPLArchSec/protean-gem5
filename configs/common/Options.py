@@ -713,7 +713,12 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     )
 
     # [Mieros-Track]
-    parser.add_argument("--mieros", action="store_true", help="[TPT] Enable")
+    parser.add_argument(
+        "--mieros",
+        choices=["None", "Delay", "Track"],
+        default="None",
+        help="[Mieros] Enable the Mieros-Delay/Track defense",
+    )
     parser.add_argument(
         "--mieros-imp",
         action="store_true",

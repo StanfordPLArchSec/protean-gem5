@@ -1173,7 +1173,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     }
 
     // [Mieros-Track] Need to insert instruction into queue to commit
-    if (inst->stallWritebackUntilNonspeculative()) {
+    if (inst->delayWakeup()) {
         delaySpeculativeWriteback(inst);
     } else {
         iewStage->instToCommit(inst);
@@ -1652,7 +1652,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     DPRINTF(LSQUnit, "Doing memory access for inst [sn:%lli] PC %s\n",
             load_inst->seqNum, load_inst->pcState());
 
-    if (cpu->tpt && load_inst->loadProtection() == Unprotected) {
+    if (cpu->mieros != Mieros::None && load_inst->loadProtection() == Unprotected) {
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
@@ -1750,7 +1750,7 @@ LSQUnit::tick()
         if (inst->isSquashed()) {
             it = delayedWritebackQueue.erase(it);
             DPRINTF(TPT, "Removing squashed load [sn:%u] from delayed writeback queue\n", inst->seqNum);
-        } else if (!inst->stallWritebackUntilNonspeculative()) {
+        } else if (!inst->delayWakeup()) {
           iewStage->instToCommit(inst);
           iewStage->activityThisCycle();
           it = delayedWritebackQueue.erase(it);
@@ -1760,6 +1760,7 @@ LSQUnit::tick()
           DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
                   inst->seqNum, delayedWritebackQueue.size());
         } else {
+            // MIEROS-TODO: Fixme. Not sure we should have this isAccess() call.
             if (inst->isAccess())
                 cpu->iew.instQueue.wakeDependentsTainted(*it);
             ++it;

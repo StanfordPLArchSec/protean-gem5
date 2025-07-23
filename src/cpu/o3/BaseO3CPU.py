@@ -69,6 +69,8 @@ class DeclassifyMode(ScopedEnum):
 class TPTMode(ScopedEnum):
     vals = ["Protected", "Unprotected", "Predict", "Ideal"]
 
+class Mieros(ScopedEnum):
+    vals = ["None", "Delay", "Track"]
 
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
@@ -213,7 +215,7 @@ class BaseO3CPU(BaseCPU):
     ptexPages = Param.Bool(True, "[PTeX] Enable page extension")
 
     # [TPT]
-    tpt = Param.Bool(False, "Enable TPT")
+    mieros = Param.Mieros("None", "[Mieros] Enable Mieros-Delay/Track defense")
     implicitChannel = Param.Bool(True, "[Mieros-Track] Secure implicit channels")
     tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
     tptAcc = Param.Bool(True, "[TPT] Enable access tracking")

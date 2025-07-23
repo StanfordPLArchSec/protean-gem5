@@ -1162,9 +1162,9 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            // [Mieros-Track] Stall loads/stores with tainted inputs.
+            // [Mieros] Stall loads/stores with tainted inputs.
             assert(inst->isLoad() || inst->isStore());
-            if (cpu->tpt && cpu->tptXmit && inst->taintedXmits()) {
+            if (cpu->mieros != Mieros::None && cpu->tptXmit && inst->taintedXmits()) {
                 assert(!inst->translationStarted());
                 instQueue.deferMemInst(inst);
                 continue;
@@ -1245,7 +1245,7 @@ IEW::executeInsts()
 
             inst->setExecuted();
 
-            if (cpu->tptAcc && !inst->isUnsquashable() && inst->stallWritebackUntilNonspeculative()) {
+            if (cpu->tptAcc && !inst->isUnsquashable() && inst->delayWakeup()) {
                 ldstQueue.thread[inst->threadNumber].delaySpeculativeWriteback(inst);
                 instQueue.wakeDependentsTainted(inst);
             } else {

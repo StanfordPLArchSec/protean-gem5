@@ -116,6 +116,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       lastRunningCycle(curCycle()),
       cpuStats(this),
       ptexPages(params.ptexPages),
+      mieros(params.mieros),
+      impChannel(params.implicitChannel),
       tptMode(params.tptMode),
       tptAcc(params.tptAcc),
       tptXmit(params.tptXmit),
@@ -334,10 +336,6 @@ CPU::CPU(const BaseO3CPUParams &params)
     // [PTeX] Set PTeX enable and PTeX memory implementation.
     ptexMem = params.ptexMem;
 
-    /*** [STT] additional configurations ***/
-    tpt = params.tpt;
-    impChannel = params.implicitChannel;
-
     // Print PTeX configuration.
     static const std::map<DeclassifyMode, std::string> ptex_mem_strtab = {
         {DeclassifyMode::None, "None"},
@@ -348,15 +346,20 @@ CPU::CPU(const BaseO3CPUParams &params)
             ptex_mem_strtab.at(ptexMem), ptexPages);
 
     // Print TPT configuration.
+    static const std::map<Mieros, std::string> mieros_to_str = {
+        {Mieros::None, "None"},
+        {Mieros::Delay, "Delay"},
+        {Mieros::Track, "Track"},
+    };
     static const std::map<TPTMode, std::string> tpt_mode_strtab = {
         {TPTMode::Ideal, "Ideal"},
         {TPTMode::Protected, "Protected"},
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d impChannel=%d tptMode=%s tptAcc=%d "
+    cprintf("[*] Mieros configuration: mieros=%s impChannel=%d tptMode=%s tptAcc=%d "
             "tptXmit=%d tptDelayOpt=%d tptPred=%d\n",
-            tpt, impChannel, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
+            mieros_to_str.at(mieros), impChannel, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
             tptDelayOpt, params.tptPred);
 }
 

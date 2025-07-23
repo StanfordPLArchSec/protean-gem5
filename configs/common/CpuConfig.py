@@ -84,7 +84,7 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.speculationModel = options.speculation_model
             cpu.ptexMem = options.ptex_mem
             cpu.ptexPages = options.ptex_pages
-            cpu.tpt = options.mieros
+            cpu.mieros = options.mieros
             cpu.implicitChannel = options.mieros_imp
             cpu.tptMode = options.mieros_mode
             cpu.tptAcc = options.mieros_acc

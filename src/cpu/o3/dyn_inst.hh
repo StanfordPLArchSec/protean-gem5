@@ -1247,7 +1247,13 @@ class DynInst : public ExecContext, public RefCounted
     void setReadUnprotectedMem() { instFlags[ReadUnprotectedMem] = true; }
     bool predictedNoAccess() const { return instFlags[PredictedNoAccess]; }
     void setPredictedNoAccess() { instFlags[PredictedNoAccess] = true; }
-    bool stallWritebackUntilNonspeculative() const;
+    bool delayWakeup() const;
+
+  private:
+    bool delayWakeupDelay() const;
+    bool delayWakeupTrack() const;
+
+  public:
 
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;

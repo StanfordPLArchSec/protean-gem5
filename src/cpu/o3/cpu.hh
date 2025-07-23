@@ -74,6 +74,7 @@
 #include "sim/process.hh"
 #include "cpu/o3/access_predictor.hh"
 #include "cpu/ptex.hh"
+#include "enums/Mieros.hh"
 
 namespace gem5
 {
@@ -604,9 +605,8 @@ class CPU : public BaseCPU
     DeclassifyMode ptexMem;
     bool ptexPages;
 
-
-    // [TPT] Enable TPT.
-    bool tpt;
+    /** [Mieros] */
+    Mieros mieros;
 
     // [TPT] whether add implicit flow protection
     bool impChannel;

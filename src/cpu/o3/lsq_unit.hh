@@ -582,6 +582,7 @@ class LSQUnit
 
     void tick();
     std::list<DynInstPtr> delayedWritebackQueue;
+    // MIEROS-TODO: Rename.
     void delaySpeculativeWriteback(const DynInstPtr &inst);
 };
 
