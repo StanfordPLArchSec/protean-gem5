@@ -87,7 +87,6 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.mieros = options.mieros
             cpu.mierosImp = not options.mieros_no_imp
             cpu.tptMode = options.mieros_mode
-            cpu.tptXmit = options.mieros_xmit
             cpu.tptPred = options.mieros_pred
             cpu.tptPredProt = options.mieros_pred_prot
             cpu.tptDelayOpt = options.mieros_delay_opt

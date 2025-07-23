@@ -1164,7 +1164,7 @@ IEW::executeInsts()
 
             // [Mieros] Stall loads/stores with tainted inputs.
             assert(inst->isLoad() || inst->isStore());
-            if (cpu->mieros != Mieros::None && cpu->tptXmit && inst->taintedXmits()) {
+            if (cpu->mieros != Mieros::None && inst->taintedXmits()) {
                 assert(!inst->translationStarted());
                 instQueue.deferMemInst(inst);
                 continue;

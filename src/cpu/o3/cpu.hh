@@ -614,8 +614,6 @@ class CPU : public BaseCPU
     // [TPT] Operating mode.
     TPTMode tptMode;
 
-    // [TPT] Enable r-taint, m-taint, x-taint primitives.
-    const bool tptXmit;
     const bool tptDelayOpt;
 
     AccessPredictor accessPred;

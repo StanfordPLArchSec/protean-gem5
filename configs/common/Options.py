@@ -731,16 +731,6 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[Mieros-Track] Access prediction mode",
     )
     parser.add_argument(
-        "--mieros-acc",
-        action="store_true",
-        help="[Mieros-Track] Enable access instructions",
-    )
-    parser.add_argument(
-        "--mieros-xmit",
-        action="store_true",
-        help="[Mieros-Track] Mitigate x-taint primitives",
-    )
-    parser.add_argument(
         "--mieros-pred",
         type=int,
         default=1024,

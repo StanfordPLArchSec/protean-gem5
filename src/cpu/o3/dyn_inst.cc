@@ -627,13 +627,10 @@ DynInst::disassembleWithProt() const
 bool
 DynInst::isProtectedTransmitter() const
 {
-    if (!cpu->tptXmit)
-        return false;
-
+    // NOTE: This is only being called for stats now.
     for (int src_idx = 0; src_idx < numSrcs(); ++src_idx)
         if (srcTransmitted(src_idx) && srcProt(src_idx) == Protected)
             return true;
-
     return false;
 }
 
@@ -759,8 +756,7 @@ DynInst::translationStarted(bool f)
     instFlags[TranslationStarted] = f;
 
     // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None &&
-             cpu->tptXmit && f && taintedXmits(),
+    panic_if(cpu->mieros != Mieros::None && f && taintedXmits(),
              "translationStarted for tainted transmitter!\n");
 }
 
@@ -771,7 +767,7 @@ DynInst::setExecuted()
     status.set(Executed);
 
     // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None && cpu->tptXmit &&
+    panic_if(cpu->mieros != Mieros::None &&
              isMemRef() && !isSquashed() && taintedXmits(),
              "setExecuted for tainted transmitter!\n");
 }
