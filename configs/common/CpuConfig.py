@@ -88,6 +88,7 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.implicitChannel = options.implicit_channel
             cpu.moreTransmitInsts = options.more_transmit_insts
             cpu.tptMode = options.tpt_mode
-            cpu.tptReg = options.tpt_reg
-            cpu.tptMem = options.tpt_mem
+            cpu.tptAcc = options.tpt_acc
             cpu.tptXmit = options.tpt_xmit
+            cpu.tptPred = options.tpt_pred
+            cpu.tptPredProt = options.tpt_pred_prot

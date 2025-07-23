@@ -205,7 +205,7 @@ class DynInst : public ExecContext, public RefCounted
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
         // [TPT]
         ReadUnprotectedMem,      /// [TPT] An unprotected load read from unprotected memory.
-        NoPrevTaintPrimitive,    /// [TPT] Is there an older taint primitive? Used for YRoT stuff.
+        PredictedNoAccess,         /// [TPT] We predicted this instruction is NOT an access instruction.
         MaxFlags
     };
 
@@ -1115,6 +1115,7 @@ class DynInst : public ExecContext, public RefCounted
 #endif
     Tick stallTick = -1;
     Tick unstallTick = -1;
+    Tick delayedWritebackTick = -1;
 
     /* Values used by LoadToUse stat */
     Tick firstIssue = -1;
@@ -1288,21 +1289,19 @@ class DynInst : public ExecContext, public RefCounted
     std::string disassembleWithProt() const;
 
     /** [TPT] Is this instruction an r-taint or m-taint primitive? */
-    bool isTaintPrimitive() const;
-    bool isMemTaintPrimitive() const;
-    bool isRegTaintPrimitive() const;
+    bool isAccess();
     bool isProtectedTransmitter() const;
 
     /** [TPT] Did a load read unprotected memory? */
     bool readUnprotectedMem() const { return instFlags[ReadUnprotectedMem]; }
     void setReadUnprotectedMem() { instFlags[ReadUnprotectedMem] = true; }
-
-    /** [TPT] Is this the youngest taint primitive? */
-    bool noPrevTaintPrimitive() const { return instFlags[NoPrevTaintPrimitive]; }
-    void setNoPrevTaintPrimitive() { instFlags[NoPrevTaintPrimitive] = true; }
+    bool predictedNoAccess() const { return instFlags[PredictedNoAccess]; }
+    void setPredictedNoAccess() { instFlags[PredictedNoAccess] = true; }
+    bool stallWritebackUntilNonspeculative() const;
 
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
+    bool isTransmitter() const;
     unsigned numValidDests() const;
 
     std::string printTaintTree() const;

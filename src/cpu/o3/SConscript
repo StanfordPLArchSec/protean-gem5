@@ -61,6 +61,7 @@ if env['CONF']['BUILD_ISA']:
     Source('thread_state.cc')
     Source('safe_spec_unit.cc') # PTEX-TODO: Rename + consolidate.
     Source('declassification_table.cc')
+    Source('access_predictor.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
@@ -80,6 +81,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('TPTRetire')
     DebugFlag('TransmitterStalls')
     DebugFlag('TransmitterStallsVerbose')
+    DebugFlag('AccessPredictor')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',

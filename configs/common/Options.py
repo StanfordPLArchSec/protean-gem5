@@ -728,24 +728,29 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     )
     parser.add_argument(
         "--tpt-mode",
-        choices=["None", "Naive", "Ideal", "YRoT"],
-        default="Ideal",
-        help="[TPT] TPT mode",
+        type=str,
+        help="[TPT] Access prediction mode",
     )
     parser.add_argument(
-        "--tpt-reg",
+        "--tpt-acc",
         action="store_true",
-        help="[TPT] Mitigate r-taint primitives",
-    )
-    parser.add_argument(
-        "--tpt-mem",
-        action="store_true",
-        help="[TPT] Mitigate m-taint primitives",
+        help="[TPT] Enable access instructions",
     )
     parser.add_argument(
         "--tpt-xmit",
         action="store_true",
         help="[TPT] Mitigate x-taint primitives",
+    )
+    parser.add_argument(
+        "--tpt-pred",
+        type=int,
+        default=256,
+        help="[TPT] Number of access predictor entries (0 = disabled)",
+    )
+    parser.add_argument(
+        "--tpt-pred-prot",
+        action="store_true",
+        help="[TPT] Also predict access for protected loads",
     )
 
 

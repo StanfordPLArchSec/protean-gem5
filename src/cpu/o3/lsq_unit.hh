@@ -556,7 +556,9 @@ class LSQUnit
         statistics::Scalar ptexProtUnprotForwards;
         statistics::Scalar ptexProtProtForwards;
         statistics::Scalar ptexUnprotProtForwards;
-        statistics::Scalar tptUnprotUnprotForwards; 
+        statistics::Scalar tptUnprotUnprotForwards;
+        statistics::Scalar delayedWritebackTicks;
+        statistics::Scalar delayedWritebackCount;
     } stats;
 
   public:
@@ -583,6 +585,10 @@ class LSQUnit
   public:
     typedef typename CircularQueue<LQEntry>::iterator LQIterator;
     typedef typename CircularQueue<SQEntry>::iterator SQIterator;
+
+    void tick();
+    std::list<DynInstPtr> delayedWritebackQueue;
+    void delaySpeculativeWriteback(const DynInstPtr &inst);
 };
 
 } // namespace o3

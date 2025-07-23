@@ -52,6 +52,7 @@
 #include "enums/OpClass.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/core.hh"
+#include "debug/TPT.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std
@@ -1077,6 +1078,57 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
         // Mark the scoreboard as having that register ready.
         regScoreboard[dest_reg->flatIndex()] = true;
     }
+    return dependents;
+}
+
+int
+InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
+{
+    DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
+            completed_inst->disassembleWithProt());
+    assert(!completed_inst->isUnsquashable());
+    assert(!completed_inst->isSquashed());
+    assert(cpu->tptAcc);
+
+    DPRINTF(IQ, "Waking dependents of completed but tainted instruction.\n");
+
+    int dependents = 0;
+
+    for (int dest_reg_idx = 0;
+         dest_reg_idx < completed_inst->numDestRegs();
+         ++dest_reg_idx) {
+        const PhysRegIdPtr dest_reg =
+            completed_inst->renamedDestIdx(dest_reg_idx);
+        assert(!dest_reg->isPinned());
+
+        std::vector<DynInstPtr> delayed_deps;
+        while (true) {
+            const DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
+            if (!dep_inst)
+                break;
+
+            // Is this instruction eligible for operating on tainted data?
+            // - An input or output is protected.
+            // - It's not a transmitter.
+            const bool eligible = ((dep_inst->inputProtection() == Protected ||
+                                    dep_inst->outputProtection() == Protected) &&
+                                   !dep_inst->isTransmitter());
+            if (!eligible) {
+                delayed_deps.push_back(dep_inst);
+                continue;
+            }
+
+            // Mark the instruction as ready.
+            dep_inst->markSrcRegReady();
+            addIfReady(dep_inst);
+            ++dependents;
+        }
+
+        std::reverse(delayed_deps.begin(), delayed_deps.end());
+        for (const DynInstPtr &dep : delayed_deps)
+            dependGraph.insert(dest_reg->flatIndex(), dep);
+    }
+
     return dependents;
 }
 

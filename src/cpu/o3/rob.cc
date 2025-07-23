@@ -611,7 +611,7 @@ ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
         return;
     }
 
-    if (!inst->isMemRef() && !inst->isRegTaintPrimitive()) {
+    if (!inst->isMemRef()) {
         std::set<InstSeqNum> tainted_producers;
         for (int i = 0; i < inst->numSrcRegs(); i++) {
             if (inst->getArgProducer(i)) {
@@ -625,13 +625,15 @@ ROB::explicit_flow(ThreadID tid, DynInstPtr &inst)
         if (!inst->tptConsumedTaintsPrinted) {
             inst->tptConsumedTaintsPrinted = true;
             const std::string prot = inst->outputProtection() == Protected ? "prot" : "unprot";
+#if 0
             DPRINTFR(TPT, "TPT consume %d %s %#x\n",
                      tainted_producers.size(),
                      prot, inst->pcState().instAddr());
+#endif
         }
     }
-    
-        
+
+
     for (int i = 0; i < inst->numSrcRegs(); i++){
         // TPT-TODO: Need to set hasExplicitFlow(true)
         // if it's a protected transmitter.
@@ -656,7 +658,7 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
 
     if (!inst->isMemRef())
         return;
-        
+
     // [TPT] If the address operand itself is protected.
     if (inst->isProtectedTransmitter() && !inst->isUnsquashable()) {
         DPRINTFR(TransmitterStallsVerbose, "tainting address of protected load %#x\n",
@@ -676,7 +678,7 @@ ROB::address_flow(ThreadID tid, DynInstPtr &inst)
                              inst->srcRegIdx(i));
                     DPRINTFR(TransmitterStallsVerbose, "taint traceback of memref %#x: %s\n",
                              inst->pcState().instAddr(), inst->printTaintTree());
-                    return;                        
+                    return;
                 }
             }
         }
@@ -692,8 +694,6 @@ ROB::compute_taint()
         if (instList[tid].empty())
             continue;
 
-        bool prev_taint_primitive = false;
-
         for (DynInstPtr &inst : instList[tid]) {
             explicit_flow(tid, inst);
             address_flow(tid, inst);
@@ -702,12 +702,8 @@ ROB::compute_taint()
 
             inst->isDestTainted(inst->isArgsTainted());
 
-            if (!prev_taint_primitive)
-              inst->setNoPrevTaintPrimitive();
-
-            if (inst->isTaintPrimitive() && !inst->isUnsquashable()) {
+            if (inst->isAccess() && !inst->isUnsquashable()) {
                 inst->isDestTainted(true);
-                prev_taint_primitive = true;
             }
         }
     }

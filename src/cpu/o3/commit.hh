@@ -513,9 +513,10 @@ class Commit
 
         /** [TPT] */
         statistics::Scalar regTaints, memTaints, xmitTaints;
+        statistics::Scalar predAccess, predNoAccess, mispredAccess, mispredNoAccess;
     } stats;
 
-    void printTaintDebug(const DynInstPtr &inst,  const char *type) const;
+    void printTaintDebug(const DynInstPtr &inst,  const std::string &type) const;
 };
 
 } // namespace o3

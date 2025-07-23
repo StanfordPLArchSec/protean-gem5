@@ -67,10 +67,12 @@ class DeclassifyMode(ScopedEnum):
 
 
 class TPTMode(ScopedEnum):
-    vals = ["Naive", "Ideal", "YRoT", "None"]
+    vals = ["Protected", "Unprotected", "Predict", "Ideal"]
+
 
 class ImplicitChannelMode(ScopedEnum):
     vals = ["None", "Eager", "Lazy"]
+
 
 class BaseO3CPU(BaseCPU):
     type = "BaseO3CPU"
@@ -213,13 +215,18 @@ class BaseO3CPU(BaseCPU):
         "[PTeX] Memory declassification implementation",
     )
     ptexPages = Param.Bool(True, "[PTeX] Enable page extension")
-        
+
     # [TPT]
     tpt = Param.Bool(False, "Enable TPT")
     sttBugfixes = Param.Bool(True, "[STT] Apply bugfixes to restore security")
-    implicitChannel = Param.ImplicitChannelMode("None", "[TPT] How to handle implicit channels")
+    implicitChannel = Param.ImplicitChannelMode(
+        "None", "[TPT] How to handle implicit channels"
+    )
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
-    tptMode = Param.TPTMode("Naive", "TPT Mode")
-    tptReg = Param.Bool(True, "[TPT] Enable r-taint primitives")
-    tptMem = Param.Bool(True, "[TPT] Enable m-taint primitives")
-    tptXmit = Param.Bool(True, "[TPT] Enable x-taint primitives")
+    tptMode = Param.TPTMode("Predict", "[TPT] Access mode")
+    tptAcc = Param.Bool(True, "[TPT] Enable access tracking")
+    tptXmit = Param.Bool(True, "[TPT] Enable protected transmitters")
+    tptPred = Param.Int(0, "[TPT] Enable access predictor")
+    tptPredProt = Param.Bool(
+        False, "[TPT] Predict access for protected loads, too"
+    )

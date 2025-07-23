@@ -180,7 +180,11 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
       ADD_STAT(memTaints, statistics::units::Count::get(),
                "[TPT] Number of m-taint primitives"),
       ADD_STAT(xmitTaints, statistics::units::Count::get(),
-               "[TPT] Number of x-taint primitives")      
+               "[TPT] Number of x-taint primitives"),
+      ADD_STAT(predAccess, statistics::units::Count::get(), "[TPT] Correctly predicted access loads"),
+      ADD_STAT(predNoAccess, statistics::units::Count::get(), "[TPT] Correctly predicted no-access loads"),
+      ADD_STAT(mispredAccess, statistics::units::Count::get(), "[TPT] Mispredicted access loads"),
+      ADD_STAT(mispredNoAccess, statistics::units::Count::get(), "[TPT] Mispredicted no-access loads")
 {
     using namespace statistics;
 
@@ -810,7 +814,7 @@ Commit::commit()
                             inst_causing_squash->pcState());
                     ++stats.stalledBranchMispredicts;
                 } else {
-                    DPRINTF(Commit, "[tid:%i]: (Lazy) A load mispredictInst [sn:%lli,0x%lx] PC %s is made pending.\n", 
+                    DPRINTF(Commit, "[tid:%i]: (Lazy) A load mispredictInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
                             inst_causing_squash->seqNum,
                             inst_causing_squash->seqNum,
@@ -1225,6 +1229,11 @@ Commit::commitInsts()
                 if (!interrupt && avoidQuiesceLiveLock &&
                     onInstBoundary && cpu->checkInterrupts(0))
                     squashAfter(tid, head_inst);
+
+                // [TPT] Update the access predictor.
+                if (head_inst->isLoad())
+                    cpu->accessPred.update(*head_inst, head_inst->readUnprotectedMem() ?
+                                           Unprotected : Protected);
             } else {
                 DPRINTF(Commit, "Unable to commit head instruction PC:%s "
                         "[tid:%i] [sn:%llu].\n",
@@ -1429,15 +1438,6 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     // [TPT] Taint primitive stats.
     if (debug::TPTRetire)
         printTaintDebug(head_inst, "retire");
-    if (head_inst->isRegTaintPrimitive()) {
-        stats.regTaints++;
-        printTaintDebug(head_inst, "reg");
-    }
-    if (head_inst->isMemTaintPrimitive()) {
-        stats.memTaints++;
-        printTaintDebug(head_inst, "mem");
-        DPRINTFR(TPT, "TPT mem-page %#x\n", head_inst->effAddr & ~Addr(0xFFF));
-    }
     if (head_inst->isProtectedTransmitter()) {
         stats.xmitTaints++;
         printTaintDebug(head_inst, "xmit");
@@ -1454,6 +1454,28 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
                  cpu->totalOps(), pc,
                  unstallTick - head_inst->stallTick,
                  head_inst->staticInst->disassemble(pc));
+    }
+    if (head_inst->isLoad()) {
+        const std::string pred = head_inst->predictedNoAccess() ? "n" : "a";
+        const std::string real = head_inst->readUnprotectedMem() ? "n" : "a";
+        const std::string prot = head_inst->loadProtection() == Protected ? "p" : "u";
+        printTaintDebug(head_inst, std::string("pred-") + pred + real + prot);
+
+        if (head_inst->predictedNoAccess() && head_inst->readUnprotectedMem()) {
+            // Correct prediction of 'no access'
+            ++stats.predNoAccess;
+        } else if (head_inst->predictedNoAccess() && !head_inst->readUnprotectedMem()) {
+            // Incorrect prediction of 'no access'.
+            ++stats.mispredNoAccess;
+        } else if (!head_inst->predictedNoAccess() && head_inst->readUnprotectedMem()) {
+            // Incorrect prediction of 'access'.
+            ++stats.mispredAccess;
+        } else if (!head_inst->predictedNoAccess() && !head_inst->readUnprotectedMem()) {
+            // Correct prediction of 'access'.
+            ++stats.predAccess;
+        } else {
+            panic("impossible\n");
+        }
     }
 
     if (head_inst->isStore() && head_inst->storeProtection() == Protected)
@@ -1709,7 +1731,7 @@ Commit::oldestReady()
 }
 
 void
-Commit::printTaintDebug(const DynInstPtr &inst, const char *type) const
+Commit::printTaintDebug(const DynInstPtr &inst, const std::string &type) const
 {
     const Addr inst_addr = inst->pcState().instAddr();
     DPRINTFR(TPT, "TPT %s %#x :: %s\n",

@@ -116,9 +116,10 @@ CPU::CPU(const BaseO3CPUParams &params)
       lastRunningCycle(curCycle()),
       cpuStats(this),
       ptexPages(params.ptexPages),
-      tptReg(params.tptReg),
-      tptMem(params.tptMem),
-      tptXmit(params.tptXmit)
+      tptMode(params.tptMode),
+      tptAcc(params.tptAcc),
+      tptXmit(params.tptXmit),
+      accessPred(params.tptPred, params.tptPredProt)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -338,7 +339,6 @@ CPU::CPU(const BaseO3CPUParams &params)
     impChannel = params.implicitChannel;
     moreTransmitInsts = params.moreTransmitInsts;
     assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
-    tptMode = params.tptMode;
 
     const char *imp_channel_str = nullptr;
     switch (impChannel) {
@@ -374,13 +374,14 @@ CPU::CPU(const BaseO3CPUParams &params)
         {ImplicitChannelMode::Lazy, "Lazy"},
     };
     static const std::map<TPTMode, std::string> tpt_mode_strtab = {
-        {TPTMode::Naive, "Naive"},
         {TPTMode::Ideal, "Ideal"},
-        {TPTMode::YRoT, "YRoT"},
-        {TPTMode::None, "None"},
+        {TPTMode::Protected, "Protected"},
+        {TPTMode::Unprotected, "Unprotected"},
+        {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptReg=%d tptMem=%d tptXmit=%d\n",
-            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), moreTransmitInsts, tpt_mode_strtab.at(tptMode), tptReg, tptMem, tptXmit);
+    cprintf("[*] TPT configuration: tpt=%d sttBugfixes=%d impChannel=%s moreTransmitInsts=%d tptMode=%s tptAcc=%d tptXmit=%d tptPred=%d\n",
+            tpt, sttBugfixes, tpt_imp_strtab.at(impChannel), moreTransmitInsts, tpt_mode_strtab.at(tptMode), tptAcc, tptXmit,
+            params.tptPred);
 }
 
 void

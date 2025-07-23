@@ -106,6 +106,8 @@ class DependencyGraph
     /** Removes an instruction from a single linked list. */
     void remove(RegIndex idx, const DynInstPtr &inst_to_remove);
 
+    DynInstPtr peek(RegIndex idx);
+
     /** Removes and returns the newest dependent of a specific register. */
     DynInstPtr pop(RegIndex idx);
 
@@ -227,7 +229,8 @@ DependencyGraph<DynInstPtr>::remove(RegIndex idx,
         curr = curr->next;
         nodesTraversed++;
 
-        assert(curr != NULL);
+        if (!curr)
+            return;
     }
 
     // Now remove this instruction from the list.
@@ -239,6 +242,15 @@ DependencyGraph<DynInstPtr>::remove(RegIndex idx,
     curr->inst = NULL;
 
     delete curr;
+}
+
+template <class DynInstPtr>
+DynInstPtr
+DependencyGraph<DynInstPtr>::peek(RegIndex idx)
+{
+    if (DepEntry *node = dependGraph[idx].next)
+        return node->inst;
+    return nullptr;
 }
 
 template <class DynInstPtr>

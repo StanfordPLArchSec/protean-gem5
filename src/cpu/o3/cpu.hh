@@ -73,6 +73,7 @@
 #include "enums/ImplicitChannelMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
+#include "cpu/o3/access_predictor.hh"
 
 namespace gem5
 {
@@ -621,7 +622,11 @@ class CPU : public BaseCPU
     TPTMode tptMode;
 
     // [TPT] Enable r-taint, m-taint, x-taint primitives.
-    const bool tptReg, tptMem, tptXmit;
+    const bool tptAcc, tptXmit;
+
+    AccessPredictor accessPred;
+
+    friend class LSQUnit;
 };
 
 } // namespace o3

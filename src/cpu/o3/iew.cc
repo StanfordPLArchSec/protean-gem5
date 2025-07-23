@@ -1262,7 +1262,12 @@ IEW::executeInsts()
 
             inst->setExecuted();
 
-            instToCommit(inst);
+            if (cpu->tptAcc && !inst->isUnsquashable() && inst->stallWritebackUntilNonspeculative()) {
+                ldstQueue.thread[inst->threadNumber].delaySpeculativeWriteback(inst);
+                instQueue.wakeDependentsTainted(inst);
+            } else {
+                instToCommit(inst);
+            }
         }
 
         updateExeInstStats(inst);

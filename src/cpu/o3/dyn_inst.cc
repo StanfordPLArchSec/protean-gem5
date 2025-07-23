@@ -670,53 +670,6 @@ DynInst::disassembleWithProt() const
 }
 
 bool
-DynInst::isMemTaintPrimitive() const
-{
-    if (!cpu->tptMem)
-        return false;
-
-    if (!isLoad())
-        return false;
-
-    switch (cpu->tptMode) {
-      case TPTMode::None:
-        // Treat all speculative loads as taint primitives (vanilla STT).
-        return true;
-
-      case TPTMode::Naive:
-        // Naively treat all unprotected loads as taint primitives.
-        return loadProtection() == Unprotected;
-
-      case TPTMode::YRoT:
-        return loadProtection() == Unprotected &&
-          !(readUnprotectedMem() && noPrevTaintPrimitive());
-
-      case TPTMode::Ideal:
-        // It's a taint primitive if it read from protected memory.
-        // If the load hasn't executed yet, then it's possibly a taint primitive.
-        // This flag isn't set until the load has been observed to read from
-        // unprotected memory.
-        return loadProtection() == Unprotected && !readUnprotectedMem();
-
-      default: panic("unreachable!\n");
-    }
-}
-
-bool
-DynInst::isRegTaintPrimitive() const
-{
-    if (!cpu->tptReg)
-        return false;
-
-    if (isLoad())
-        return false;
-
-    return
-        outputProtection() == Unprotected &&
-        inputProtection() == Protected;
-}
-
-bool
 DynInst::isProtectedTransmitter() const
 {
     if (!cpu->tptXmit)
@@ -730,12 +683,44 @@ DynInst::isProtectedTransmitter() const
 }
 
 bool
-DynInst::isTaintPrimitive() const
+DynInst::isAccess()
 {
-    if (isLoad()) {
-        return isMemTaintPrimitive();
-    } else {
-        return isRegTaintPrimitive();
+    // Nothing is an access instruction if we haven't enabled access tracking.
+    if (!cpu->tptAcc)
+        return false;
+
+    // If any register inputs are protected, then it's an access instruction.
+    if (inputProtection() == Protected)
+        return true;
+
+    // Does it have memory input? If not, then not an access.
+    if (!isLoad())
+        return false;
+
+    switch (cpu->tptMode) {
+      case TPTMode::Ideal:
+        return !readUnprotectedMem();
+
+      case TPTMode::Protected:
+        return true;
+
+      case TPTMode::Unprotected:
+        setPredictedNoAccess();
+        return false;
+
+      case TPTMode::Predict:
+        switch (cpu->accessPred.predict(*this)) {
+          case Protected:
+            return true;
+
+          case Unprotected:
+            setPredictedNoAccess();
+            return false;
+
+          default: panic("unreachable\n");
+        }
+
+      default: panic("unreachable\n");
     }
 }
 
@@ -743,6 +728,15 @@ bool
 DynInst::srcTransmitted(int src_idx) const
 {
     return staticInst->srcTransmitted(src_idx);
+}
+
+bool
+DynInst::isTransmitter() const
+{
+    for (unsigned i = 0; i < numSrcs(); ++i)
+        if (srcTransmitted(i))
+            return true;
+    return false;
 }
 
 unsigned
@@ -776,6 +770,20 @@ DynInst::printTaintTree() const
 
     return s + " (??? - no tainted argproducer)";
 }
+
+bool
+DynInst::stallWritebackUntilNonspeculative() const
+{
+    if (!predictedNoAccess())
+        return false;
+
+    assert(isLoad());
+    assert(cpu->tptMode == TPTMode::Unprotected ||
+           cpu->tptMode == TPTMode::Predict);
+
+    return !readUnprotectedMem();
+}
+
 
 } // namespace o3
 } // namespace gem5

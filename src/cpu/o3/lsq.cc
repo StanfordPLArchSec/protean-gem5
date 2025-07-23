@@ -180,6 +180,9 @@ LSQ::tick()
 
     usedLoadPorts = 0;
     usedStorePorts = 0;
+
+    for (LSQUnit &lsq_unit : thread)
+        lsq_unit.tick();
 }
 
 bool

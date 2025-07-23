@@ -238,6 +238,7 @@ class InstructionQueue
 
     /** Wakes all dependents of a completed instruction. */
     int wakeDependents(const DynInstPtr &completed_inst);
+    int wakeDependentsTainted(const DynInstPtr &completed_inst);
 
     /** [Jiyong, STT] do a scan of instList and wake readyToIssue insts **/
     /** Used because wakeDependents cannot set readyToIssue if argsTainted **/
@@ -573,7 +574,9 @@ private:
         statistics::Scalar vecAluAccesses;
     } iqIOStats;
 
-    void wakeDelayedIssueInsts();    
+    void wakeDelayedIssueInsts();
+
+    void delaySpeculativeWriteback(const DynInstPtr &inst);
 };
 
 } // namespace o3

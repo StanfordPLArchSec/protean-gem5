@@ -964,6 +964,8 @@ class LSQ
 
     /** Number of Threads. */
     ThreadID numThreads;
+
+    friend class IEW;
 };
 
 } // namespace o3

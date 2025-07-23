@@ -279,7 +279,9 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
       ADD_STAT(ptexProtProtForwards, "[PTeX] Forwards from protected store to protected store"),
       ADD_STAT(ptexUnprotProtForwards, "[PTeX] Forwards from unprotected store to protected store"),
       ADD_STAT(tptUnprotUnprotForwards, "[TPT] Forwards from unprotected store with no prior "
-               "taint primitives to unprotected load")
+               "taint primitives to unprotected load"),
+      ADD_STAT(delayedWritebackTicks, "[TPT] Average number of cycles the writeback of mispredicted access instructions are delayed"),
+      ADD_STAT(delayedWritebackCount, "[TPT] See delayedWritebackTicks")
 {
     loadToUse
         .init(0, 299, 10)
@@ -1178,7 +1180,11 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
     }
 
     // Need to insert instruction into queue to commit
-    iewStage->instToCommit(inst);
+    if (inst->stallWritebackUntilNonspeculative()) {
+        delaySpeculativeWriteback(inst);
+    } else {
+        iewStage->instToCommit(inst);
+    }
 
     iewStage->activityThisCycle();
 
@@ -1585,6 +1591,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 const Protection load_prot = load_inst->loadProtection();
                 const DynInstPtr &store_inst = store_it->instruction();
                 const Protection store_prot = store_inst->storeProtection();
+
+                // TODO: We can setReadUnprotectedMem() even if the output protection is protected...
                 if (load_prot == Unprotected && store_prot == Unprotected) {
                     stats.ptexUnprotUnprotForwards++;
                     if (!store_inst->isArgsTainted()) {
@@ -1651,8 +1659,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     DPRINTF(LSQUnit, "Doing memory access for inst [sn:%lli] PC %s\n",
             load_inst->seqNum, load_inst->pcState());
 
-    // [TPT] Is this a mem taint primitive?
-    if (cpu->tpt && load_inst->loadProtection() == Unprotected) {
+    if (cpu->tpt) {
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
@@ -1759,6 +1766,40 @@ LSQUnit::updateVisibleState()
             inst->fenceDelay(cpu->stt && inst->isAddrTainted());
         }
     }
+}
+
+void
+LSQUnit::tick()
+{
+    for (auto it = delayedWritebackQueue.begin();
+         it != delayedWritebackQueue.end(); ) {
+        const DynInstPtr inst = *it;
+        if (inst->isSquashed()) {
+            it = delayedWritebackQueue.erase(it);
+            DPRINTF(TPT, "Removing squashed load [sn:%u] from delayed writeback queue\n", inst->seqNum);
+        } else if (inst->isUnsquashable()) {
+            iewStage->instToCommit(inst);
+            iewStage->activityThisCycle();
+            it = delayedWritebackQueue.erase(it);
+            stats.delayedWritebackTicks += curTick() - inst->delayedWritebackTick;
+            stats.delayedWritebackCount++;
+            inst->unstallTick = curTick();
+            DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
+                    inst->seqNum, delayedWritebackQueue.size());
+        } else {
+            if (inst->isAccess())
+                cpu->iew.instQueue.wakeDependentsTainted(*it);
+            ++it;
+        }
+    }
+}
+
+void
+LSQUnit::delaySpeculativeWriteback(const DynInstPtr &inst)
+{
+    delayedWritebackQueue.push_back(inst);
+    inst->delayedWritebackTick = curTick();
+    inst->stallTick = curTick();
 }
 
 } // namespace o3
