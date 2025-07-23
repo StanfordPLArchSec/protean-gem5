@@ -802,7 +802,7 @@ Commit::commit()
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
           const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
-          if (cpu->stt && cpu->impChannel && inst_causing_squash->taintedXmits()) {
+          if (cpu->tpt && cpu->impChannel && inst_causing_squash->taintedXmits()) {
                 if (fromIEW->mispredictInst[tid]) {
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
@@ -955,8 +955,7 @@ Commit::commit()
 void
 Commit::handleSquashSignalFromROB(ThreadID tid, DynInstPtr &pendingMispInst)
 {
-    // only STT has this mode
-    assert(cpu->stt);
+    assert(cpu->tpt);
 
     DPRINTF(Commit, "[tid:%i]: (Lazy enabled) A pending squash [sn:%lli,0x%lx] PC %s can be resolved now\n",
             tid,

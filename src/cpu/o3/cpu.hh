@@ -607,7 +607,6 @@ class CPU : public BaseCPU
 
     // [TPT] Enable TPT.
     bool tpt;
-    const bool &stt = tpt; // TODO: Remove this.
 
     // [TPT] whether add implicit flow protection
     bool impChannel;

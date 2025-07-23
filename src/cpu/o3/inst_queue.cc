@@ -1497,9 +1497,10 @@ InstructionQueue::addToProducers(const DynInstPtr &new_inst)
 void
 InstructionQueue::addIfReady(const DynInstPtr &inst)
 {
+    // MIEROS-TODO: refactor
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
-    if (!cpu->stt) {
+    if (!cpu->tpt) {
         if (inst->readyToIssue()) {
             //Add the instruction to the proper ready list.
             if (inst->isMemRef()) {
@@ -1709,16 +1710,9 @@ InstructionQueue::dumpInsts()
 void
 InstructionQueue::wakeUntaintInsts()
 {
-    assert (cpu->stt);
-
-    list<ThreadID>::iterator threads = activeThreads->begin();
-    list<ThreadID>::iterator end     = activeThreads->end();
-
-    DPRINTF(IQ, "wakeUntaintInsts begin.\n");
-
-    while (threads != end) {
-        ThreadID tid = *threads++;
-        for(auto it = stalledTaintedInstList[tid].begin(); it != stalledTaintedInstList[tid].end(); ) {
+    assert(cpu->tpt);
+    for (ThreadID tid : *activeThreads) {
+        for (auto it = stalledTaintedInstList[tid].begin(); it != stalledTaintedInstList[tid].end(); ) {
             DynInstPtr inst = *it;
             if (inst->isSquashed()) {
                 inst->removeFromStallList();
@@ -1732,8 +1726,6 @@ InstructionQueue::wakeUntaintInsts()
             }
         }
     }
-
-    DPRINTF(IQ, "wakeUntaintInsts done.\n");
 }
 
 } // namespace o3
