@@ -193,7 +193,6 @@ class DynInst : public ExecContext, public RefCounted
         HtmFromTransaction,
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
-        ReadyToExpose,
         Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
         // [TPT]
