@@ -752,6 +752,7 @@ DynInst::taintedXmits() const
 bool
 DynInst::taintedSrcs() const
 {
+    assert(cpu->mieros == Mieros::Track);
     if (isUnsquashable())
         assert(yrotSrcs <= cpu->untaintBroadcast);
     return yrotSrcs > cpu->untaintBroadcast;
