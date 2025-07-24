@@ -223,4 +223,4 @@ class BaseO3CPU(BaseCPU):
     tptPredProt = Param.Bool(
         False, "[TPT] Predict access for protected loads, too"
     )
-    tptDelayOpt = Param.Bool(False, "[TPT] Enable wakeup delay optimization -- allow wakeup of protected dependents")
+    mierosDelayOpt = Param.Bool(False, "[Mieros] Enable wakeup delay optimization -- allow wakeup of protected dependents")

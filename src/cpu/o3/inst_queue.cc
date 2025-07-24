@@ -1085,7 +1085,7 @@ int
 InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 {
     // Only do this if we've enabled the delay optimizations.
-    if (!cpu->tptDelayOpt)
+    if (!cpu->mierosDelayOpt)
         return 0;
 
     assert(cpu->mieros != Mieros::None);

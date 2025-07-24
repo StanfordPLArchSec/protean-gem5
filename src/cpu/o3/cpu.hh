@@ -619,7 +619,7 @@ class CPU : public BaseCPU
     // [TPT] Operating mode.
     MierosTrackMode mierosTrackMode;
 
-    const bool tptDelayOpt;
+    const bool mierosDelayOpt;
 
     AccessPredictor accessPred;
 

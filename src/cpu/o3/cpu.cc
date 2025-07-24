@@ -120,7 +120,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       mierosExp(mieros != Mieros::None && params.mierosExp),
       mierosImp(mieros != Mieros::None && params.mierosImp),
       mierosTrackMode(params.mierosTrackMode),
-      tptDelayOpt(params.tptDelayOpt),
+      mierosDelayOpt(mieros != Mieros::None && params.mierosDelayOpt),
       accessPred(params.tptPred, params.tptPredProt)
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -356,9 +356,9 @@ CPU::CPU(const BaseO3CPUParams &params)
         {MierosTrackMode::Predict, "Predict"},
     };
     cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d mierosTrackMode=%s "
-            "tptDelayOpt=%d tptPred=%d\n",
+            "mierosDelayOpt=%d tptPred=%d\n",
             mieros_to_str.at(mieros), mierosExp, mierosImp,
-            mieros_track_mode_strtab.at(mierosTrackMode), tptDelayOpt, params.tptPred);
+            mieros_track_mode_strtab.at(mierosTrackMode), mierosDelayOpt, params.tptPred);
 }
 
 void
