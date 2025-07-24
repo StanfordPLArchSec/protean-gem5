@@ -718,13 +718,13 @@ Rename::renameInsts(ThreadID tid)
         // MIEROS-TODO: Maybe fold this into to Access Predictor for
         // simplicity.
         if (cpu->mieros == Mieros::Track && inst->isLoad() && !inst->hasProtPrefix()) {
-            switch (cpu->mierosTrackMode) {
-              case MierosTrackMode::Protected:
+            switch (cpu->mierosPredMode) {
+              case MierosPredMode::Protected:
                 break;
-              case MierosTrackMode::Unprotected:
+              case MierosPredMode::Unprotected:
                 inst->setPredictedNoAccess();
                 break;
-              case MierosTrackMode::Predict:
+              case MierosPredMode::Predict:
                 if (cpu->accessPred.predict(*inst) == Unprotected)
                     inst->setPredictedNoAccess();
                 break;

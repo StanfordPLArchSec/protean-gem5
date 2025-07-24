@@ -652,12 +652,12 @@ DynInst::isAccess()
         return false;
 
     assert(cpu->mieros == Mieros::Track);
-    switch (cpu->mierosTrackMode) {
-      case MierosTrackMode::Protected:
+    switch (cpu->mierosPredMode) {
+      case MierosPredMode::Protected:
         return true;
 
-      case MierosTrackMode::Unprotected:
-      case MierosTrackMode::Predict:
+      case MierosPredMode::Unprotected:
+      case MierosPredMode::Predict:
         return !predictedNoAccess();
         
       default: panic("unreachable\n");
@@ -707,7 +707,7 @@ DynInst::delayWakeupTrack() const
     assert(isLoad());
     // MIEROS-TODO: Need to generalize this for Mieros::Delay.
     assert(cpu->mieros == Mieros::Track &&
-           cpu->mierosTrackMode != MierosTrackMode::Protected);
+           cpu->mierosPredMode != MierosPredMode::Protected);
 
     // Don't stall if it's nonspeculative.
     if (isUnsquashable())

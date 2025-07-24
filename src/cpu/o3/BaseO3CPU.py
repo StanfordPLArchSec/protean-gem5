@@ -69,7 +69,7 @@ class DeclassifyMode(ScopedEnum):
 class Mieros(ScopedEnum):
     vals = ["None", "Delay", "Track"]
 
-class MierosTrackMode(ScopedEnum):
+class MierosPredMode(ScopedEnum):
     vals = ["Protected", "Unprotected", "Predict"]
 
 class BaseO3CPU(BaseCPU):
@@ -218,9 +218,9 @@ class BaseO3CPU(BaseCPU):
     mieros = Param.Mieros("None", "[Mieros] Enable Mieros-Delay/Track defense")
     mierosExp = Param.Bool(True, "[Mieros] Secure explicit channels (loads, stores)")
     mierosImp = Param.Bool(True, "[Mieros] Secure implicit channels (branches)")
-    mierosTrackMode = Param.MierosTrackMode("Predict", "[Mieros-Track] Access mode")
-    tptPred = Param.Int(1024, "[TPT] Access predictor size")
-    tptPredProt = Param.Bool(
+    mierosPredMode = Param.MierosPredMode("Predict", "[Mieros-Track] Access mode")
+    mierosPredSize = Param.Int(1024, "[TPT] Access predictor size")
+    mierosPredProt = Param.Bool(
         False, "[TPT] Predict access for protected loads, too"
     )
     mierosDelayOpt = Param.Bool(False, "[Mieros] Enable wakeup delay optimization -- allow wakeup of protected dependents")

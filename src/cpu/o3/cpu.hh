@@ -616,8 +616,7 @@ class CPU : public BaseCPU
      * specifically, branches. */
     bool mierosImp;
 
-    // [TPT] Operating mode.
-    MierosTrackMode mierosTrackMode;
+    MierosPredMode mierosPredMode;
 
     const bool mierosDelayOpt;
 

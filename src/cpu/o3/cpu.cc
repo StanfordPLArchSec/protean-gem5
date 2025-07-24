@@ -119,9 +119,9 @@ CPU::CPU(const BaseO3CPUParams &params)
       mieros(params.mieros),
       mierosExp(mieros != Mieros::None && params.mierosExp),
       mierosImp(mieros != Mieros::None && params.mierosImp),
-      mierosTrackMode(params.mierosTrackMode),
+      mierosPredMode(params.mierosPredMode),
       mierosDelayOpt(mieros != Mieros::None && params.mierosDelayOpt),
-      accessPred(params.tptPred, params.tptPredProt)
+      accessPred(params.mierosPredSize, params.mierosPredProt)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -350,15 +350,17 @@ CPU::CPU(const BaseO3CPUParams &params)
         {Mieros::Delay, "Delay"},
         {Mieros::Track, "Track"},
     };
-    static const std::map<MierosTrackMode, std::string> mieros_track_mode_strtab = {
-        {MierosTrackMode::Protected, "Protected"},
-        {MierosTrackMode::Unprotected, "Unprotected"},
-        {MierosTrackMode::Predict, "Predict"},
+    static const std::map<MierosPredMode, std::string> mieros_pred_mode_strtab = {
+        {MierosPredMode::Protected, "Protected"},
+        {MierosPredMode::Unprotected, "Unprotected"},
+        {MierosPredMode::Predict, "Predict"},
     };
-    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d mierosTrackMode=%s "
-            "mierosDelayOpt=%d tptPred=%d\n",
+    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d "
+            "mierosPredMode=%s mierosPredSize=%d mierosPredProt=%d "
+            "mierosDelayOpt=%d\n",
             mieros_to_str.at(mieros), mierosExp, mierosImp,
-            mieros_track_mode_strtab.at(mierosTrackMode), mierosDelayOpt, params.tptPred);
+            mieros_pred_mode_strtab.at(mierosPredMode), params.mierosPredSize, params.mierosPredProt,
+            mierosDelayOpt);
 }
 
 void

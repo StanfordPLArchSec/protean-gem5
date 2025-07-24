@@ -730,16 +730,16 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[Mieros] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
-        "--mieros-track-mode",
+        "--mieros-pred-mode",
         type=str,
         default="Predict",
         help="[Mieros-Track] Access prediction mode",
     )
     parser.add_argument(
-        "--mieros-pred",
+        "--mieros-pred-size",
         type=int,
         default=1024,
-        help="[Mieros-Track] Number of access predictor entries (0 = disabled)",
+        help="[Mieros-Track] Number of access predictor entries (0 = infinite)",
     )
     parser.add_argument(
         "--mieros-pred-prot",
