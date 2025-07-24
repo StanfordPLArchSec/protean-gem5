@@ -119,7 +119,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       mieros(params.mieros),
       mierosExp(mieros != Mieros::None && params.mierosExp),
       mierosImp(mieros != Mieros::None && params.mierosImp),
-      tptMode(params.tptMode),
+      mierosTrackMode(params.mierosTrackMode),
       tptDelayOpt(params.tptDelayOpt),
       accessPred(params.tptPred, params.tptPredProt)
 {
@@ -350,16 +350,15 @@ CPU::CPU(const BaseO3CPUParams &params)
         {Mieros::Delay, "Delay"},
         {Mieros::Track, "Track"},
     };
-    static const std::map<TPTMode, std::string> tpt_mode_strtab = {
-        {TPTMode::Ideal, "Ideal"},
-        {TPTMode::Protected, "Protected"},
-        {TPTMode::Unprotected, "Unprotected"},
-        {TPTMode::Predict, "Predict"},
+    static const std::map<MierosTrackMode, std::string> mieros_track_mode_strtab = {
+        {MierosTrackMode::Protected, "Protected"},
+        {MierosTrackMode::Unprotected, "Unprotected"},
+        {MierosTrackMode::Predict, "Predict"},
     };
-    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d tptMode=%s "
+    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d mierosTrackMode=%s "
             "tptDelayOpt=%d tptPred=%d\n",
             mieros_to_str.at(mieros), mierosExp, mierosImp,
-            tpt_mode_strtab.at(tptMode), tptDelayOpt, params.tptPred);
+            mieros_track_mode_strtab.at(mierosTrackMode), tptDelayOpt, params.tptPred);
 }
 
 void

@@ -651,17 +651,15 @@ DynInst::isAccess()
     if (!isLoad())
         return false;
 
-    switch (cpu->tptMode) {
-      case TPTMode::Ideal:
-        return !readUnprotectedMem();
-
-      case TPTMode::Protected:
+    assert(cpu->mieros == Mieros::Track);
+    switch (cpu->mierosTrackMode) {
+      case MierosTrackMode::Protected:
         return true;
 
-    case TPTMode::Unprotected:
-    case TPTMode::Predict:
-      return !predictedNoAccess();
-
+      case MierosTrackMode::Unprotected:
+      case MierosTrackMode::Predict:
+        return !predictedNoAccess();
+        
       default: panic("unreachable\n");
     }
 }
@@ -707,8 +705,9 @@ DynInst::delayWakeupTrack() const
         return false;
 
     assert(isLoad());
-    assert(cpu->tptMode == TPTMode::Unprotected ||
-           cpu->tptMode == TPTMode::Predict);
+    // MIEROS-TODO: Need to generalize this for Mieros::Delay.
+    assert(cpu->mieros == Mieros::Track &&
+           cpu->mierosTrackMode != MierosTrackMode::Protected);
 
     // Don't stall if it's nonspeculative.
     if (isUnsquashable())

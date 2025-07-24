@@ -715,15 +715,16 @@ Rename::renameInsts(ThreadID tid)
         // NOTE: In theory, can be implemented as a parallel lookup
         // with rename. But we only use the results if the output register
         // is unprotected.
-        if (inst->isLoad() && !inst->hasProtPrefix()) {
-            switch (cpu->tptMode) {
-              case TPTMode::Ideal:
-              case TPTMode::Protected:
+        // MIEROS-TODO: Maybe fold this into to Access Predictor for
+        // simplicity.
+        if (cpu->mieros == Mieros::Track && inst->isLoad() && !inst->hasProtPrefix()) {
+            switch (cpu->mierosTrackMode) {
+              case MierosTrackMode::Protected:
                 break;
-              case TPTMode::Unprotected:
+              case MierosTrackMode::Unprotected:
                 inst->setPredictedNoAccess();
                 break;
-              case TPTMode::Predict:
+              case MierosTrackMode::Predict:
                 if (cpu->accessPred.predict(*inst) == Unprotected)
                     inst->setPredictedNoAccess();
                 break;

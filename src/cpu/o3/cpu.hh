@@ -69,7 +69,7 @@
 #include "cpu/timebuf.hh"
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
-#include "enums/TPTMode.hh"
+#include "enums/MierosTrackMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/o3/access_predictor.hh"
@@ -617,7 +617,7 @@ class CPU : public BaseCPU
     bool mierosImp;
 
     // [TPT] Operating mode.
-    TPTMode tptMode;
+    MierosTrackMode mierosTrackMode;
 
     const bool tptDelayOpt;
 
