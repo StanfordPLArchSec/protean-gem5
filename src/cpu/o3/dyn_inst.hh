@@ -387,6 +387,10 @@ class DynInst : public ExecContext, public RefCounted
     InstSeqNum yrotDests = InvalidYRoT;
 
     bool taintedXmits() const;
+  private:
+    bool taintedXmitsDelay() const;
+    bool taintedXmitsTrack() const;
+  public:
     bool taintedSrcs() const;
 
     /////////////////////// TLB Miss //////////////////////

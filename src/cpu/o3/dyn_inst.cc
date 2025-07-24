@@ -704,6 +704,26 @@ DynInst::delayWakeupDelay() const
 }
 
 bool
+DynInst::taintedXmitsTrack() const
+{
+    assert(cpu->mieros == Mieros::Track);
+    if (isUnsquashable())
+        assert(yrotXmits <= cpu->untaintBroadcast);
+    return yrotXmits > cpu->untaintBroadcast;
+}
+
+bool
+DynInst::taintedXmitsDelay() const
+{
+    assert(cpu->mieros == Mieros::Delay);
+    for (unsigned src_idx = 0; src_idx < numSrcs(); ++src_idx)
+        if (srcTransmitted(src_idx) && srcProt(src_idx) == Protected)
+            return true;
+    return false;
+}
+    
+
+bool
 DynInst::taintedXmits() const
 {
     // If we aren't considering explicit channels
@@ -718,10 +738,15 @@ DynInst::taintedXmits() const
     if (!cpu->mierosImp && isControl())
         return false;
 
-    if (isUnsquashable())
-        assert(yrotXmits <= cpu->untaintBroadcast);
+    switch (cpu->mieros) {
+      case Mieros::Delay:
+        return taintedXmitsDelay();
 
-    return yrotXmits > cpu->untaintBroadcast;
+      case Mieros::Track:
+        return taintedXmitsTrack();
+
+      default: panic("Bad Mieros mode!\n");
+    }
 }
 
 bool
