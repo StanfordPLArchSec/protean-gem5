@@ -635,36 +635,6 @@ DynInst::isProtectedTransmitter() const
 }
 
 bool
-DynInst::isAccess()
-{
-    // MIEROS-TODO: Do we need this???
-    // Nothing is an access instruction when Mieros is disabled.
-    if (cpu->mieros == Mieros::None)
-        return false;
-
-    // MIEROS-TODO: Hmm, shouldn't need to check this anymore.
-    // If any register inputs are protected, then it's an access instruction.
-    if (inputProtection() == Protected)
-        return true;
-
-    // Does it have memory input? If not, then not an access.
-    if (!isLoad())
-        return false;
-
-    assert(cpu->mieros == Mieros::Track);
-    switch (cpu->mierosPredMode) {
-      case MierosPredMode::Protected:
-        return true;
-
-      case MierosPredMode::Unprotected:
-      case MierosPredMode::Predict:
-        return !predictedNoAccess();
-        
-      default: panic("unreachable\n");
-    }
-}
-
-bool
 DynInst::srcTransmitted(int src_idx) const
 {
     return staticInst->srcTransmitted(src_idx);

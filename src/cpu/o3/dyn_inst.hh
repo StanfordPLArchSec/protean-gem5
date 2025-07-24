@@ -1239,7 +1239,6 @@ class DynInst : public ExecContext, public RefCounted
     std::string disassembleWithProt() const;
 
     /** [TPT] Is this instruction an r-taint or m-taint primitive? */
-    bool isAccess();
     bool isProtectedTransmitter() const;
 
     /** [TPT] Did a load read unprotected memory? */
