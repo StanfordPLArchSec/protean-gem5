@@ -618,6 +618,8 @@ class CPU : public BaseCPU
 
     MierosPredMode mierosPredMode;
 
+    const bool mierosDelay = true; // MIEROS-TODO: Make a param.
+    const bool mierosDelayAll = false; // MIEROS-TODO: Make this a parameter.
     const bool mierosDelayOpt;
 
     std::unique_ptr<BaseAccessPredictor> accessPred;

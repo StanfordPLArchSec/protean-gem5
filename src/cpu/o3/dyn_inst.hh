@@ -1261,6 +1261,7 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
     bool isTransmitter() const;
+    void setSrcProt(unsigned src_idx, Protection prot);
 };
 
 } // namespace o3

@@ -121,6 +121,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       mierosExp(mieros != Mieros::None && params.mierosExp),
       mierosImp(mieros != Mieros::None && params.mierosImp),
       mierosPredMode(params.mierosPredMode),
+      mierosDelayAll(mieros == Mieros::Delay && params.mierosDelayAll),
       mierosDelayOpt(mieros != Mieros::None && params.mierosDelayOpt),
       accessPred(BaseAccessPredictor::makePredictor(params))
 {

@@ -1081,6 +1081,36 @@ InstructionQueue::wakeDependents(const DynInstPtr &completed_inst)
     return dependents;
 }
 
+static bool
+wakeDependentsTaintedEligible(const DynInstPtr &dep_inst)
+{
+    // If it's a protected transmitter, it's okay to wake it up
+    // since it will be stalled until commit anyway.
+    if (dep_inst->isProtectedTransmitter())
+        return true;
+
+    // If it's a control-flow instruction, then we can upgrade
+    // the operand to protected. This empirically gets better
+    // performance.
+    // The instruction will therefore be stalled until retirement? 
+    if (dep_inst->cpu->mieros == Mieros::Delay && dep_inst->isControl()) {
+        dep_inst->setSrcProt(0, Protected);
+        return true;
+    }
+
+    // Otherwise, if it's a transmitter, it might leak the input, so it's a no go.
+    if (dep_inst->isTransmitter())
+        return false;
+    
+    // If it's a protected-input nontransmitter, it's okay
+    // to wake it up since it's an access as well.
+    if (dep_inst->inputProtection() == Protected ||
+        dep_inst->outputProtection() == Protected)
+        return true;
+
+    return false;
+}
+
 int
 InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 {
@@ -1113,12 +1143,7 @@ InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
                 break;
 
             // Is this instruction eligible for operating on tainted data?
-            // - An input or output is protected.
-            // - It's not a transmitter.
-            const bool eligible = ((dep_inst->inputProtection() == Protected ||
-                                    dep_inst->outputProtection() == Protected) &&
-                                   !dep_inst->isTransmitter());
-            if (!eligible) {
+            if (!wakeDependentsTaintedEligible(dep_inst)) {
                 delayed_deps.push_back(dep_inst);
                 continue;
             }

@@ -534,6 +534,7 @@ DynInst::destProt(unsigned dest_idx) const
     return _destProt[dest_idx];
 }
 
+// MIEROS-TODO: Track -- handle zero idioms at rename.
 Protection
 DynInst::inputProtection() const
 {
@@ -652,6 +653,9 @@ DynInst::isTransmitter() const
 bool
 DynInst::delayWakeup() const
 {
+    if (!cpu->mierosDelay)
+        return false;
+
     switch (cpu->mieros) {
       case Mieros::None:
         return false;
@@ -700,7 +704,33 @@ DynInst::delayWakeupTrack() const
 bool
 DynInst::delayWakeupDelay() const
 {
-    panic("delayWakeupDelay: unimplemented!\n");
+    assert(cpu->mieros == Mieros::Delay);
+
+    // If it's nonspeculative, don't delay it.
+    if (isUnsquashable())
+        return false;
+
+    // Compute whether this is an access instruction. 
+    const bool access = (isLoad() && !readUnprotectedMem()) ||
+        inputProtection() == Protected;
+
+    // If it's not an access instruction, then never delay.
+    if (!access)
+        return false;
+
+    // If we're delaying all accesses, then delay this access.
+    if (cpu->mierosDelayAll)
+        return true;
+
+    // Otherwise, only delay if we are actually writing to an
+    // unprotected output.
+    // NOTE: Stores have no output registers, so never delay.
+    if (isStore())
+        return false;
+    if (outputProtection() == Protected)
+        return false;
+    
+    return true;
 }
 
 bool
@@ -716,6 +746,12 @@ bool
 DynInst::taintedXmitsDelay() const
 {
     assert(cpu->mieros == Mieros::Delay);
+
+    // If it's nonspeculative, untaint it.
+    if (isUnsquashable())
+        return false;
+
+    // Otherwise, look for protected inputs.
     for (unsigned src_idx = 0; src_idx < numSrcs(); ++src_idx)
         if (srcTransmitted(src_idx) && srcProt(src_idx) == Protected)
             return true;
@@ -788,6 +824,15 @@ DynInst::hasPendingSquash(bool f)
     // [Mieros] Sanity check.
     panic_if(f && !cpu->mierosImp,
              "hasPendingSquash() when mierosImp disabled!\n");
+}
+
+// MIEROS-TODO: Eliminate this and add a status flag instead
+// or something.
+void
+DynInst::setSrcProt(unsigned src_idx, Protection prot)
+{
+    assert(src_idx < numSrcs());
+    _srcProt[src_idx] = prot;
 }
 
 } // namespace o3
