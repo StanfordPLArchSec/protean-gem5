@@ -69,7 +69,6 @@
 #include "cpu/timebuf.hh"
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
-#include "enums/MierosTrackMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/ptex.hh"
