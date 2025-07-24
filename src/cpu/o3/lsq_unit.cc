@@ -55,6 +55,7 @@
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "debug/TPT.hh"
+#include "cpu/o3/access_predictor.hh"
 
 namespace gem5
 {
@@ -1181,7 +1182,7 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
 
     // [Mieros-Track] Update predictor.
     assert(inst->isLoad());
-    cpu->accessPred.update(*inst, inst->readUnprotectedMem() ? Unprotected : Protected);
+    cpu->accessPred->update(*inst, inst->readUnprotectedMem() ? Unprotected : Protected);
     DPRINTFR(TPT, "access-update %#x\n", inst->pcState().instAddr());
 
     iewStage->activityThisCycle();

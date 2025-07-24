@@ -60,6 +60,7 @@
 #include "sim/process.hh"
 #include "sim/stat_control.hh"
 #include "sim/system.hh"
+#include "cpu/o3/access_predictor.hh"
 
 namespace gem5
 {
@@ -121,7 +122,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       mierosImp(mieros != Mieros::None && params.mierosImp),
       mierosPredMode(params.mierosPredMode),
       mierosDelayOpt(mieros != Mieros::None && params.mierosDelayOpt),
-      accessPred(params.mierosPredSize, params.mierosPredProt)
+      accessPred(BaseAccessPredictor::makePredictor(params))
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");

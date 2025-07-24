@@ -72,7 +72,6 @@
 #include "enums/MierosTrackMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
-#include "cpu/o3/access_predictor.hh"
 #include "cpu/ptex.hh"
 #include "enums/Mieros.hh"
 
@@ -90,6 +89,7 @@ namespace o3
 {
 
 class ThreadContext;
+class BaseAccessPredictor;
 
 /**
  * O3CPU class, has each of the stages (fetch through commit)
@@ -620,7 +620,7 @@ class CPU : public BaseCPU
 
     const bool mierosDelayOpt;
 
-    AccessPredictor accessPred;
+    std::unique_ptr<BaseAccessPredictor> accessPred;
 
     // [Mieros-Track] The last nonspeculative instruction.
     InstSeqNum untaintBroadcast = NoYRoT;

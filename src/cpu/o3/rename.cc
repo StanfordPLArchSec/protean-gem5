@@ -52,6 +52,7 @@
 #include "debug/Rename.hh"
 #include "params/BaseO3CPU.hh"
 #include "debug/TPT.hh"
+#include "cpu/o3/access_predictor.hh"
 
 namespace gem5
 {
@@ -725,7 +726,7 @@ Rename::renameInsts(ThreadID tid)
                 inst->setPredictedNoAccess();
                 break;
               case MierosPredMode::Predict:
-                if (cpu->accessPred.predict(*inst) == Unprotected)
+                if (cpu->accessPred->predict(*inst) == Unprotected)
                     inst->setPredictedNoAccess();
                 break;
               default: panic("unreachable!\n");

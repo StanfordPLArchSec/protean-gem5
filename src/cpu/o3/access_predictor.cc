@@ -7,6 +7,25 @@
 namespace gem5::o3
 {
 
+BaseAccessPredictor *
+BaseAccessPredictor::makePredictor(const BaseO3CPUParams &params)
+{
+    switch (params.mierosPredMode) {
+      case MierosPredMode::Protected:
+        return new DummyAccessPredictor(Protected);
+
+      case MierosPredMode::Unprotected:
+        return new DummyAccessPredictor(Unprotected);
+
+      case MierosPredMode::Predict:
+        return new AccessPredictor(params.mierosPredSize,
+                                   params.mierosPredProt);
+
+      default: panic("Bad MierosPredMode!\n");
+    }
+}
+
+
 AccessPredictor::AccessPredictor(std::size_t num_entries, bool predict_protected)
     : numEntries(num_entries),
       predictProtected(predict_protected)
