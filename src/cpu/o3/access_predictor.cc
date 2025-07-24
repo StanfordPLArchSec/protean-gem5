@@ -43,7 +43,7 @@ Protection
 AccessPredictor::predict(const DynInst &inst)
 {
     validate(inst);
-    if (!predictProtected && inst.loadProtection() == Protected)
+    if (!predictProtected && inst.hasProtPrefix())
         return Protected;
     const bool prediction = pred[hash(inst)];
     return prediction ? Protected : Unprotected;
