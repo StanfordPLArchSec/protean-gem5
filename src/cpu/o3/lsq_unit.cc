@@ -1761,9 +1761,8 @@ LSQUnit::tick()
           DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
                   inst->seqNum, delayedWritebackQueue.size());
         } else {
-            // MIEROS-TODO: Fixme. Not sure we should have this isAccess() call.
-            if (inst->isAccess())
-                cpu->iew.instQueue.wakeDependentsTainted(*it);
+            // MIEROS-TODO: Make this more realistic.
+            cpu->iew.instQueue.wakeDependentsTainted(*it);
             ++it;
         }
     }
