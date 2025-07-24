@@ -534,6 +534,7 @@ DynInst::destProt(unsigned dest_idx) const
     return _destProt[dest_idx];
 }
 
+// MIEROS-TODO: Track -- handle zero idioms at rename.
 Protection
 DynInst::inputProtection() const
 {
@@ -635,36 +636,6 @@ DynInst::isProtectedTransmitter() const
 }
 
 bool
-DynInst::isAccess()
-{
-    // MIEROS-TODO: Do we need this???
-    // Nothing is an access instruction when Mieros is disabled.
-    if (cpu->mieros == Mieros::None)
-        return false;
-
-    // MIEROS-TODO: Hmm, shouldn't need to check this anymore.
-    // If any register inputs are protected, then it's an access instruction.
-    if (inputProtection() == Protected)
-        return true;
-
-    // Does it have memory input? If not, then not an access.
-    if (!isLoad())
-        return false;
-
-    assert(cpu->mieros == Mieros::Track);
-    switch (cpu->mierosPredMode) {
-      case MierosPredMode::Protected:
-        return true;
-
-      case MierosPredMode::Unprotected:
-      case MierosPredMode::Predict:
-        return !predictedNoAccess();
-        
-      default: panic("unreachable\n");
-    }
-}
-
-bool
 DynInst::srcTransmitted(int src_idx) const
 {
     return staticInst->srcTransmitted(src_idx);
@@ -682,6 +653,9 @@ DynInst::isTransmitter() const
 bool
 DynInst::delayWakeup() const
 {
+    if (!cpu->mierosDelay)
+        return false;
+
     switch (cpu->mieros) {
       case Mieros::None:
         return false;
@@ -730,8 +704,60 @@ DynInst::delayWakeupTrack() const
 bool
 DynInst::delayWakeupDelay() const
 {
-    panic("delayWakeupDelay: unimplemented!\n");
+    assert(cpu->mieros == Mieros::Delay);
+
+    // If it's nonspeculative, don't delay it.
+    if (isUnsquashable())
+        return false;
+
+    // Compute whether this is an access instruction. 
+    const bool access = (isLoad() && !readUnprotectedMem()) ||
+        inputProtection() == Protected;
+
+    // If it's not an access instruction, then never delay.
+    if (!access)
+        return false;
+
+    // If we're delaying all accesses, then delay this access.
+    if (cpu->mierosDelayAll)
+        return true;
+
+    // Otherwise, only delay if we are actually writing to an
+    // unprotected output.
+    // NOTE: Stores have no output registers, so never delay.
+    if (isStore())
+        return false;
+    if (outputProtection() == Protected)
+        return false;
+    
+    return true;
 }
+
+bool
+DynInst::taintedXmitsTrack() const
+{
+    assert(cpu->mieros == Mieros::Track);
+    if (isUnsquashable())
+        assert(yrotXmits <= cpu->untaintBroadcast);
+    return yrotXmits > cpu->untaintBroadcast;
+}
+
+bool
+DynInst::taintedXmitsDelay() const
+{
+    assert(cpu->mieros == Mieros::Delay);
+
+    // If it's nonspeculative, untaint it.
+    if (isUnsquashable())
+        return false;
+
+    // Otherwise, look for protected inputs.
+    for (unsigned src_idx = 0; src_idx < numSrcs(); ++src_idx)
+        if (srcTransmitted(src_idx) && srcProt(src_idx) == Protected)
+            return true;
+    return false;
+}
+    
 
 bool
 DynInst::taintedXmits() const
@@ -748,15 +774,21 @@ DynInst::taintedXmits() const
     if (!cpu->mierosImp && isControl())
         return false;
 
-    if (isUnsquashable())
-        assert(yrotXmits <= cpu->untaintBroadcast);
+    switch (cpu->mieros) {
+      case Mieros::Delay:
+        return taintedXmitsDelay();
 
-    return yrotXmits > cpu->untaintBroadcast;
+      case Mieros::Track:
+        return taintedXmitsTrack();
+
+      default: panic("Bad Mieros mode!\n");
+    }
 }
 
 bool
 DynInst::taintedSrcs() const
 {
+    assert(cpu->mieros == Mieros::Track);
     if (isUnsquashable())
         assert(yrotSrcs <= cpu->untaintBroadcast);
     return yrotSrcs > cpu->untaintBroadcast;
@@ -792,6 +824,15 @@ DynInst::hasPendingSquash(bool f)
     // [Mieros] Sanity check.
     panic_if(f && !cpu->mierosImp,
              "hasPendingSquash() when mierosImp disabled!\n");
+}
+
+// MIEROS-TODO: Eliminate this and add a status flag instead
+// or something.
+void
+DynInst::setSrcProt(unsigned src_idx, Protection prot)
+{
+    assert(src_idx < numSrcs());
+    _srcProt[src_idx] = prot;
 }
 
 } // namespace o3

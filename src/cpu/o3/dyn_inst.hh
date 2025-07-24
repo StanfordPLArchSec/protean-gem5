@@ -387,6 +387,10 @@ class DynInst : public ExecContext, public RefCounted
     InstSeqNum yrotDests = InvalidYRoT;
 
     bool taintedXmits() const;
+  private:
+    bool taintedXmitsDelay() const;
+    bool taintedXmitsTrack() const;
+  public:
     bool taintedSrcs() const;
 
     /////////////////////// TLB Miss //////////////////////
@@ -1239,7 +1243,6 @@ class DynInst : public ExecContext, public RefCounted
     std::string disassembleWithProt() const;
 
     /** [TPT] Is this instruction an r-taint or m-taint primitive? */
-    bool isAccess();
     bool isProtectedTransmitter() const;
 
     /** [TPT] Did a load read unprotected memory? */
@@ -1258,6 +1261,7 @@ class DynInst : public ExecContext, public RefCounted
     /** [TPT] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
     bool isTransmitter() const;
+    void setSrcProt(unsigned src_idx, Protection prot);
 };
 
 } // namespace o3

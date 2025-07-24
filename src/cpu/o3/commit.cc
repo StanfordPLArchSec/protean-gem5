@@ -1431,6 +1431,14 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     // [TPT] Taint primitive stats.
     if (debug::TPTRetire)
         printTaintDebug(head_inst, "retire");
+    if (!head_inst->isMemRef() && head_inst->inputProtection() == Protected &&
+        head_inst->outputProtection() == Unprotected) {
+        printTaintDebug(head_inst, "reg");
+    }
+    if (head_inst->isLoad() && !head_inst->readUnprotectedMem() &&
+        head_inst->loadProtection() == Unprotected) {
+        printTaintDebug(head_inst, "mem");
+    }
     if (head_inst->isProtectedTransmitter()) {
         stats.xmitTaints++;
         printTaintDebug(head_inst, "xmit");

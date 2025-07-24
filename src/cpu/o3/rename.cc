@@ -716,22 +716,9 @@ Rename::renameInsts(ThreadID tid)
         // NOTE: In theory, can be implemented as a parallel lookup
         // with rename. But we only use the results if the output register
         // is unprotected.
-        // MIEROS-TODO: Maybe fold this into to Access Predictor for
-        // simplicity.
-        if (cpu->mieros == Mieros::Track && inst->isLoad() && !inst->hasProtPrefix()) {
-            switch (cpu->mierosPredMode) {
-              case MierosPredMode::Protected:
-                break;
-              case MierosPredMode::Unprotected:
-                inst->setPredictedNoAccess();
-                break;
-              case MierosPredMode::Predict:
-                if (cpu->accessPred->predict(*inst) == Unprotected)
-                    inst->setPredictedNoAccess();
-                break;
-              default: panic("unreachable!\n");
-            }
-        }
+        if (cpu->mieros == Mieros::Track && inst->isLoad() &&
+            !inst->hasProtPrefix() && cpu->accessPred->predict(*inst) == Unprotected)
+            inst->setPredictedNoAccess();
 
         renameSrcRegs(inst, inst->threadNumber);
 
