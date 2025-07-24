@@ -737,8 +737,21 @@ DynInst::delayWakeupDelay() const
 bool
 DynInst::taintedXmits() const
 {
+    // If we aren't considering explicit channels
+    // (namely, loads/stores), then pretend it's not
+    // tainted.
+    if (!cpu->mierosExp && isMemRef())
+        return false;
+
+    // If we're not consider implicit channels,
+    // (namely, branches), then pretend it's not
+    // tainted.
+    if (!cpu->mierosImp && isControl())
+        return false;
+
     if (isUnsquashable())
         assert(yrotXmits <= cpu->untaintBroadcast);
+
     return yrotXmits > cpu->untaintBroadcast;
 }
 

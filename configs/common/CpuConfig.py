@@ -85,6 +85,7 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.ptexMem = options.ptex_mem
             cpu.ptexPages = options.ptex_pages
             cpu.mieros = options.mieros
+            cpu.mierosExp = not options.mieros_no_exp
             cpu.mierosImp = not options.mieros_no_imp
             cpu.tptMode = options.mieros_mode
             cpu.tptPred = options.mieros_pred

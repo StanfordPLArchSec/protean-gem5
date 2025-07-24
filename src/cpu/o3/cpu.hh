@@ -608,7 +608,12 @@ class CPU : public BaseCPU
     /** [Mieros] */
     Mieros mieros;
 
-    // [TPT] whether add implicit flow protection
+    /** [Mieros] Protect explicit flows [Yu+ MICRO'19],
+     * specifically, loads and stores. */
+    bool mierosExp;
+
+    /** [Mieros] Protect implicit flows [Yu+ MICRO'19],
+     * specifically, branches. */
     bool mierosImp;
 
     // [TPT] Operating mode.

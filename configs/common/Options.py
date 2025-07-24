@@ -720,9 +720,14 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[Mieros] Enable the Mieros-Delay/Track defense",
     )
     parser.add_argument(
+        "--mieros-no-exp",
+        action="store_true",
+        help="[Mieros] Whether enabling defense mechanism for explicit channel",
+    )
+    parser.add_argument(
         "--mieros-no-imp",
         action="store_true",
-        help="[Mieros-Track] Whether enabling defense mechanism for implicit channel",
+        help="[Mieros] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
         "--mieros-mode",

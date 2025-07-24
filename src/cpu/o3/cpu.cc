@@ -117,6 +117,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       cpuStats(this),
       ptexPages(params.ptexPages),
       mieros(params.mieros),
+      mierosExp(mieros != Mieros::None && params.mierosExp),
       mierosImp(mieros != Mieros::None && params.mierosImp),
       tptMode(params.tptMode),
       tptDelayOpt(params.tptDelayOpt),
@@ -355,10 +356,10 @@ CPU::CPU(const BaseO3CPUParams &params)
         {TPTMode::Unprotected, "Unprotected"},
         {TPTMode::Predict, "Predict"},
     };
-    cprintf("[*] Mieros configuration: mieros=%s mierosImp=%d tptMode=%s "
+    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d tptMode=%s "
             "tptDelayOpt=%d tptPred=%d\n",
-            mieros_to_str.at(mieros), mierosImp, tpt_mode_strtab.at(tptMode),
-            tptDelayOpt, params.tptPred);
+            mieros_to_str.at(mieros), mierosExp, mierosImp,
+            tpt_mode_strtab.at(tptMode), tptDelayOpt, params.tptPred);
 }
 
 void
