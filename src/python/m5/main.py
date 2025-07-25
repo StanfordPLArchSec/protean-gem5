@@ -322,6 +322,13 @@ def parse_options():
         help="Remote gdb base port (set to 0 to disable listening)",
     )
 
+    option(
+        "--show-exit-event-messages",
+        action="store_true",
+        default=False,
+        help="Print information about exit events and when they occur",
+    )
+
     # Help options
     group("Help Options")
     option(
@@ -545,6 +552,7 @@ def main():
             return shlex.quote(arg)
 
         print("command line:", " ".join(map(quote, sys.argv)))
+        print("cwd:", os.getcwd())
         print()
 
     # check to make sure we can find the listed script

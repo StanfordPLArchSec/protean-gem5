@@ -36,7 +36,6 @@
 
 #include "base/addr_range.hh"
 #include "base/free_list.hh"
-#include "base/statistics.hh"
 #include "base/types.hh"
 #include "sim/serialize.hh"
 
@@ -82,7 +81,7 @@ class MemPool : public Serializable
     void unserialize(CheckpointIn &cp) override;
 };
 
-class MemPools : public Serializable, public statistics::Group
+class MemPools : public Serializable
 {
   private:
     Addr pageShift;
@@ -90,12 +89,7 @@ class MemPools : public Serializable, public statistics::Group
     std::vector<MemPool> pools;
 
   public:
-    MemPools(statistics::Group *parent, Addr page_shift)
-        : statistics::Group(parent, "pools"),
-          pageShift(page_shift),
-          stats(this)
-    {
-    }
+    MemPools(Addr page_shift) : pageShift(page_shift) {}
 
     void populate(const AddrRangeList &memories);
 
@@ -115,16 +109,6 @@ class MemPools : public Serializable, public statistics::Group
 
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;
-
-  private:
-    struct Stats : public statistics::Group
-    {
-        statistics::Scalar maxAllocatedBytes;
-
-        Stats(MemPools *pools);
-    } stats;
-
-    Addr allocatedBytes() const;
 };
 
 } // namespace gem5

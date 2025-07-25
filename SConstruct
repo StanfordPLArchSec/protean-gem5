@@ -691,6 +691,25 @@ for variant_path in variant_paths:
             env.Append(CXXFLAGS=['-stdlib=libc++'])
             env.Append(LIBS=['c++'])
 
+    if sys.platform == 'cygwin':
+        # cygwin has some header file issues...
+        env.Append(CCFLAGS=["-Wno-uninitialized"])
+
+
+    if not GetOption('no_compress_debug'):
+        with gem5_scons.Configure(env) as conf:
+            if not conf.CheckCxxFlag('-gz'):
+                warning("Can't enable object file debug section compression")
+            if not conf.CheckLinkFlag('-gz'):
+                warning("Can't enable executable debug section compression")
+
+    if env['USE_PYTHON']:
+        config_embedded_python(env)
+        gem5py_env = env.Clone()
+    else:
+        gem5py_env = env.Clone()
+        config_embedded_python(gem5py_env)
+
     # Add sanitizers flags
     sanitizers=[]
     if GetOption('with_ubsan'):
@@ -761,25 +780,6 @@ for variant_path in variant_paths:
             warning("Don't know how to enable %s sanitizer(s) for your "
                     "compiler." % sanitizers)
 
-    if sys.platform == 'cygwin':
-        # cygwin has some header file issues...
-        env.Append(CCFLAGS=["-Wno-uninitialized"])
-
-
-    if not GetOption('no_compress_debug'):
-        with gem5_scons.Configure(env) as conf:
-            if not conf.CheckCxxFlag('-gz'):
-                warning("Can't enable object file debug section compression")
-            if not conf.CheckLinkFlag('-gz'):
-                warning("Can't enable executable debug section compression")
-
-    if env['USE_PYTHON']:
-        config_embedded_python(env)
-        gem5py_env = env.Clone()
-    else:
-        gem5py_env = env.Clone()
-        config_embedded_python(gem5py_env)
-
     # Bare minimum environment that only includes python
     gem5py_env.Append(CCFLAGS=['${GEM5PY_CCFLAGS_EXTRA}'])
     gem5py_env.Append(LINKFLAGS=['${GEM5PY_LINKFLAGS_EXTRA}'])
@@ -798,10 +798,12 @@ for variant_path in variant_paths:
     with gem5_scons.Configure(env) as conf:
         # On Solaris you need to use libsocket for socket ops
         if not conf.CheckLibWithHeader(
-                [None, 'socket'], 'sys/socket.h', 'C++', 'accept(0,0,0);'):
+                [None, 'socket'], 'sys/socket.h', 'C++',
+                call='accept(0,0,0);'):
            error("Can't find library with socket calls (e.g. accept()).")
 
-        if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++', call='zlibVersion();'):
+        if not conf.CheckLibWithHeader('z', 'zlib.h', 'C++',
+                                       call='zlibVersion();'):
             error('Did not find needed zlib compression library '
                   'and/or zlib.h header file.\n'
                   'Please install zlib and try again.')

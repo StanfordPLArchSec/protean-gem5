@@ -95,11 +95,10 @@ MemPool::totalBytes() const
 Addr
 MemPool::allocate(Addr npages)
 {
-    Addr page;
-    if (!freePhysPages.allocate(npages, page))
+    const std::optional<Addr> page = freePhysPages.allocate(npages);
+    if (!page)
         fatal("Out of memory, please increase size of physical memory.");
-
-    return page << pageShift;
+    return *page << pageShift;
 }
 
 void
@@ -140,7 +139,7 @@ MemPool::unserialize(CheckpointIn &cp)
         freePhysPages.insert(free_page_num, _totalPages - free_page_num);
     } else {
         ScopedCheckpointSection sec(cp, "free_list");
-        int n;
+        int n = 0;
         optParamIn(cp, "size", n);
         for (int i = 0; i < n; ++i) {
             ScopedCheckpointSection sec(cp, csprintf("free%d", i));
@@ -153,14 +152,6 @@ MemPool::unserialize(CheckpointIn &cp)
     }
 }
 
-MemPools::Stats::Stats(MemPools *pools)
-    : statistics::Group(pools),
-      ADD_STAT(maxAllocatedBytes, statistics::units::Byte::get(),
-               "Maximum allocated bytes among all pools at "
-               "any point in time")
-{
-}
-
 void
 MemPools::populate(const AddrRangeList &memories)
 {
@@ -169,23 +160,9 @@ MemPools::populate(const AddrRangeList &memories)
 }
 
 Addr
-MemPools::allocatedBytes() const
-{
-    return std::transform_reduce(
-        pools.begin(), pools.end(), static_cast<Addr>(0),
-        std::plus<Addr>(), std::mem_fn(&MemPool::allocatedBytes));
-}
-
-Addr
 MemPools::allocPhysPages(int npages, int pool_id)
 {
-    const Addr addr = pools[pool_id].allocate(npages);
-
-    // Recompute max allocated bytes stat, since it may have changed.
-    stats.maxAllocatedBytes =
-        std::max<Addr>(stats.maxAllocatedBytes.value(), allocatedBytes());
-
-    return addr;
+    return pools[pool_id].allocate(npages);
 }
 
 void

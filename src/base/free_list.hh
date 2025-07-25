@@ -35,6 +35,8 @@
 #include <limits>
 #include <list>
 
+#include "base/logging.hh"
+
 namespace gem5
 {
 
@@ -50,6 +52,30 @@ class FreeList
         Range(T base, T size)
             : base(base), size(size)
         {
+        }
+
+        bool
+        contains(T x) const
+        {
+            return base <= x && x < base + size;
+        }
+
+        bool
+        precedes(T x) const
+        {
+            return base + size <= x;
+        }
+
+        bool
+        precedes(const Range &o) const
+        {
+            return precedes(o.base);
+        }
+
+        bool
+        overlaps(const Range &o) const
+        {
+            return !precedes(o) && !o.precedes(*this);
         }
     };
 
@@ -73,11 +99,20 @@ class FreeList
     {
         _size += size;
 
+        // Finds first range whose base is greater than
+        // or equal to the insertion base.
         auto it = std::lower_bound(
             _ranges.begin(), _ranges.end(), base,
             [] (const Range& range, T base) -> bool {
                 return range.base < base;
             });
+
+        // Assert that this isn't a double free.
+        panic_if(it != _ranges.end() && it->overlaps(Range(base, size)),
+                 "free list: double free!\n");
+        panic_if(it != _ranges.begin() &&
+                 std::prev(it)->overlaps(Range(base, size)),
+                 "free list: double free!\n");
 
         // Merge left.
         if (it != _ranges.begin()) {
@@ -107,8 +142,8 @@ class FreeList
      * Allocate a region of size @param size out of free space.
      * @return whether the allocation succeeded.
      */
-    bool
-    allocate(T size, T& base)
+    std::optional<T>
+    allocate(T size)
     {
         assert(size > 0);
 
@@ -126,17 +161,17 @@ class FreeList
 
         // Allocation failed.
         if (best_it == _ranges.end())
-            return false;
+            return std::nullopt;
 
         // Allocation succeeded.
         _size -= size;
         assert(best_it != _ranges.end());
-        base = best_it->base;
+        const T base = best_it->base;
         best_it->base += size;
         best_it->size -= size;
         if (best_it->size == 0)
             _ranges.erase(best_it);
-        return true;
+        return base;
     }
 
     /** Return the number of free items. */

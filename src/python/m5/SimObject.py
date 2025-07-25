@@ -452,10 +452,10 @@ class MetaSimObject(type):
 
     # See ParamValue.cxx_predecls for description.
     def cxx_predecls(cls, code):
-        code('#include "params/$cls.hh"')
+        code('#include "params/$cls.hh"', add_once=True)
 
     def pybind_predecls(cls, code):
-        code('#include "${{cls.cxx_header}}"')
+        code('#include "${{cls.cxx_header}}"', add_once=True)
 
 
 # This *temporary* definition is required to support calls from the
@@ -1259,7 +1259,9 @@ class SimObject(metaclass=MetaSimObject):
         if not self._ccObject:
             # Make sure this object is in the configuration hierarchy
             if not self._parent and not isRoot(self):
-                raise RuntimeError("Attempt to instantiate orphan node")
+                raise RuntimeError(
+                    f"Attempt to instantiate orphan node {self}"
+                )
             # Cycles in the configuration hierarchy are not supported. This
             # will catch the resulting recursion and stop.
             self._ccObject = -1
