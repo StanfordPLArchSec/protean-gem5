@@ -44,8 +44,10 @@
 
 #include "base/addr_range.hh"
 #include "base/addr_range_map.hh"
+#include "base/stl_helpers/hash_helpers.hh"
 #include "mem/packet.hh"
 #include "sim/serialize.hh"
+#include "base/sha256.hh"
 
 namespace gem5
 {
@@ -136,7 +138,7 @@ class BackingStoreEntry
 class PhysicalMemory : public Serializable
 {
 
-  private:
+  public:
 
     // Name for debugging
     std::string _name;
@@ -153,11 +155,8 @@ class PhysicalMemory : public Serializable
     // Let the user choose if we reserve swap space when calling mmap
     const bool mmapUsingNoReserve;
 
-    const bool pristineZeroPages;
-
-    const bool lazyCheckpointMem;
-
     const std::string sharedBackstore;
+    bool anonymousSharedBackstore; // Anonymous shared backing store. Useful primarily for PinCPU.
     uint64_t sharedBackstoreSize;
 
     long pageSize;
@@ -165,6 +164,13 @@ class PhysicalMemory : public Serializable
     // The physical memory used to provide the memory in the simulated
     // system
     std::vector<BackingStoreEntry> backingStore;
+
+    bool serializeUsingPagelist;
+    mutable std::string pagelistPath;
+
+    using PageHash = Sha256Hash;
+    using PageId = uint32_t;
+    mutable stl_helpers::unordered_map<PageHash, PageId> pages;
 
     // Prevent copying
     PhysicalMemory(const PhysicalMemory&);
@@ -196,8 +202,8 @@ class PhysicalMemory : public Serializable
                    bool mmap_using_noreserve,
                    const std::string& shared_backstore,
                    bool auto_unlink_shared_backstore,
-                   bool pristine_zero_pages,
-                   bool lazy_checkpoint_mem);
+                   bool anonymous_shared_backstore,
+                   bool serialize_using_pagelist);
 
     /**
      * Unmap all the backing store we have used.
@@ -290,6 +296,11 @@ class PhysicalMemory : public Serializable
     void serializeStore(CheckpointOut &cp, unsigned int store_id,
                         AddrRange range, uint8_t* pmem) const;
 
+    void serializeStoreUnpaged(CheckpointOut &cp, unsigned int store_id,
+                               AddrRange range, uint8_t *pmem) const;
+    void serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
+                             AddrRange range, uint8_t *pmem) const;
+
     /**
      * Unserialize the memories in the system. As with the
      * serialization, this action is independent of how the address
@@ -301,6 +312,12 @@ class PhysicalMemory : public Serializable
      * Unserialize a specific backing store, identified by a section.
      */
     void unserializeStore(CheckpointIn &cp);
+    void unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
+                                 const std::string &filename);
+
+    void unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
+                               const std::string &filename_pages,
+                               const std::string &filename_ids);
 
 };
 

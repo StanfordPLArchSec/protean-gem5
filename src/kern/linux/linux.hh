@@ -184,6 +184,25 @@ class Linux : public OperatingSystem
 #endif
     };
 
+    // For pselect6().
+#define LINUX__SIGSET_NWORDS (1024 / (8 * sizeof (unsigned long int)))
+    typedef struct
+    {
+        unsigned long int __val[LINUX__SIGSET_NWORDS];
+    } sigset_t;
+
+    struct flock
+    {
+        int16_t l_type;
+        int16_t l_whence;
+        uint8_t pad1[4];
+        int64_t l_start;
+        int64_t l_len;
+        int32_t l_pid;
+        uint8_t pad2[4];
+    };
+    static_assert(sizeof(flock) == 32, "Unexpected size of struct flock!");
+
     //@{
     /// ioctl() command codes.
     static const unsigned TGT_TCGETS     = 0x5401;
@@ -256,7 +275,7 @@ class Linux : public OperatingSystem
     };
 
     // For /dev/urandom accesses
-    static Random random;
+    static Random::RandomPtr random;
 
     static int openSpecialFile(std::string path, Process *process,
                                ThreadContext *tc);

@@ -66,6 +66,7 @@
 #include "sim/se_workload.hh"
 #include "sim/syscall_desc.hh"
 #include "sim/system.hh"
+#include "debug/Process.hh"
 
 namespace gem5
 {
@@ -112,10 +113,13 @@ normalize(const std::string& directory)
 
 Process::Process(const ProcessParams &params, EmulationPageTable *pTable,
                  loader::ObjectFile *obj_file)
-    : SimObject(params), system(params.system),
+    : SimObject(params),
+      params(params),
+      system(params.system),
       seWorkload(dynamic_cast<SEWorkload *>(system->workload)),
       useArchPT(params.useArchPT),
       kvmInSE(params.kvmInSE),
+      pinInSE(params.pinInSE),
       useForClone(false),
       zeroPages(params.zeroPages),
       pTable(pTable),
@@ -168,18 +172,8 @@ void
 Process::clone(ThreadContext *otc, ThreadContext *ntc,
                Process *np, RegVal flags)
 {
-#ifndef CLONE_VM
-#define CLONE_VM 0
-#endif
-#ifndef CLONE_FILES
-#define CLONE_FILES 0
-#endif
-#ifndef CLONE_THREAD
-#define CLONE_THREAD 0
-#endif
-#ifndef CLONE_VFORK
-#define CLONE_VFORK 0
-#endif
+    // TODO: Use target versions for this...
+    // TODO: Need to check if there are flags we're not handling.
     if (CLONE_VM & flags) {
         /**
          * Share the process memory address space between the new process
@@ -190,6 +184,8 @@ Process::clone(ThreadContext *otc, ThreadContext *ntc,
         np->pTable = pTable;
 
         np->memState = memState;
+
+        DPRINTF(Process, "Process::clone: CLONE_VM\n");
     } else {
         /**
          * Duplicate the process memory address space. The state needs to be
@@ -231,6 +227,7 @@ Process::clone(ThreadContext *otc, ThreadContext *ntc,
                 continue;
             }
             nfds->setFDEntry(tgt_fd, this_fde->clone());
+            (*nfds)[tgt_fd]->setCOE(this_fde->getCOE());
 
             auto this_hbfd = std::dynamic_pointer_cast<HBFDEntry>(this_fde);
             if (!this_hbfd)
@@ -294,9 +291,6 @@ Process::initState()
     // first thread context for this process... initialize & enable
     ThreadContext *tc = system->threads[contextIds[0]];
 
-    // mark this context as active so it will start ticking.
-    tc->activate();
-
     pTable->initState();
 
     initVirtMem.reset(new SETranslatingPortProxy(
@@ -305,6 +299,9 @@ Process::initState()
     // load object file into target memory
     image.write(*initVirtMem);
     interpImage.write(*initVirtMem);
+
+    // mark this context as active so it will start ticking.
+    tc->activate();    
 }
 
 DrainState
@@ -358,6 +355,7 @@ Process::deallocateMem(Addr vaddr, int64_t size)
         const Addr page_vaddr = page_vbase + page_size * i;
         Addr page_paddr;
         if (pTable->translate(page_vaddr, page_paddr)) {
+            assert(zeroPages);
             if (zeroPages) {
                 // Zero out the physical page upon deallocation.
                 // Pages that have never been allocated before are already
@@ -368,7 +366,7 @@ Process::deallocateMem(Addr vaddr, int64_t size)
                 // because it would unnecessarily zero out pages that
                 // were allocated for the first time.
                 SETranslatingPortProxy virt_mem(
-                    system->threads[0], SETranslatingPortProxy::Always);
+                    system->threads[contextIds.front()], SETranslatingPortProxy::Always);
                 const std::vector<uint8_t> zero_page(page_size, 0);
                 virt_mem.writeBlob(page_vaddr, zero_page.data(), page_size);
             }
@@ -409,6 +407,9 @@ Process::fixupFault(Addr vaddr)
 void
 Process::serialize(CheckpointOut &cp) const
 {
+    paramOut(cp, "tgtCwd", tgtCwd);
+    paramOut(cp, "hostCwd", hostCwd);
+
     memState->serialize(cp);
     pTable->serialize(cp);
     fds->serialize(cp);
@@ -424,6 +425,9 @@ Process::serialize(CheckpointOut &cp) const
 void
 Process::unserialize(CheckpointIn &cp)
 {
+    paramIn(cp, "tgtCwd", tgtCwd);
+    paramIn(cp, "hostCwd", hostCwd);
+
     memState->unserialize(cp);
     pTable->unserialize(cp);
     fds->unserialize(cp, this);
@@ -570,6 +574,41 @@ Process::absolutePath(const std::string &filename, bool host_filesystem)
 Process *
 ProcessParams::create() const
 {
+    assert(!executable.empty());
+
+    // Check if this executable requires an interpreter (i.e., starts with a shebang).
+    FILE *f;
+    if ((f = fopen(executable.c_str(), "r")) == nullptr)
+        panic("fopen: %s: %s\n", executable, strerror(errno));
+    char shebang[2];
+    if (fread(shebang, 1, sizeof shebang, f) != 2)
+        panic("fread: error\n");
+    if (shebang[0] == '#' && shebang[1] == '!') {
+        char *line = nullptr;
+        size_t n = 0;
+        if (getline(&line, &n, f) < 0)
+            panic("getline: error\n");
+        if (char *newline = strchr(line, '\n'))
+            *newline = '\0';
+        char *s = line;
+        const char *interpreter_path = strsep(&s, " ");
+        const char *interpreter_arg = strsep(&s, " ");
+        panic_if(s, "Bad interpreter: leftover tokens: %s\n", s);
+        ProcessParams params = *this;
+        // TODO: Should actually do p->checkPathRedirect()...
+        params.cmd[0] = params.executable;
+        if (interpreter_arg) {
+            warn_if(!*interpreter_arg, "empty interperter argument: '%s'\n",
+                    interpreter_arg);
+            params.cmd.insert(params.cmd.begin(), interpreter_arg);
+        }
+        params.executable = interpreter_path;
+        params.cmd.insert(params.cmd.begin(), params.executable);
+        free(line);
+        return params.create();
+    }
+    
+    
     // If not specified, set the executable parameter equal to the
     // simulated system's zeroth command line parameter
     const std::string &exec = (executable == "") ? cmd[0] : executable;
@@ -579,6 +618,8 @@ ProcessParams::create() const
 
     Process *process = Process::tryLoaders(*this, obj_file);
     fatal_if(!process, "Unknown error creating process object.");
+    std::cerr << "Loaded process " << process->pid() << " image at " << std::hex << process->image.minAddr() << std::endl;
+    std::cerr << "Loaded interpreter image at " << std::hex << process->interpImage.minAddr() << std::endl;
 
     return process;
 }

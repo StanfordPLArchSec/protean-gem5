@@ -111,6 +111,11 @@ class System : public SimObject, public PCEventScope
     std::unordered_map<RequestorID, std::vector<memory::AbstractMemory *>>
         deviceMemMap;
 
+    // List of address ranges that are have valid physical addresses but
+    // don't appear in the physical memory map. Note that these are assumed
+    // to be coherent addresses, not I/O or device addresses
+    AddrRangeList externalMemRanges;
+
   public:
 
     class Threads
@@ -610,6 +615,8 @@ class System : public SimObject, public PCEventScope
     // to be redirected to the faux-filesystem (a duplicate filesystem
     // intended to replace certain files on the host filesystem).
     std::vector<RedirectPath*> redirectPaths;
+
+    void dumpFDArrays();
 };
 
 void printSystems();

@@ -61,6 +61,7 @@
 #include "sim/debug.hh"
 #include "sim/redirect_path.hh"
 #include "sim/serialize_handlers.hh"
+#include "sim/process.hh"
 
 namespace gem5
 {
@@ -166,13 +167,15 @@ int System::numSystemsRunning = 0;
 
 System::System(const Params &p)
     : SimObject(p), _systemPort("system_port"),
+      externalMemRanges(p.external_memory_ranges.begin(),
+                         p.external_memory_ranges.end()),
       multiThread(p.multi_thread),
       init_param(p.init_param),
       physProxy(_systemPort, p.cache_line_size),
       workload(p.workload),
       physmem(name() + ".physmem", p.memories, p.mmap_using_noreserve,
               p.shared_backstore, p.auto_unlink_shared_backstore,
-              p.pristine_zero_pages, p.lazy_checkpoint_mem),
+              p.anonymous_shared_backstore, p.use_pagelist),
       ShadowRomRanges(p.shadow_rom_ranges.begin(),
                       p.shadow_rom_ranges.end()),
       memoryMode(p.mem_mode),
@@ -288,7 +291,18 @@ System::memSize() const
 bool
 System::isMemAddr(Addr addr) const
 {
-    return physmem.isMemAddr(addr);
+    if (physmem.isMemAddr(addr)) {
+        return true;
+    } else {
+        // Check the external memory ranges as well
+        for (const auto& range : externalMemRanges) {
+            if (range.contains(addr)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 void
@@ -531,6 +545,22 @@ System::getRequestorName(RequestorID requestor_id)
 
     const auto& requestor_info = requestors[requestor_id];
     return requestor_info.req_name;
+}
+
+void
+System::dumpFDArrays()
+{
+    std::set<int> pids;
+    std::ostream &os = std::cerr;
+    for (ThreadContext *tc : threads) {
+        if (const auto p = tc->getProcessPtr()) {
+            if (pids.insert(p->pid()).second) {
+                os << "=== P" << std::dec << p->pid() << " ===\n";
+                p->fds->print(os);
+                os << "\n\n\n";
+            }
+        }
+    }
 }
 
 } // namespace gem5

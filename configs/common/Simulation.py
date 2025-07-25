@@ -188,7 +188,7 @@ def findCptDir(options, cptdir, testsys):
         simpoint_start_insts.append(warmup_length)
         simpoint_start_insts.append(warmup_length + interval_length)
         testsys.cpu[0].simpoint_start_insts = simpoint_start_insts
-        if testsys.switch_cpus != None:
+        if hasattr(testsys, 'switch_cpus') and testsys.switch_cpus != None:
             testsys.switch_cpus[0].simpoint_start_insts = simpoint_start_insts
 
         print("Resuming from SimPoint", end=" ")
@@ -440,7 +440,7 @@ def restoreSimpointCheckpoint():
         exit_event = m5.simulate()
         exit_cause = exit_event.getCause()
         if exit_cause != "simulate() limit reached":
-            break
+            break    
 
     if exit_cause == "simpoint starting point found":
         print("Warmed up! Dumping and resetting stats!")
@@ -551,9 +551,9 @@ def run(options, root, testsys, cpu_class):
                 IndirectBPClass = ObjectList.indirect_bp_list.get(
                     options.indirect_bp_type
                 )
-                switch_cpus[
-                    i
-                ].branchPred.indirectBranchPred = IndirectBPClass()
+                switch_cpus[i].branchPred.indirectBranchPred = (
+                    IndirectBPClass()
+                )
             switch_cpus[i].createThreads()
 
         # If elastic tracing is enabled attach the elastic trace probe

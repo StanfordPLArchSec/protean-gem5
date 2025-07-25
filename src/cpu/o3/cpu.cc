@@ -42,6 +42,8 @@
 
 #include "cpu/o3/cpu.hh"
 
+#include <sys/resource.h>
+
 #include "cpu/activity.hh"
 #include "cpu/checker/cpu.hh"
 #include "cpu/checker/thread_context.hh"
@@ -52,6 +54,7 @@
 #include "cpu/thread_context.hh"
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
+#include "debug/Heartbeat.hh"
 #include "debug/O3CPU.hh"
 #include "debug/Quiesce.hh"
 #include "enums/MemoryMode.hh"
@@ -290,7 +293,7 @@ CPU::CPU(const BaseO3CPUParams &params)
             thread[tid] = new ThreadState(this, 0, NULL);
         } else {
             if (tid < params.workload.size()) {
-                DPRINTF(O3CPU, "Workload[%i] process is %#x", tid,
+                DPRINTF(O3CPU, "Workload[%i] process is %#x\n", tid,
                         thread[tid]);
                 thread[tid] = new ThreadState(this, tid, params.workload[tid]);
             } else {
@@ -406,9 +409,31 @@ CPU::CPUStats::CPUStats(CPU *cpu)
 }
 
 void
+CPU::heartbeat() const
+{
+    static size_t prev_total_insts = 0;
+    constexpr size_t step = 1000000;
+    const auto get_interval = [] (size_t insts) -> size_t {
+        return insts / step;
+    };
+    if (get_interval(prev_total_insts) == get_interval(totalInsts()))
+        return;
+    prev_total_insts = totalInsts();
+
+    // Print heartbeat.
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) < 0)
+        panic("heartbeat error: getrusage failed\n");
+    long mb = ru.ru_maxrss / 1024;
+    DPRINTF(Heartbeat, "Heartbeat O3CPU totalInsts=%u maxrss=%uMiB\n",
+            totalInsts(), mb);
+}
+
+void
 CPU::tick()
 {
     DPRINTF(O3CPU, "\n\nO3CPU: Ticking main, O3CPU.\n");
+    heartbeat();
     assert(!switchedOut());
     assert(drainState() != DrainState::Drained);
 
@@ -700,17 +725,6 @@ CPU::removeThread(ThreadID tid)
     decode.clearStates(tid);
     rename.clearStates(tid);
     iew.clearStates(tid);
-
-    // Clear all thread-specific state from the time buffers.
-    auto clear_timebuf = [tid] (auto &buf) {
-        for (int i = -buf.getPast(); i <= buf.getFuture(); ++i)
-            buf[i].clearStates(tid);
-    };
-    clear_timebuf(timeBuffer);
-    clear_timebuf(fetchQueue);
-    clear_timebuf(decodeQueue);
-    clear_timebuf(renameQueue);
-    clear_timebuf(iewQueue);
 
     // at this step, all instructions in the pipeline should be already
     // either committed successfully or squashed. All thread-specific

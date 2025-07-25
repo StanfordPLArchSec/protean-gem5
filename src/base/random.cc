@@ -40,16 +40,11 @@
 
 #include "base/random.hh"
 
+#include <algorithm>
 #include <sstream>
 
 namespace gem5
 {
-
-Random::Random()
-{
-    // default random seed
-    init(5489);
-}
 
 Random::Random(uint32_t s)
 {
@@ -58,6 +53,21 @@ Random::Random(uint32_t s)
 
 Random::~Random()
 {
+    if (instances) {
+        // Remove expired weak pointers
+        instances->erase(
+            std::remove_if(instances->begin(), instances->end(),
+                [](const std::weak_ptr<Random>& ptr) {
+                    return ptr.expired();
+                }),
+            instances->end());
+
+        // Clean up instances if empty
+        if (instances->empty()) {
+            delete instances;
+            instances = nullptr;
+        }
+    }
 }
 
 void
@@ -66,6 +76,7 @@ Random::init(uint32_t s)
     gen.seed(s);
 }
 
-Random random_mt;
+uint64_t Random::globalSeed = 5489;
+Random::Instances* Random::instances = nullptr;
 
 } // namespace gem5

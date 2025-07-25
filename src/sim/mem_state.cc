@@ -174,6 +174,7 @@ MemState::mapRegion(Addr start_addr, Addr length,
 {
     DPRINTF(Vma, "memstate: creating vma (%s) [0x%x - 0x%x]\n",
             region_name.c_str(), start_addr, start_addr + length);
+    panic_if(start_addr == 0, "Tried to map virtual address 0 (length %u)!\n", length);
 
     /**
      * Avoid creating a region that has preexisting mappings. This should
@@ -193,6 +194,10 @@ MemState::unmapRegion(Addr start_addr, Addr length)
 {
     Addr end_addr = start_addr + length;
     const AddrRange range(start_addr, end_addr);
+
+    // HACK: Pin: mark unmapped pages.
+    for (Addr addr = start_addr; addr < end_addr; addr += 0x1000)
+        unmapped.push_back(addr);
 
     auto vma = std::begin(_vmaList);
     while (vma != std::end(_vmaList)) {
@@ -285,6 +290,10 @@ MemState::remapRegion(Addr start_addr, Addr new_start_addr, Addr length)
 
     Addr end_addr = start_addr + length;
     const AddrRange range(start_addr, end_addr);
+
+    // HACK: Pin: mark all remapped pages as unmapped.
+    for (Addr addr = start_addr; addr < end_addr; addr += 0x1000)
+        unmapped.push_back(addr);
 
     auto vma = std::begin(_vmaList);
     while (vma != std::end(_vmaList)) {
@@ -434,14 +443,11 @@ MemState::fixupFault(Addr vaddr)
      * this address.
      */
     if (vaddr < _stackMin && vaddr >= _stackBase - _maxStackSize) {
-        while (vaddr < _stackMin) {
-            _stackMin -= _pageBytes;
-            if (_stackBase - _stackMin > _maxStackSize) {
-                fatal("Maximum stack size exceeded\n");
-            }
-            _ownerProcess->allocateMem(_stackMin, _pageBytes);
-            inform("Increasing stack size by one page.");
-        }
+        const Addr new_stack_min = roundDown(vaddr, _pageBytes);
+        const size_t size = _stackMin - new_stack_min;
+        _stackMin = new_stack_min;
+        _ownerProcess->allocateMem(_stackMin, size);
+        inform("Increasing stack size by %d pages\n", size / _pageBytes);
         return true;
     }
 

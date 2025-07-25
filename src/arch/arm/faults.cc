@@ -689,22 +689,23 @@ ArmFault::invoke64(ThreadContext *tc, const StaticInstPtr &inst)
     // information
     [[maybe_unused]] ArmStaticInst *arm_inst = instrAnnotate(inst);
 
+    // Save exception syndrome
+    MiscRegIndex syndrome_index = getSyndromeReg64();
+    if ((nextMode() != MODE_IRQ) && (nextMode() != MODE_FIQ))
+        setSyndrome(tc, syndrome_index);
+
     // Set PC to start of exception handler
     Addr new_pc = purifyTaggedAddr(vec_address, tc, toEL, true);
     DPRINTF(Faults, "Invoking Fault (AArch64 target EL):%s cpsr:%#x PC:%#x "
-            "elr:%#x newVec: %#x %s\n", name(), cpsr, curr_pc, ret_addr,
-            new_pc, arm_inst ? csprintf("inst: %#x", arm_inst->encoding()) :
-            std::string());
+            "elr:%#x esr_el%d: %#x %s\n", name(), cpsr, curr_pc, ret_addr,
+            toEL, tc->readMiscRegNoEffect(syndrome_index), arm_inst ?
+            csprintf("inst: %#x", arm_inst->encoding()) : std::string());
     PCState pc(new_pc);
     pc.aarch64(!cpsr.width);
     pc.nextAArch64(!cpsr.width);
     pc.illegalExec(false);
     pc.stepped(false);
     tc->pcState(pc);
-
-    // Save exception syndrome
-    if ((nextMode() != MODE_IRQ) && (nextMode() != MODE_FIQ))
-        setSyndrome(tc, getSyndromeReg64());
 }
 
 ArmStaticInst *
@@ -1067,8 +1068,8 @@ AbortFault<T>::invoke(ThreadContext *tc, const StaticInstPtr &inst)
             tc->setMiscReg(T::FsrIndex, fsr);
             tc->setMiscReg(T::FarIndex, faultAddr);
         }
-        DPRINTF(Faults, "Abort Fault source=%#x fsr=%#x faultAddr=%#x "\
-                "tranMethod=%#x\n", source, fsr, faultAddr, tranMethod);
+        DPRINTF(Faults, "Abort Fault source=%#x fsr=%#x faultAddr=%#x\n",
+                source, fsr, faultAddr);
     } else {  // AArch64
         // Set the FAR register.  Nothing else to do if we are in AArch64 state
         // because the syndrome register has already been set inside invoke64()
@@ -1092,11 +1093,11 @@ template<class T>
 void
 AbortFault<T>::update(ThreadContext *tc)
 {
-    if (tranMethod == ArmFault::UnknownTran) {
-        tranMethod = longDescFormatInUse(tc) ? ArmFault::LpaeTran
-                                             : ArmFault::VmsaTran;
+    if (tranMethod == TranMethod::UnknownTran) {
+        tranMethod = longDescFormatInUse(tc) ? TranMethod::LpaeTran
+                                             : TranMethod::VmsaTran;
 
-        if ((tranMethod == ArmFault::VmsaTran) && this->routeToMonitor(tc)) {
+        if ((tranMethod == TranMethod::VmsaTran) && this->routeToMonitor(tc)) {
             // See ARM ARM B3-1416
             bool override_LPAE = false;
             TTBCR ttbcr_s = tc->readMiscReg(MISCREG_TTBCR_S);
@@ -1109,7 +1110,7 @@ AbortFault<T>::update(ThreadContext *tc)
                         "override detected.\n");
             }
             if (override_LPAE)
-                tranMethod = ArmFault::LpaeTran;
+                tranMethod = TranMethod::LpaeTran;
         }
     }
 
@@ -1139,8 +1140,8 @@ AbortFault<T>::getFaultStatusCode(ThreadContext *tc) const
 
     if (!this->to64) {
         // AArch32
-        assert(tranMethod != ArmFault::UnknownTran);
-        if (tranMethod == ArmFault::LpaeTran) {
+        assert(tranMethod != TranMethod::UnknownTran);
+        if (tranMethod == TranMethod::LpaeTran) {
             fsc = ArmFault::longDescFaultSources[source];
         } else {
             fsc = ArmFault::shortDescFaultSources[source];
@@ -1162,8 +1163,8 @@ AbortFault<T>::getFsr(ThreadContext *tc) const
     auto fsc = getFaultStatusCode(tc);
 
     // AArch32
-    assert(tranMethod != ArmFault::UnknownTran);
-    if (tranMethod == ArmFault::LpaeTran) {
+    assert(tranMethod != TranMethod::UnknownTran);
+    if (tranMethod == TranMethod::LpaeTran) {
         fsr.status = fsc;
         fsr.lpae   = 1;
     } else {
@@ -1429,6 +1430,9 @@ DataAbort::annotate(AnnotationIDs id, uint64_t val)
         break;
       case OFA:
         faultAddr  = val;
+        break;
+      case WnR:
+        write = val;
         break;
       // Just ignore unknown ID's
       default:

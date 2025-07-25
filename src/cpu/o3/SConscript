@@ -82,6 +82,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('TransmitterStalls')
     DebugFlag('TransmitterStallsVerbose')
     DebugFlag('AccessPredictor')
+    DebugFlag('HFI')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',
@@ -92,5 +93,5 @@ if env['CONF']['BUILD_ISA']:
     Source('checker.cc')
 
     # For backwards compatibility
-    SimObject('O3CPU.py', sim_objects=[])
-    SimObject('O3Checker.py', sim_objects=[])
+    SimObject('O3CPU.py', sim_objects=[], tags=['isa'])
+    SimObject('O3Checker.py', sim_objects=[], tags=['isa'])

@@ -41,9 +41,8 @@ TEST(FreeListTest, Simple)
     l.insert(0, 16);
     EXPECT_EQ(l.size(), 16);
     EXPECT_EQ(l.ranges().size(), 1);
-    int x;
-    const bool ok = l.allocate(16, x);
-    EXPECT_EQ(ok, true);
+    const std::optional<int> x = l.allocate(16);
+    EXPECT_TRUE(x.has_value());
     EXPECT_EQ(l.size(), 0);
     EXPECT_EQ(l.ranges().size(), 0);
 }
@@ -52,18 +51,16 @@ TEST(FreeListTest, FailedAllocation)
 {
     FreeList<int> l(0, 16);
     EXPECT_EQ(l.size(), 16);
-    int x;
-    bool ok = l.allocate(17, x);
-    ASSERT_EQ(ok, false);
+    const std::optional<int> x = l.allocate(17);
+    ASSERT_FALSE(x.has_value());
     ASSERT_EQ(l.size(), 16);
 }
 
 TEST(FreeListTest, SucceededAllocation)
 {
     FreeList<int> l(0, 16);
-    int x;
-    bool ok = l.allocate(8, x);
-    ASSERT_EQ(ok, true);
+    const std::optional<int> x = l.allocate(8);
+    ASSERT_TRUE(x.has_value());
     ASSERT_EQ(l.size(), 8);
 }
 
@@ -93,4 +90,47 @@ TEST(FreeListTest, MergeBoth)
     l.insert(8, 8);
     ASSERT_EQ(l.size(), 24);
     ASSERT_EQ(l.ranges().size(), 1);
+}
+
+TEST(FreeListTest, DoubleFreeIdenticalDeath)
+{
+    FreeList<int> l;
+    l.insert(0, 1);
+    ASSERT_ANY_THROW(l.insert(0, 1));
+}
+
+TEST(FreeListTest, DoubleFreeSubrangeDeath)
+{
+    FreeList<int> l;
+    l.insert(0, 2);
+    ASSERT_ANY_THROW(l.insert(0, 1));
+}
+
+TEST(FreeListTest, DoubleFreeSuperrangeDeath)
+{
+    FreeList<int> l;
+    l.insert(1, 2);
+    ASSERT_ANY_THROW(l.insert(0, 3));
+}
+
+TEST(FreeListTest, DoubleFreeOverlapLeftDeath)
+{
+    FreeList<int> l;
+    l.insert(1, 3);
+    ASSERT_ANY_THROW(l.insert(0, 2));
+}
+
+TEST(FreeListTest, DoubleFreeOverlapRightDeath)
+{
+    FreeList<int> l;
+    l.insert(1, 3);
+    ASSERT_ANY_THROW(l.insert(2, 4));
+}
+
+TEST(FreeListTest, DoubleFreeMultiDeath)
+{
+    FreeList<int> l;
+    l.insert(0, 1);
+    l.insert(2, 3);
+    ASSERT_ANY_THROW(l.insert(0, 3));
 }

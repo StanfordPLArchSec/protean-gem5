@@ -104,4 +104,10 @@ class StaticInstFlags(Enum):
         "IsPTeXProtected",  # PTeX's PROT prefix
         "IsPTeXUnprotectedOverride",
         "IsZeroIdiom",
+        'IsUnrestricted',   # Unrestricted mov
+        'IsHfiStructured',  # HFI structured mov
+        'IsHfiStructured1',  # HFI structured mov 1
+        'IsHfiStructured2',  # HFI structured mov 2
+        'IsHfiStructured3',  # HFI structured mov 3
+        'IsHfiStructured4'   # HFI structured mov 4
     ]

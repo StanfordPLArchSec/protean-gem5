@@ -69,7 +69,7 @@
 #include "cpu/timebuf.hh"
 #include "enums/SpeculationModel.hh"
 #include "enums/DeclassifyMode.hh"
-#include "enums/MierosTrackMode.hh"
+#include "enums/MierosPredMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/ptex.hh"
@@ -591,6 +591,8 @@ class CPU : public BaseCPU
          * quiesce operation or waiting for an interrupt. */
         statistics::Scalar quiesceCycles;
     } cpuStats;
+
+    void heartbeat() const;
 
   public:
     // hardware transactional memory

@@ -282,7 +282,10 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
       ADD_STAT(tptUnprotUnprotForwards, "[TPT] Forwards from unprotected store with no prior "
                "taint primitives to unprotected load"),
       ADD_STAT(delayedWritebackTicks, "[TPT] Average number of cycles the writeback of mispredicted access instructions are delayed"),
-      ADD_STAT(delayedWritebackCount, "[TPT] See delayedWritebackTicks")
+      ADD_STAT(delayedWritebackCount, "[TPT] See delayedWritebackTicks"),
+                "first time a load is issued and its completion"),
+      ADD_STAT(addedLoadsAndStores, statistics::units::Count::get(),
+               "Number of loads and stores written to the Load Store Queue")
 {
     loadToUse
         .init(0, 299, 10)
@@ -332,6 +335,7 @@ LSQUnit::insertLoad(const DynInstPtr &load_inst)
 {
     assert(!loadQueue.full());
     assert(loadQueue.size() < loadQueue.capacity());
+    ++stats.addedLoadsAndStores;
 
     DPRINTF(LSQUnit, "Inserting load PC %s, idx:%i [sn:%lli]\n",
             load_inst->pcState(), loadQueue.tail(), load_inst->seqNum);
@@ -393,6 +397,7 @@ LSQUnit::insertStore(const DynInstPtr& store_inst)
     // Make sure it is not full before inserting an instruction.
     assert(!storeQueue.full());
     assert(storeQueue.size() < storeQueue.capacity());
+    ++stats.addedLoadsAndStores;
 
     DPRINTF(LSQUnit, "Inserting store PC %s, idx:%i [sn:%lli]\n",
             store_inst->pcState(), storeQueue.tail(), store_inst->seqNum);

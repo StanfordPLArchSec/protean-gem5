@@ -553,6 +553,9 @@ class LSQUnit
         statistics::Scalar tptUnprotUnprotForwards;
         statistics::Scalar delayedWritebackTicks;
         statistics::Scalar delayedWritebackCount;
+
+        /** Total number of loads and stores written to the load store queue */
+        statistics::Scalar addedLoadsAndStores;
     } stats;
 
   public:

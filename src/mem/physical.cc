@@ -57,6 +57,7 @@
 #include "mem/abstract_mem.hh"
 #include "sim/serialize.hh"
 #include "sim/sim_exit.hh"
+#include "base/stl_helpers/hash_helpers.hh"
 
 /**
  * On Linux, MAP_NORESERVE allow us to simulate a very large memory
@@ -81,12 +82,14 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
                                bool mmap_using_noreserve,
                                const std::string& shared_backstore,
                                bool auto_unlink_shared_backstore,
-                               bool pristine_zero_pages,
-                               bool lazy_checkpoint_mem) : 
+                               bool anonymous_shared_backstore,
+                               bool serialize_using_pagelist) :
     _name(_name), size(0), mmapUsingNoReserve(mmap_using_noreserve),
-    pristineZeroPages(pristine_zero_pages), lazyCheckpointMem(lazy_checkpoint_mem),
-    sharedBackstore(shared_backstore), sharedBackstoreSize(0),
-    pageSize(sysconf(_SC_PAGE_SIZE))
+    sharedBackstore(shared_backstore),
+    anonymousSharedBackstore(anonymous_shared_backstore),
+    sharedBackstoreSize(0),
+    pageSize(sysconf(_SC_PAGE_SIZE)),
+    serializeUsingPagelist(serialize_using_pagelist)    
 {
     // Register cleanup callback if requested.
     if (auto_unlink_shared_backstore && !sharedBackstore.empty()) {
@@ -227,7 +230,11 @@ PhysicalMemory::createBackingStore(
         sharedBackstoreSize += roundUp(range.size(), pageSize);
         DPRINTF(AddrRanges, "Sharing backing store as %s at offset %llu\n",
                 sharedBackstore.c_str(), (uint64_t)map_offset);
-        shm_fd = shm_open(sharedBackstore.c_str(), O_CREAT | O_RDWR, 0666);
+        if (anonymousSharedBackstore) {
+            shm_fd = memfd_create(sharedBackstore.c_str(), 0);
+        } else {
+            shm_fd = shm_open(sharedBackstore.c_str(), O_CREAT | O_RDWR, 0666);
+        }
         if (shm_fd == -1)
                panic("Shared memory failed");
         if (ftruncate(shm_fd, sharedBackstoreSize))
@@ -270,6 +277,10 @@ PhysicalMemory::~PhysicalMemory()
     // unmap the backing store
     for (auto& s : backingStore)
         munmap((char*)s.pmem, s.range.size());
+
+    // Remove the backing store if mapped.
+    if (!sharedBackstore.empty())
+        shm_unlink(sharedBackstore.c_str());
 }
 
 bool
@@ -364,7 +375,18 @@ PhysicalMemory::serialize(CheckpointOut &cp) const
 
 void
 PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
-                               AddrRange range, uint8_t* pmem) const
+                               AddrRange range, uint8_t *pmem) const
+{
+    if (serializeUsingPagelist) {
+        serializeStorePaged(cp, store_id, range, pmem);
+    } else {
+        serializeStoreUnpaged(cp, store_id, range, pmem);
+    }
+}
+
+void
+PhysicalMemory::serializeStoreUnpaged(CheckpointOut &cp, unsigned int store_id,
+                                      AddrRange range, uint8_t* pmem) const
 {
     // we cannot use the address range for the name as the
     // memories that are not part of the address map can overlap
@@ -372,7 +394,7 @@ PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
         name() + ".store" + std::to_string(store_id) + ".pmem";
     Addr range_size = range.size();
 
-    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d\n",
+    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d (unpaged)\n",
             filename, range_size);
 
     SERIALIZE_SCALAR(store_id);
@@ -410,6 +432,62 @@ PhysicalMemory::serializeStore(CheckpointOut &cp, unsigned int store_id,
 }
 
 void
+PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
+                                    AddrRange range, uint8_t *mem) const
+{
+    const std::string basename = name() + ".store" + std::to_string(store_id) + ".pmem";
+    const std::string filename_pages = basename + ".pages";
+    const std::string filename_ids = basename  + ".ids";
+    Addr range_size = range.size();
+
+    DPRINTF(Checkpoint, "Serializing physical memory %s with size %d (paged)\n",
+            basename, range_size);
+
+    SERIALIZE_SCALAR(store_id);
+    SERIALIZE_SCALAR(filename_pages);
+    SERIALIZE_SCALAR(filename_ids);
+    SERIALIZE_SCALAR(range_size);
+
+    // Open page file.
+    const std::string filepath_pages = CheckpointIn::dir() + "/" + filename_pages;
+    if (!(::access(filepath_pages.c_str(), F_OK) < 0 && (errno == ENOENT || errno == ENOTDIR)))
+        fatal("File already exists. Refusing to overwrite it.\n");
+    if (!pagelistPath.empty())
+        if (link(pagelistPath.c_str(), filepath_pages.c_str()) < 0)
+            fatal("Failed to hardlink paths\n");
+    FILE *file_pages_raw = std::fopen(filepath_pages.c_str(), "ab");
+    if (!file_pages_raw)
+        fatal("Failed to open memory checkpoint page file %s\n", filepath_pages);
+    gzFile file_pages = ::gzdopen(fileno(file_pages_raw), "wb");
+    pagelistPath = filepath_pages;
+
+    // Open id file.
+    const std::string filepath_ids = CheckpointIn::dir() + "/" + filename_ids;
+    FILE *file_ids = std::fopen(filepath_ids.c_str(), "wb");
+    if (!file_ids)
+        fatal("Failed to open memory checkpoint id file %s\n", filepath_ids);
+
+    // Memory pages.
+    assert((range.size() & (pageSize - 1)) == 0);
+    for (std::size_t i = 0; i != range.size(); i += pageSize) {
+        // Hash the page.
+        const Sha256Hash page_hash = sha256(&mem[i], pageSize);
+        const auto res = pages.emplace(page_hash, pages.size());
+        const PageId id = res.first->second;
+        if (res.second) {
+            // Added new page; write out to page file.
+            if (gzwrite(file_pages, &mem[i], pageSize) != pageSize)
+                fatal("Failed to write page data\n");
+        }
+        if (std::fwrite(&id, sizeof id, 1, file_ids) != 1)
+            fatal("Failed to write page id\n");
+    }
+
+    gzclose(file_pages);
+    std::fclose(file_ids);
+}
+
+void
 PhysicalMemory::unserialize(CheckpointIn &cp)
 {
     // unserialize the locked addresses and map them to the
@@ -437,13 +515,27 @@ PhysicalMemory::unserialize(CheckpointIn &cp)
 void
 PhysicalMemory::unserializeStore(CheckpointIn &cp)
 {
-    const uint32_t chunk_size = 16384;
-
     unsigned int store_id;
     UNSERIALIZE_SCALAR(store_id);
 
     std::string filename;
-    UNSERIALIZE_SCALAR(filename);
+    if (optParamIn(cp, "filename", filename)) {
+        unserializeStoreUnpaged(cp, store_id, filename);
+    } else {
+        std::string filename_pages;
+        UNSERIALIZE_SCALAR(filename_pages);
+        std::string filename_ids;
+        UNSERIALIZE_SCALAR(filename_ids);
+        unserializeStorePaged(cp, store_id, filename_pages, filename_ids);
+    }
+}
+
+void
+PhysicalMemory::unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
+                                        const std::string &filename)
+{
+    const uint32_t chunk_size = 16384;
+
     std::string filepath = cp.getCptDir() + "/" + filename;
 
     // mmap memoryfile
@@ -458,15 +550,6 @@ PhysicalMemory::unserializeStore(CheckpointIn &cp)
     Addr range_size;
     UNSERIALIZE_SCALAR(range_size);
 
-    if (lazyCheckpointMem) {
-        memories[0]->setLazy(compressed_mem, range_size,
-                             32ULL * 1024 * 1024 /*32MiB*/);
-#if 0
-        munmap(pmem, range_size);
-#endif
-        return;
-    }
-
     DPRINTF(Checkpoint, "Unserializing physical memory %s with size %d\n",
             filename, range_size);
 
@@ -475,28 +558,12 @@ PhysicalMemory::unserializeStore(CheckpointIn &cp)
               range_size, range.size());
 
     uint64_t curr_size = 0;
-
     uint32_t bytes_read;
-    std::vector<uint8_t> buf;
-    if (pristineZeroPages)
-        buf.resize(chunk_size);
     while (curr_size < range.size()) {
-        uint8_t *ptr = pristineZeroPages ? buf.data() : pmem;
-        bytes_read = gzread(compressed_mem, ptr, chunk_size);
+        bytes_read = gzread(compressed_mem, pmem, chunk_size);
         if (bytes_read == 0)
             break;
         curr_size += bytes_read;
-        if (pristineZeroPages) {
-            for (size_t page = 0; page < chunk_size; page += 4096) {
-                const auto first = buf.begin() + page;
-                const auto last = first + 4096;
-                const auto is_nonzero = [] (uint8_t byte) -> bool {
-                    return byte != 0;
-                };
-                if (std::any_of(first, last, is_nonzero)) 
-                    std::copy(first, last, pmem + page);
-            }
-        }
         pmem += bytes_read;
     }
 
@@ -504,6 +571,79 @@ PhysicalMemory::unserializeStore(CheckpointIn &cp)
         fatal("Close failed on physical memory checkpoint file '%s'\n",
               filename);
 }
+
+void
+PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
+                                      const std::string &filename_pages,
+                                      const std::string &filename_ids)
+{
+    const auto path = [&cp] (const std::string &name) -> std::string {
+        return cp.getCptDir() + "/" + name;
+    };
+    const std::string filepath_pages = path(filename_pages);
+    const std::string filepath_ids = path(filename_ids);
+
+    gzFile file_pages = gzopen(filepath_pages.c_str(), "rb");
+    if (!file_pages)
+        fatal("Can't open physical memory checkpoint pages file '%s'\n", filename_pages);
+    FILE *file_ids = std::fopen(filepath_ids.c_str(), "rb");
+    if (!file_ids)
+        fatal("Can't open physical memory checkpoint pageid file '%s'\n", filename_ids);
+
+    using PageId = int;
+    using Page = std::vector<uint8_t>;
+
+    // we've already got the actual backing store mapped
+    // TODO: Shared code with unserializeStoreUnpaged.
+    uint8_t* pmem = backingStore[store_id].pmem;
+    AddrRange range = backingStore[store_id].range;
+
+    Addr range_size;
+    UNSERIALIZE_SCALAR(range_size);
+    
+    DPRINTF(Checkpoint, "Unserializing physical memory %s with size %d\n",
+            filename_ids, range_size);
+
+    if (range_size != range.size())
+        fatal("Memory range size has changed! Saw %lld, expected %lld\n",
+              range_size, range.size());
+
+    // Parse ids.
+    std::vector<PageId> id_vec;
+    for (std::size_t i = 0; i != range.size(); i += pageSize) {
+        PageId id;
+        if (std::fread(&id, sizeof id, 1, file_ids) != 1)
+            fatal("Failed to read page id\n");
+        id_vec.push_back(id);
+    }
+
+    // Load pages from set.
+    std::vector<PageId> id_vec_sorted = id_vec;
+    std::sort(id_vec_sorted.begin(), id_vec_sorted.end());
+    auto id_vec_sorted_new_end = std::unique(id_vec_sorted.begin(), id_vec_sorted.end());
+    id_vec_sorted.erase(id_vec_sorted_new_end, id_vec_sorted.end());
+
+    // Parse page table.
+    std::unordered_map<PageId, Page> pages;
+    for (PageId page_id : id_vec_sorted) {
+        Page page(pageSize);
+        const z_off_t off = page_id * pageSize;
+        const auto new_off = gzseek(file_pages, off, SEEK_SET);
+        fatal_if(new_off != off, "gzseek sought to the wrong location!\n");
+        const int bytes = gzread(file_pages, page.data(), pageSize);
+        fatal_if(bytes != pageSize, "gzread read the wrong number of bytes!\n");
+        pages.emplace(page_id, std::move(page));
+    }
+    gzclose(file_pages);
+
+    // Copy pages into memory.
+    for (std::size_t i = 0; i < id_vec.size(); ++i) {
+        const std::size_t off = i * pageSize;
+        const PageId id = id_vec[i];
+        const Page &page = pages.at(id);
+        std::copy(page.begin(), page.end(), &pmem[off]);
+    }
+}   
 
 } // namespace memory
 } // namespace gem5

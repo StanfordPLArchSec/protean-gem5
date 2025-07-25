@@ -235,6 +235,17 @@ class ThreadContext : public PCEventScope
     virtual void setHtmCheckpointPtr(BaseHTMCheckpointPtr cpt) = 0;
 
     void setUnprotected(Addr vaddr);
+
+    struct SimcallInfo {
+        enum {
+            SYSCALL = 0,
+            PAGEFAULT = 1,
+            INVALID = -1,
+        } type;
+        union {
+            uint64_t vaddr; // SIMCALL_PAGEFAULT
+        };
+    } simcall_info;
 };
 
 /** @{ */
