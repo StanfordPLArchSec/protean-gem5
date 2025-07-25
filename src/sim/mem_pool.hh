@@ -36,7 +36,6 @@
 
 #include "base/addr_range.hh"
 #include "base/free_list.hh"
-#include "base/statistics.hh"
 #include "base/types.hh"
 #include "sim/serialize.hh"
 

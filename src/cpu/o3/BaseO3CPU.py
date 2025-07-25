@@ -42,8 +42,11 @@ from m5.objects.BaseCPU import BaseCPU
 # from m5.objects.O3Checker import O3Checker
 from m5.objects.BranchPredictor import *
 from m5.objects.FUPool import *
+from m5.objects.IndexingPolicies import *
+from m5.objects.ReplacementPolicies import *
 from m5.params import *
 from m5.proxy import *
+from m5.SimObject import *
 
 
 class SMTFetchPolicy(ScopedEnum):
@@ -155,7 +158,19 @@ class BaseO3CPU(BaseCPU):
         "should be invalidated",
     )
     LFSTSize = Param.Unsigned(1024, "Last fetched store table size")
-    SSITSize = Param.Unsigned(1024, "Store set ID table size")
+    SSITSize = Param.MemorySize("1024", "Store set ID table size")
+    SSITAssoc = Param.Unsigned(1, "SSIT table associativity")
+    SSITReplPolicy = Param.BaseReplacementPolicy(
+        LRURP(), "SSIT replacement policy"
+    )
+    SSITIndexingPolicy = Param.BaseIndexingPolicy(
+        SetAssociative(
+            size=Parent.SSITSize * 4,
+            assoc=Parent.SSITAssoc,
+            entry_size=4,
+        ),
+        "SSIT indexing policy",
+    )
 
     numRobs = Param.Unsigned(1, "Number of Reorder Buffers")
 
@@ -193,6 +208,7 @@ class BaseO3CPU(BaseCPU):
         TournamentBP(numThreads=Parent.numThreads), "Branch Predictor"
     )
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
+
     speculationModel = Param.SpeculationModel(
         "Futuristic", "[TPE, STT, SPT] Speculation model"
     )
@@ -209,3 +225,15 @@ class BaseO3CPU(BaseCPU):
     enableShadowL1 = Param.Bool(False, "Whether to enable the shadow L1 cache")
     bottomlessShadowL1 = Param.Bool(False, "Whether the shadow L1 cache is bottomless, i.e. ignores evictions")
     untaintRounds = Param.Int(1, "Untaint rounds per cycle")
+
+
+    recvRespThrottling = Param.Bool(
+        False, "Enable load receive response throttling in the LSQ"
+    )
+    recvRespMaxCachelines = Param.Unsigned(
+        1,
+        "Maximum number of different receive response cachelines per cycle",
+    )
+    recvRespBufferSize = Param.Unsigned(
+        64, "Maximum number of receive response bytes per cycle"
+    )

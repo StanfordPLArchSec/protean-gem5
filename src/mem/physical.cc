@@ -82,12 +82,12 @@ PhysicalMemory::PhysicalMemory(const std::string& _name,
                                bool mmap_using_noreserve,
                                const std::string& shared_backstore,
                                bool auto_unlink_shared_backstore,
-                               bool pristine_zero_pages,
-                               bool lazy_checkpoint_mem,
+                               bool anonymous_shared_backstore,
                                bool serialize_using_pagelist) :
     _name(_name), size(0), mmapUsingNoReserve(mmap_using_noreserve),
-    pristineZeroPages(pristine_zero_pages), lazyCheckpointMem(lazy_checkpoint_mem),
-    sharedBackstore(shared_backstore), sharedBackstoreSize(0),
+    sharedBackstore(shared_backstore),
+    anonymousSharedBackstore(anonymous_shared_backstore),
+    sharedBackstoreSize(0),
     pageSize(sysconf(_SC_PAGE_SIZE)),
     serializeUsingPagelist(serialize_using_pagelist)    
 {
@@ -230,7 +230,11 @@ PhysicalMemory::createBackingStore(
         sharedBackstoreSize += roundUp(range.size(), pageSize);
         DPRINTF(AddrRanges, "Sharing backing store as %s at offset %llu\n",
                 sharedBackstore.c_str(), (uint64_t)map_offset);
-        shm_fd = shm_open(sharedBackstore.c_str(), O_CREAT | O_RDWR, 0666);
+        if (anonymousSharedBackstore) {
+            shm_fd = memfd_create(sharedBackstore.c_str(), 0);
+        } else {
+            shm_fd = shm_open(sharedBackstore.c_str(), O_CREAT | O_RDWR, 0666);
+        }
         if (shm_fd == -1)
                panic("Shared memory failed");
         if (ftruncate(shm_fd, sharedBackstoreSize))
@@ -273,6 +277,10 @@ PhysicalMemory::~PhysicalMemory()
     // unmap the backing store
     for (auto& s : backingStore)
         munmap((char*)s.pmem, s.range.size());
+
+    // Remove the backing store if mapped.
+    if (!sharedBackstore.empty())
+        shm_unlink(sharedBackstore.c_str());
 }
 
 bool
@@ -462,13 +470,13 @@ PhysicalMemory::serializeStorePaged(CheckpointOut &cp, unsigned int store_id,
     // Memory pages.
     assert((range.size() & (pageSize - 1)) == 0);
     for (std::size_t i = 0; i != range.size(); i += pageSize) {
-        Page page(&mem[i], &mem[i + pageSize]);
-        const auto res = pages.emplace(std::move(page), pages.size());
+        // Hash the page.
+        const Sha256Hash page_hash = sha256(&mem[i], pageSize);
+        const auto res = pages.emplace(page_hash, pages.size());
         const PageId id = res.first->second;
         if (res.second) {
             // Added new page; write out to page file.
-            const Page &page = res.first->first;
-            if (gzwrite(file_pages, page.data(), page.size()) != page.size())
+            if (gzwrite(file_pages, &mem[i], pageSize) != pageSize)
                 fatal("Failed to write page data\n");
         }
         if (std::fwrite(&id, sizeof id, 1, file_ids) != 1)
@@ -542,12 +550,6 @@ PhysicalMemory::unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
     Addr range_size;
     UNSERIALIZE_SCALAR(range_size);
 
-    if (lazyCheckpointMem) {
-        memories[0]->setLazyUnpaged(compressed_mem, range_size,
-                                    32ULL * 1024 * 1024 /*32MiB*/);
-        return;
-    }
-
     DPRINTF(Checkpoint, "Unserializing physical memory %s with size %d\n",
             filename, range_size);
 
@@ -556,28 +558,12 @@ PhysicalMemory::unserializeStoreUnpaged(CheckpointIn &cp, unsigned int store_id,
               range_size, range.size());
 
     uint64_t curr_size = 0;
-
     uint32_t bytes_read;
-    std::vector<uint8_t> buf;
-    if (pristineZeroPages)
-        buf.resize(chunk_size);
     while (curr_size < range.size()) {
-        uint8_t *ptr = pristineZeroPages ? buf.data() : pmem;
-        bytes_read = gzread(compressed_mem, ptr, chunk_size);
+        bytes_read = gzread(compressed_mem, pmem, chunk_size);
         if (bytes_read == 0)
             break;
         curr_size += bytes_read;
-        if (pristineZeroPages) {
-            for (size_t page = 0; page < chunk_size; page += 4096) {
-                const auto first = buf.begin() + page;
-                const auto last = first + 4096;
-                const auto is_nonzero = [] (uint8_t byte) -> bool {
-                    return byte != 0;
-                };
-                if (std::any_of(first, last, is_nonzero)) 
-                    std::copy(first, last, pmem + page);
-            }
-        }
         pmem += bytes_read;
     }
 
@@ -622,32 +608,40 @@ PhysicalMemory::unserializeStorePaged(CheckpointIn &cp, unsigned int store_id,
         fatal("Memory range size has changed! Saw %lld, expected %lld\n",
               range_size, range.size());
 
-    if (lazyCheckpointMem) {
-        // TODO: Make the chunk size parameterized.
-        memories[0]->setLazyPaged(file_pages, file_ids, range_size, 4096); // 32ULL * 1024 * 1024 /*32MiB*/);
-        return;
-    }
-
-    // Parse page table.
-    std::vector<Page> pages;
-    while (true) {
-        Page page(pageSize);
-        int bytes = gzread(file_pages, page.data(), page.size());
-        if (bytes == 0 && gzeof(file_pages))
-            break;
-        if (bytes != page.size())
-            fatal("Failed to read page\n");
-        pages.emplace_back(std::move(page));
-    }
-    gzclose(file_pages);
-
     // Parse ids.
+    std::vector<PageId> id_vec;
     for (std::size_t i = 0; i != range.size(); i += pageSize) {
         PageId id;
         if (std::fread(&id, sizeof id, 1, file_ids) != 1)
             fatal("Failed to read page id\n");
+        id_vec.push_back(id);
+    }
+
+    // Load pages from set.
+    std::vector<PageId> id_vec_sorted = id_vec;
+    std::sort(id_vec_sorted.begin(), id_vec_sorted.end());
+    auto id_vec_sorted_new_end = std::unique(id_vec_sorted.begin(), id_vec_sorted.end());
+    id_vec_sorted.erase(id_vec_sorted_new_end, id_vec_sorted.end());
+
+    // Parse page table.
+    std::unordered_map<PageId, Page> pages;
+    for (PageId page_id : id_vec_sorted) {
+        Page page(pageSize);
+        const z_off_t off = page_id * pageSize;
+        const auto new_off = gzseek(file_pages, off, SEEK_SET);
+        fatal_if(new_off != off, "gzseek sought to the wrong location!\n");
+        const int bytes = gzread(file_pages, page.data(), pageSize);
+        fatal_if(bytes != pageSize, "gzread read the wrong number of bytes!\n");
+        pages.emplace(page_id, std::move(page));
+    }
+    gzclose(file_pages);
+
+    // Copy pages into memory.
+    for (std::size_t i = 0; i < id_vec.size(); ++i) {
+        const std::size_t off = i * pageSize;
+        const PageId id = id_vec[i];
         const Page &page = pages.at(id);
-        std::copy(page.begin(), page.end(), &pmem[i]);
+        std::copy(page.begin(), page.end(), &pmem[off]);
     }
 }   
 

@@ -47,6 +47,7 @@
 #include "base/stl_helpers/hash_helpers.hh"
 #include "mem/packet.hh"
 #include "sim/serialize.hh"
+#include "base/sha256.hh"
 
 namespace gem5
 {
@@ -137,7 +138,7 @@ class BackingStoreEntry
 class PhysicalMemory : public Serializable
 {
 
-  private:
+  public:
 
     // Name for debugging
     std::string _name;
@@ -154,11 +155,8 @@ class PhysicalMemory : public Serializable
     // Let the user choose if we reserve swap space when calling mmap
     const bool mmapUsingNoReserve;
 
-    const bool pristineZeroPages;
-
-    const bool lazyCheckpointMem;
-
     const std::string sharedBackstore;
+    bool anonymousSharedBackstore; // Anonymous shared backing store. Useful primarily for PinCPU.
     uint64_t sharedBackstoreSize;
 
     long pageSize;
@@ -170,9 +168,9 @@ class PhysicalMemory : public Serializable
     bool serializeUsingPagelist;
     mutable std::string pagelistPath;
 
-    using Page = std::vector<uint8_t>;
+    using PageHash = Sha256Hash;
     using PageId = uint32_t;
-    mutable stl_helpers::unordered_map<Page, PageId> pages;
+    mutable stl_helpers::unordered_map<PageHash, PageId> pages;
 
     // Prevent copying
     PhysicalMemory(const PhysicalMemory&);
@@ -204,8 +202,7 @@ class PhysicalMemory : public Serializable
                    bool mmap_using_noreserve,
                    const std::string& shared_backstore,
                    bool auto_unlink_shared_backstore,
-                   bool pristine_zero_pages,
-                   bool lazy_checkpoint_mem,
+                   bool anonymous_shared_backstore,
                    bool serialize_using_pagelist);
 
     /**

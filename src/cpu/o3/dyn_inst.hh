@@ -142,8 +142,33 @@ class DynInst : public ExecContext, public RefCounted
     /** InstRecord that tracks this instructions. */
     trace::InstRecord *traceData = nullptr;
 
+
     using BitVec = PhysRegFile::BitVec;
     using UntaintMethod = PhysRegFile::UntaintMethod;
+
+    void printHFIMetadata();
+    Addr doHFIStructuredMov(uint64_t segment_index,
+        uint64_t scale,
+        uint64_t index,
+        uint64_t displacement,
+        RegIndex reg_base_address,
+        RegIndex reg_offset_limit,
+        RegIndex reg_perm,
+        RegIndex reg_rangesizetype,
+        bool& out_faulted);
+    void doHFIMaskCheck(Addr EA,
+        RegIndex reg_base_mask,
+        RegIndex reg_ignore_mask,
+        RegIndex reg_perm,
+        bool& out_found,
+        bool& out_faulted);
+
+    /** check the HFI for the effective address */
+    Fault checkHFI(Addr &EA, bool is_store, uint64_t scale, uint64_t index, uint64_t base, uint64_t displacement) override;
+
+
+    /** checks the HFI control path returns true if the check passes**/
+    bool checkHFICtrl(Addr pc);
 
   protected:
     enum Status
@@ -685,6 +710,13 @@ class DynInst : public ExecContext, public RefCounted
     bool isHtmStop() const { return staticInst->isHtmStop(); }
     bool isHtmCancel() const { return staticInst->isHtmCancel(); }
     bool isHtmCmd() const { return staticInst->isHtmCmd(); }
+
+    bool isUnrestricted() const { return staticInst->isUnrestricted(); }
+    bool isHFIStuctured() const { return staticInst->isHFIStuctured(); }
+    bool isHFIStuctured1() const { return staticInst->isHFIStuctured1(); }
+    bool isHFIStuctured2() const { return staticInst->isHFIStuctured2(); }
+    bool isHFIStuctured3() const { return staticInst->isHFIStuctured3(); }
+    bool isHFIStuctured4() const { return staticInst->isHFIStuctured4(); }
 
     uint64_t
     getHtmTransactionUid() const override

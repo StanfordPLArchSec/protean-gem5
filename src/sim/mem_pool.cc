@@ -95,11 +95,10 @@ MemPool::totalBytes() const
 Addr
 MemPool::allocate(Addr npages)
 {
-    Addr page;
-    if (!freePhysPages.allocate(npages, page))
+    const std::optional<Addr> page = freePhysPages.allocate(npages);
+    if (!page)
         fatal("Out of memory, please increase size of physical memory.");
-
-    return page << pageShift;
+    return *page << pageShift;
 }
 
 void
@@ -140,7 +139,7 @@ MemPool::unserialize(CheckpointIn &cp)
         freePhysPages.insert(free_page_num, _totalPages - free_page_num);
     } else {
         ScopedCheckpointSection sec(cp, "free_list");
-        int n;
+        int n = 0;
         optParamIn(cp, "size", n);
         for (int i = 0; i < n; ++i) {
             ScopedCheckpointSection sec(cp, csprintf("free%d", i));

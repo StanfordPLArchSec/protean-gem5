@@ -38,6 +38,8 @@
 #include "cpu/base.hh"
 #include "cpu/thread_context.hh"
 #include "debug/MatRegs.hh"
+#include "debug/X86.hh"
+#include "debug/HFI.hh"
 #include "params/X86ISA.hh"
 #include "sim/serialize.hh"
 
@@ -68,6 +70,19 @@ ISA::updateHandyM5Reg(Efer efer, CR0 cr0,
         } else {
             m5reg.submode = RealMode;
         }
+    }
+    bool in_sandbox = regVal[misc_reg::HFI_INSIDE_SANDBOX] != 0;
+    if (in_sandbox) {
+#if 0
+        if (m5reg.cpl != csAttr.dpl) {
+            std::cout << "!!!!!Privilege change while inside the hfi sandbox. "
+                << "Ideally, this would call the hfi exit handler, but there is no easy way to set this up on gem5."
+                << "So we just crash for now. In a real implementation, this should ideally invoke the sandbox handler.";
+            abort();
+        }
+#else
+        warn_once("[!] Disabling HFI privilege change check, to avoid crashes.\n");
+#endif
     }
     m5reg.cpl = csAttr.dpl;
     m5reg.paging = cr0.pg;
@@ -123,6 +138,10 @@ ISA::clear()
     regVal[misc_reg::McgCap] = 0x104;
 
     regVal[misc_reg::Pat] = 0x0007040600070406ULL;
+
+    // Bit 11 is mttr enable (1), bit 10 is fixed range enable (1)
+    // bits 0-7 is default type (6, which means WB)
+    regVal[misc_reg::DefType] = 0xC06;
 
     regVal[misc_reg::Syscfg] = 0x20601;
 
@@ -222,12 +241,19 @@ ISA::readMiscRegNoEffect(RegIndex idx) const
     // attempt to read them directly.
     assert(misc_reg::isValid(idx));
 
+    if (misc_reg::GsBase == idx || misc_reg::GsEffBase == idx) {
+        inform("read-no-effect %x %x\n", idx, regVal[idx]);
+    }
+
     return regVal[idx];
 }
 
 RegVal
 ISA::readMiscReg(RegIndex idx)
 {
+
+    DPRINTF(X86, "Reading misc reg %#x, value: %#llx\n", idx, regVal[idx]);
+
     if (idx == misc_reg::Tsc) {
         return regVal[misc_reg::Tsc] + tc->getCpuPtr()->curCycle();
     }
@@ -258,6 +284,10 @@ ISA::setMiscRegNoEffect(RegIndex idx, RegVal val)
     // Instructions should filter out these indexes, and nothing else should
     // attempt to write to them directly.
     assert(misc_reg::isValid(idx));
+
+    if (idx == misc_reg::GsBase || idx == misc_reg::GsEffBase) {
+        inform("set-no-effect %x %x\n", idx, val);
+    }
 
     HandyM5Reg m5Reg = regVal[misc_reg::M5Reg];
     int reg_width = 64;
@@ -296,6 +326,8 @@ ISA::setMiscRegNoEffect(RegIndex idx, RegVal val)
 void
 ISA::setMiscReg(RegIndex idx, RegVal val)
 {
+    inform("GsBase=%#x GsEffBase=%#x set %#x %#x\n",
+           misc_reg::GsBase, misc_reg::GsEffBase, idx, val);
     RegVal newVal = val;
     switch (idx) {
       case misc_reg::Cr0:
@@ -511,6 +543,9 @@ ISA::unserialize(CheckpointIn &cp)
                      regVal[misc_reg::CsAttr],
                      regVal[misc_reg::SsAttr],
                      regVal[misc_reg::Rflags]);
+    DPRINTF(HFI, "HFI: base0=%#x\n",
+	    regVal[misc_reg::HFI_LINEAR_RANGE_1_BASE_ADDRESS_BASE_MASK]);
+    DPRINTF(HFI, "HFI: in_sandbox=%#x\n", regVal[misc_reg::HFI_INSIDE_SANDBOX]);
 }
 
 void

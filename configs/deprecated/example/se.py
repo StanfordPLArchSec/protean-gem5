@@ -95,10 +95,15 @@ def get_processes(args):
     for wrkld in workloads:
         process = Process(pid=100 + idx)
         process.executable = wrkld
-        process.cwd = os.getcwd() if args.chdir is None else args.chdir
-        process.gid = os.getgid()
+        process.cwd = os.getcwd()
+        # process.gid = os.getgid()
+        process.input = "/dev/stdin"
+        process.output = "/dev/stdout"
+        process.errout = "/dev/stderr"
 
-        if args.env:
+        if args.env == "host":
+            process.env = [f"{key}={value}" for key, value in os.environ.items()]
+        elif args.env:
             with open(args.env) as f:
                 process.env = [line.rstrip() for line in f]
 
@@ -131,9 +136,11 @@ warn(
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--chdir", help="Set working directory of simulated process"
-)
+parser.add_argument("--chdir", default=os.getcwd(), type=os.path.abspath, help="Set working directory of simulated process")
+parser.add_argument("--max-stack-size", default="8MiB", help="Max stack size")
+parser.add_argument("--stdin", default="/dev/stdin")
+parser.add_argument("--hfi", action="store_true")
+parser.add_argument("command", nargs="+")
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 
@@ -141,6 +148,15 @@ if "--ruby" in sys.argv:
     Ruby.define_options(parser)
 
 args = parser.parse_args()
+assert args.cmd == "" and args.options == ""
+args.cmd = args.command[0]
+args.options = " ".join(args.command[1:])
+
+if args.hfi:
+    os.environ["HFI"] = str(1);
+    print("[*] HFI enabled")
+else:
+    assert "HFI" not in os.environ
 
 multiprocesses = []
 numThreads = 1

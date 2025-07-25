@@ -52,6 +52,7 @@
 #include "arch/generic/mmu.hh"
 #include "arch/generic/tlb.hh"
 #include "base/flags.hh"
+#include "base/statistics.hh"
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/o3/dyn_inst_ptr.hh"
@@ -92,6 +93,32 @@ class LSQ
         /** Default constructor. */
         DcachePort(LSQ *_lsq, CPU *_cpu);
 
+        struct DcachePortStats : public statistics::Group
+        {
+            DcachePortStats(CPU* cpu);
+
+            /* Number of recieved responses */
+            statistics::Scalar numRecvResp;
+
+            /* Number of recieved response bytes */
+            statistics::Scalar numRecvRespBytes;
+
+            /* Average bandwidth of received responses */
+            statistics::Formula recvRespAvgBW;
+
+            /* Average pkt size per received response */
+            statistics::Formula recvRespAvgSize;
+
+            /* Average rate of received responses per cycle */
+            statistics::Formula recvRespAvgRate;
+
+            /* Average retry rate per received response */
+            statistics::Formula recvRespAvgRetryRate;
+
+            /* Number of retry responses sent */
+            statistics::Scalar numSendRetryResp;
+        } dcachePortStats;
+
       protected:
 
         /** Timing version of receive.  Handles writing back and
@@ -116,6 +143,9 @@ class LSQ
          * @return true since we have to snoop
          */
         virtual bool isSnooping() const { return true; }
+
+        /** Applies throttling in recvTimingResp for incoming load responses */
+        bool throttleReadResp(PacketPtr pkt);
     };
 
     /** Memory operation metadata.
@@ -899,7 +929,10 @@ class LSQ
 
     RequestPort &getDataPort() { return dcachePort; }
 
+
     bool isSTLPublic(const DynInstPtr& loadInst) const;
+
+    void sendRetryResp();
 
   protected:
     /** D-cache is blocked */
@@ -966,6 +999,17 @@ class LSQ
 
     /** Number of Threads. */
     ThreadID numThreads;
+
+    /** Enable load receive response throttling in the LSQ. */
+    const bool recvRespThrottling;
+    const unsigned recvRespMaxCachelines;
+    const unsigned recvRespBufferSize;
+    unsigned recvRespBytes;
+    unsigned recvRespPendBytes;
+    unsigned recvRespCachelines;
+    Addr recvRespLastCachelineAddr;
+    Cycles recvRespLastActiveCycle;
+    EventFunctionWrapper retryRespEvent;
 };
 
 } // namespace o3

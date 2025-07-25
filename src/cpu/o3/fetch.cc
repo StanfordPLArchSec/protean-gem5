@@ -48,7 +48,6 @@
 #include <queue>
 
 #include "arch/generic/tlb.hh"
-#include "base/random.hh"
 #include "base/types.hh"
 #include "cpu/base.hh"
 #include "cpu/exetrace.hh"
@@ -287,6 +286,13 @@ Fetch::clearStates(ThreadID tid)
 
     // TODO not sure what to do with priorityList for now
     // priorityList.push_back(tid);
+
+    // Clear out any of this thread's instructions being sent to decode.
+    for (int i = -cpu->fetchQueue.getPast();
+         i <= cpu->fetchQueue.getFuture(); ++i) {
+        FetchStruct& fetch_struct = cpu->fetchQueue[i];
+        removeCommThreadInsts(tid, fetch_struct);
+    }
 }
 
 void
@@ -881,7 +887,7 @@ Fetch::tick()
     // Pick a random thread to start trying to grab instructions from
     auto tid_itr = activeThreads->begin();
     std::advance(tid_itr,
-            random_mt.random<uint8_t>(0, activeThreads->size() - 1));
+            rng->random<uint8_t>(0, activeThreads->size() - 1));
 
     while (available_insts != 0 && insts_to_decode < decodeWidth) {
         ThreadID tid = *tid_itr;
