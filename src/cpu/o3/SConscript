@@ -75,6 +75,7 @@ if env['CONF']['BUILD_ISA']:
     DebugFlag('Scoreboard')
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
+    DebugFlag('Squashed')
     DebugFlag('PTeX')
     DebugFlag('PTeXPages')
     DebugFlag('TPT')

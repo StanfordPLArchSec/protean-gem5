@@ -98,6 +98,8 @@ struct BaseCacheParams;
  */
 class BaseCache : public ClockedObject
 {
+  public:
+    uint64_t num_sets;
   protected:
     /**
      * Indexes to enumerate the MSHR queues.
@@ -119,6 +121,22 @@ class BaseCache : public ClockedObject
         Blocked_NoTargets,
         NUM_BLOCKED_CAUSES
     };
+
+  public:
+    /**
+     * Write back dirty blocks in the cache using functional accesses.
+     */
+    virtual void memWriteback() override;
+
+    /**
+     * Invalidates all blocks in the cache.
+     *
+     * @warn Dirty cache lines will not be written back to
+     * memory. Make sure to call functionalWriteback() first if you
+     * want the to write them to memory.
+     */
+    virtual void memInvalidate() override;
+   
 
   protected:
 
@@ -462,7 +480,7 @@ class BaseCache : public ClockedObject
      * @param blk The block to regenerate address.
      * @return The block's address.
      */
-    Addr regenerateBlkAddr(CacheBlk* blk);
+    Addr regenerateBlkAddr(CacheBlk* blk) const;
 
     /**
      * Calculate latency of accesses that only touch the tag array.
@@ -853,20 +871,6 @@ class BaseCache : public ClockedObject
      * @return The generated write clean packet.
      */
     PacketPtr writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id);
-
-    /**
-     * Write back dirty blocks in the cache using functional accesses.
-     */
-    virtual void memWriteback() override;
-
-    /**
-     * Invalidates all blocks in the cache.
-     *
-     * @warn Dirty cache lines will not be written back to
-     * memory. Make sure to call functionalWriteback() first if you
-     * want the to write them to memory.
-     */
-    virtual void memInvalidate() override;
 
     /**
      * Determine if there are any dirty blocks in the cache.
@@ -1362,8 +1366,7 @@ class BaseCache : public ClockedObject
 
     /**
      * Serialize the state of the caches
-     *
-     * We currently don't support checkpointing cache state, so this panics.
+     * 
      */
     void serialize(CheckpointOut &cp) const override;
     void unserialize(CheckpointIn &cp) override;

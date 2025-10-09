@@ -63,6 +63,8 @@ class L1_ICache(L1Cache):
     # Writeback clean lines as well
     writeback_clean = True
 
+    micro_component = True
+
 
 class L1_DCache(L1Cache):
     pass
@@ -76,7 +78,7 @@ class L2Cache(Cache):
     mshrs = 20
     tgts_per_mshr = 12
     write_buffers = 8
-
+    micro_component = True
 
 class IOCache(Cache):
     assoc = 8
@@ -86,7 +88,7 @@ class IOCache(Cache):
     mshrs = 20
     size = "1kB"
     tgts_per_mshr = 12
-
+    micro_component = True
 
 class PageTableWalkerCache(Cache):
     assoc = 2
@@ -97,3 +99,5 @@ class PageTableWalkerCache(Cache):
     size = "1kB"
     tgts_per_mshr = 12
     is_read_only = False
+
+    micro_component = True

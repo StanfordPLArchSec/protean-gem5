@@ -56,6 +56,8 @@
 #include "debug/HtmCpu.hh"
 #include "debug/LSQ.hh"
 #include "debug/Writeback.hh"
+#include "debug/Squashed.hh"
+#include "debug/AnalyseIPC.hh"
 #include "params/BaseO3CPU.hh"
 
 namespace gem5
@@ -440,6 +442,17 @@ LSQ::recvTimingResp(PacketPtr pkt)
         checkStaleTranslations();
     }
 
+    DPRINTF(LSQ, "Received D$ response for packet addr %#x, block addr %#x\n",
+            pkt->getAddr(), pkt->getBlockAddr(64));
+    char buf[32] = {0};
+    if (pkt->hasData() && pkt->getFlags()) {
+        const uint8_t *data = pkt->getConstPtr<uint8_t>();
+        for (size_t i = 0; i < pkt->getSize() && i < 8; i++) {
+            sprintf(buf + 2 * i, "%02x", data[i]);              
+        }
+        DPRINTF(AnalyseIPC, "analyse_ipc_violation.py: info for sn=%d: data=%s\n", pkt->req->getReqInstSeqNum(), buf);
+    }
+
     return true;
 }
 
@@ -448,6 +461,9 @@ LSQ::recvTimingSnoopReq(PacketPtr pkt)
 {
     DPRINTF(LSQ, "received pkt for addr:%#x %s\n", pkt->getAddr(),
             pkt->cmdString());
+
+    // Can't really grab PC, packets aren't bound to one!
+    DPRINTF(Squashed, "Received D$ response for packet addr %#x, block addr %#x\n", pkt->getAddr(), pkt->getBlockAddr(64)); 
 
     // must be a snoop
     if (pkt->isInvalidate()) {

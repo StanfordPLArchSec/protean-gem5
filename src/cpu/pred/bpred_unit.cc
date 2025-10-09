@@ -48,6 +48,7 @@
 #include "base/compiler.hh"
 #include "base/trace.hh"
 #include "debug/Branch.hh"
+#include "debug/AnalyseIPC.hh"
 
 namespace gem5
 {
@@ -99,6 +100,8 @@ bool
 BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                    PCStateBase &pc, ThreadID tid)
 {
+    std::unique_ptr<PCStateBase> target(pc.clone());
+
     /** Perform the prediction. */
     PredictorHistory* bpu_history = nullptr;
     bool taken  = predict(inst, seqNum, pc, tid, bpu_history);
@@ -107,6 +110,8 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
 
     /** Push the record into the history buffer */
     predHist[tid].push_front(bpu_history);
+
+    DPRINTF(AnalyseIPC, "analyse_ipc_violation: predicting branch at %#lx to go to %#lx\n", pc.instAddr(), target->instAddr());
 
     DPRINTF(Branch, "[tid:%i] [sn:%llu] History entry added. "
             "predHist.size(): %i\n", tid, seqNum, predHist[tid].size());
@@ -527,6 +532,8 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
                true, hist->inst, corr_target.instAddr());
 
 
+        DPRINTF(AnalyseIPC, "analyse_ipc_violation: Mispredicted branch at PC %#llx\n", (unsigned long long)hist->pc);
+        
         // Correct Indirect predictor -------------------
         if (iPred) {
             iPred->update(tid, squashed_sn, hist->pc,
