@@ -146,8 +146,8 @@ def config_cache(options, system):
 
     for i in range(options.num_cpus):
         if options.caches:
-            icache = icache_class(cache_components=True, **_get_cache_opts("l1i", options))
-            dcache = dcache_class(cache_components=True, **_get_cache_opts("l1d", options))
+            icache = icache_class(cache_component=True, **_get_cache_opts("l1i", options))
+            dcache = dcache_class(cache_component=True, **_get_cache_opts("l1d", options))
 
             # If we are using ISA.X86 or ISA.RISCV, we set walker caches.
             if ObjectList.cpu_list.get_isa(options.cpu_type) in [
