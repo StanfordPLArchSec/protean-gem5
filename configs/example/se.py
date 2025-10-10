@@ -174,8 +174,8 @@ mp0_path = multiprocesses[0].executable
 
 cpu_params = {}
 if args.DTB_entries is not None:
-    if get_runtime_isa() != ISA.X86:
-        fatal("FIXME: --DTB_entries is only implemented for X86")
+    # if get_runtime_isa() != ISA.X86:
+    #     fatal("FIXME: --DTB_entries is only implemented for X86")
     cpu_params['dtb'] = X86TLB(size = args.DTB_entries, entry_type="data")
 
 system = System(

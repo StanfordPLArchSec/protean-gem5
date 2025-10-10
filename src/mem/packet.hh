@@ -1226,7 +1226,6 @@ class Packet : public Printable, public Extensible<Packet>
     T*
     getPtr()
     {
-        assert(flags.isSet(STATIC_DATA|DYNAMIC_DATA));
         assert(!isMaskedWrite());
         return (T*)data;
     }
@@ -1235,7 +1234,6 @@ class Packet : public Printable, public Extensible<Packet>
     const T*
     getConstPtr() const
     {
-        assert(flags.isSet(STATIC_DATA|DYNAMIC_DATA));
         return (const T*)data;
     }
 

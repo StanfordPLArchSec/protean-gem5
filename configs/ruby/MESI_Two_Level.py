@@ -109,6 +109,7 @@ def create_system(
             clk_domain=clk_domain,
             transitions_per_cycle=options.ports,
             enable_prefetch=options.enable_prefetch,
+            number_of_TBEs = options.L1_TBEs,
         )
 
         cpu_seq = RubySequencer(
@@ -158,6 +159,7 @@ def create_system(
             L2cache=l2_cache,
             transitions_per_cycle=options.ports,
             ruby_system=ruby_system,
+            number_of_TBEs = options.L2_TBEs,
         )
 
         exec("ruby_system.l2_cntrl%d = l2_cntrl" % i)
