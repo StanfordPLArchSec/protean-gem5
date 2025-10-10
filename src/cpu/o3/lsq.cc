@@ -445,7 +445,7 @@ LSQ::recvTimingResp(PacketPtr pkt)
     DPRINTF(LSQ, "Received D$ response for packet addr %#x, block addr %#x\n",
             pkt->getAddr(), pkt->getBlockAddr(64));
     char buf[32] = {0};
-    if (pkt->hasData() && pkt->getFlags()) {
+    if ((pkt->isRequest() && pkt->hasData()) || (pkt->isResponse() && pkt->hasRespData())) {
         const uint8_t *data = pkt->getConstPtr<uint8_t>();
         for (size_t i = 0; i < pkt->getSize() && i < 8; i++) {
             sprintf(buf + 2 * i, "%02x", data[i]);              
