@@ -202,7 +202,7 @@ class BaseO3CPU(BaseCPU):
     smtCommitPolicy = Param.CommitPolicy("RoundRobin", "SMT Commit Policy")
 
     branchPred = Param.BranchPredictor( # TODO add micro_component to branch predictor!
-        TournamentBP(numThreads=Parent.numThreads), "Branch Predictor"
+        TournamentBP(numThreads=Parent.numThreads, micro_component = True), "Branch Predictor"
     )
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
     speculationModel = Param.SpeculationModel(

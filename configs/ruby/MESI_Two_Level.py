@@ -86,12 +86,14 @@ def create_system(
             assoc=options.l1i_assoc,
             start_index_bit=block_size_bits,
             is_icache=True,
+            cache_component=True,
         )
         l1d_cache = L1Cache(
             size=options.l1d_size,
             assoc=options.l1d_assoc,
             start_index_bit=block_size_bits,
             is_icache=False,
+            cache_component=True,
         )
 
         prefetcher = RubyPrefetcher()
@@ -152,6 +154,7 @@ def create_system(
             size=options.l2_size,
             assoc=options.l2_assoc,
             start_index_bit=l2_index_start,
+            cache_component=True,
         )
 
         l2_cntrl = L2Cache_Controller(

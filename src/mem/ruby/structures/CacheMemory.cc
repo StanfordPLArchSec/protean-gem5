@@ -806,5 +806,40 @@ CacheMemory::profilePrefetchMiss()
     cacheMemoryStats.m_prefetch_misses++;
 }
 
+void CacheMemory::serialize(CheckpointOut &cp)const
+{
+    std::vector<Addr> addresses;
+    std::vector<uint64_t> replacements;
+    for (int set = 0; set < m_cache_num_sets; set++) {
+        for (int way = 0; way < m_cache_assoc; way++) {
+            AbstractCacheEntry* entry = m_cache[set][way];
+            if (entry != NULL && entry->m_Permission != AccessPermission_Invalid &&
+                entry->m_Permission != AccessPermission_NotPresent) {
+                addresses.push_back(entry->m_Address);
+                replacements.push_back(m_replacementPolicy_ptr->state(set));
+            }
+        }
+    }
+    SERIALIZE_CONTAINER(addresses);
+    SERIALIZE_CONTAINER(replacements);
+}
+
+// [Gururaj]: Added memInvalidate function to invalidate all cache lines.
+void CacheMemory::memInvalidate()
+{
+  for (int set = 0; set < m_cache_num_sets; set++) {
+    for (int way = 0; way < m_cache_assoc; way++) {
+      AbstractCacheEntry* entry = m_cache[set][way];
+
+      // Invalidate entry if currently valid
+      if (entry != NULL && entry->m_Permission != AccessPermission_Invalid &&
+         entry->m_Permission != AccessPermission_NotPresent) {
+
+       m_cache[set][way]->m_Permission = AccessPermission_Invalid;
+      }
+    }
+  }
+}
+
 } // namespace ruby
 } // namespace gem5

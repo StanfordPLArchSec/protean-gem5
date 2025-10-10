@@ -64,6 +64,7 @@ SimObject::SimObject(const Params &p)
 {
     simObjectList.push_back(this);
     if (p.micro_component) {
+        fprintf(stderr, "adding to microSimObjectList\n");
         microSimObjectList.push_back(this);
     }
     if (p.cache_component){
@@ -205,6 +206,8 @@ void SimObject::serializeAllMicro(CheckpointOut &cp, bool ignore_caches)
 {
     SimObjectList::reverse_iterator ri = microSimObjectList.rbegin();
     SimObjectList::reverse_iterator rend = microSimObjectList.rend();
+
+    assert(!microSimObjectList.empty());
 
     for (; ri != rend; ++ri) {
         SimObject *obj = *ri;

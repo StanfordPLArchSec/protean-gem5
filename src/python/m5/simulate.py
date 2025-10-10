@@ -337,12 +337,12 @@ def checkpoint(dir, micro_state = False, ignore_caches = False):
         raise TypeError("Checkpoint must be called on a root object.")
 
     # drain()
-    memWriteback(root)
+    # memWriteback(root)
 
     # Recursively create the checkpoint directory if it does not exist.
     os.makedirs(dir, exist_ok=True)
 
-    print("Writing Micro-checkpoint")
+    print(f"Writing Micro-checkpoint: {ignore_caches=}")
     _m5.core.serializeAllMicro(dir, ignore_caches)
 
 def dumpCaches(dir):
@@ -350,7 +350,7 @@ def dumpCaches(dir):
     if not isinstance(root, objects.Root):
         raise TypeError("Dumpcaches must be called on a root object.")
     # drain()
-    memWriteback(root)
+    # memWriteback(root)
     print("Dumping the caches")
     _m5.core.serializeAllCaches(dir)    
 

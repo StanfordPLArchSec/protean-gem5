@@ -2011,6 +2011,7 @@ BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry)
 void
 BaseCache::serialize(CheckpointOut &cp) const
 {
+  fprintf(stderr, "HERE HERE HERE\n");
     std::vector<Addr> addresses = {};
     tags->forEachBlk([&](CacheBlk &blk) {
         if (blk.isValid()) {

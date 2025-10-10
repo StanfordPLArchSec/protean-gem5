@@ -58,17 +58,12 @@ class L1Cache(Cache):
     tgts_per_mshr = 20
     micro_component = True
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__()
-    #     print("HERE")
-    #     assert False
-    #     assert self.micro_component
-
 
 class L1_ICache(L1Cache):
     is_read_only = True
     # Writeback clean lines as well
     writeback_clean = True
+    micro_component = True
 
 class L1_DCache(L1Cache):
     pass
