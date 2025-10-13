@@ -1,3 +1,5 @@
+# -*- mode:python -*-
+
 Import('*')
 
 SimObject('RevizorIPC.py', sim_objects=['RevizorIPC'])

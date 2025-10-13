@@ -3,22 +3,26 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include <cerrno>
 #include <cinttypes>
 
+#include "base/logging.hh"
 #include "debug/RevizorIPC.hh"
 #include "debug/RevizorIPCAddrs.hh"
-
+#include "mem/abstract_mem.hh"
 #include "mem/cache/base.hh"
+#include "mem/xbar.hh"
+#include "mem/page_table.hh"
+#include "mem/simple_mem.hh"
+#include "mem/ruby/system/RubySystem.hh"
+#include "sim/process.hh"
 #include "sim/serialize.hh"
+#include "cpu/base.hh"
 #include "arch/x86/regs/int.hh"
+#include "cpu/o3/cpu.hh"
 
-namespace gem5{
-
-using namespace memory;
-using namespace o3;
+namespace gem5 {
 
 static constexpr uint64_t maxCodeSize = 512;
 
@@ -199,11 +203,7 @@ static SymbolAddresses getSymbolAddresses(const char *executable_path) {
 RevizorIPC::RevizorIPC(const RevizorIPCParams &params) :
     SimObject(params),
     cpu(params.cpu),
-    l1dCache(params.dcache),
-    l1iCache(params.icache),
-    l2Cache(params.l2cache),
-    dram(params.dram),
-    // ruby(params.ruby),
+    ruby(params.ruby),
     process(params.process),
     addresses(getSymbolAddresses(params.executable_path.c_str()))
 {
@@ -242,40 +242,10 @@ RevizorIPC::~RevizorIPC() {
 }
 
 void RevizorIPC::startup() {
-// if (ruby) {
-//     fatal("Ruby not supported on SpecLFB!");
-//     dram = ruby->getPhysMem();
-//     if (!dram) fatal("couldn't get physical memory from ruby\n");
-// } else {
-
-    // SimObject &data_object = cpu->getDataPort().getPeer().getOwner();
-    // l1dCache = dynamic_cast<BaseCache *>(&data_object);
-    // if (!l1dCache) fatal("expected L1D cache after CPU; got %s\n", data_object.name().c_str());
-
-    // SimObject &inst_object = cpu->getInstPort().getPeer().getOwner();
-    // l1iCache = dynamic_cast<BaseCache *>(&inst_object);
-    // if (!l1iCache) fatal("expected L1I cache after CPU; got %s\n", inst_object.name().c_str());
-
-    // SimObject &l2_xbar_object = l1dCache->getPort("mem_side").getPeer().getOwner();
-    // BaseXBar *l2_xbar = dynamic_cast<BaseXBar *>(&l2_xbar_object);
-    // if (!l2_xbar) fatal("expected L2 XBar after l1 cache; got %s\n", l2_xbar_object.name().c_str());
-
-    // SimObject &l2_cache_object = l2_xbar->getPort("mem_side", 0).getPeer().getOwner();
-    // l2Cache = dynamic_cast<BaseCache *>(&l2_cache_object);
-    // if (!l2Cache) fatal("expected L2 cache after L2 XBar; got %s\n", l2_cache_object.name().c_str());
-
-    // SimObject &mem_xbar_object = l2Cache->getPort("mem_side").getPeer().getOwner();
-    // BaseXBar *mem_xbar = dynamic_cast<BaseXBar *>(&mem_xbar_object);
-    // if (!mem_xbar) fatal("expected mem XBar after L2 cache; got %s\n", mem_xbar_object.name().c_str());
-
-    // for (size_t i = 0; i < mem_xbar->memSidePortCount(); i++) {
-    //     SimObject &dram_object = mem_xbar->getPort("mem_side", i).getPeer().getOwner();
-    //     dram = dynamic_cast<AbstractMemory *>(&dram_object);
-    //     if (dram) break;
-    // }
-    // if (!dram) fatal("expected DRAM after mem XBar but didn't find any\n");
-
-// }
+    if (ruby) {
+        dram = ruby->getPhysMem();
+        if (!dram) fatal("couldn't get physical memory from ruby\n");
+    }
 }
 
 void RevizorIPC::loadTestCase() {
@@ -313,16 +283,6 @@ uint8_t *RevizorIPC::vaddrToHost(Addr vaddr) {
 }
 
 void RevizorIPC::traceTestCase() {
-    // Write back all caches before running the test case
-    l1dCache->memWriteback();
-    l1iCache->memWriteback();
-    l2Cache->memWriteback();
-
-    // // Clear caches before next run
-    // l1dCache->memInvalidate();
-    // l1iCache->memInvalidate();
-    // l2Cache->memInvalidate();
-
     uint64_t metadata[3] = {};
     recv(metadata, sizeof metadata);
     const uint64_t inputSize = metadata[0];
@@ -345,38 +305,34 @@ void RevizorIPC::traceTestCase() {
     memcpy(sandbox, &input[0], registersStart);
     memset(registers, 0, maxRegistersSize);
     memcpy(registers, &input[registersStart], inputSize - registersStart);
-
-    // Clear caches before next run
-    l1dCache->memInvalidate();
-    l1iCache->memInvalidate();
-    l2Cache->memInvalidate();
-
     tracingTestCase = true;
 }
 
+#if 0
 void RevizorIPC::dumpRegisters() {
-    CPU *dcpu = dynamic_cast<CPU *>(cpu);
+    o3::CPU *dcpu = dynamic_cast<o3::CPU *>(cpu);
     DPRINTF(RevizorIPC, "rax=%lx rbx=%lx rcx=%lx rdx=%lx "
         "rsp=%lx rbp=%lx rsi=%lx rdi=%lx "
         "r8=%lx r9=%lx r10=%lx r11=%lx r12=%lx r13=%lx r14=%lx r15=%lx\n",
-        dcpu->getArchReg(X86ISA::int_reg::Rax, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rbx, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rcx, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rdx, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rsp, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rbp, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rsi, 0),
-        dcpu->getArchReg(X86ISA::int_reg::Rdi, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R8, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R9, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R10, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R11, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R12, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R13, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R14, 0),
-        dcpu->getArchReg(X86ISA::int_reg::R15, 0)
+        dcpu->readArchIntReg(X86ISA::INTREG_RAX, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RBX, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RCX, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RDX, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RSP, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RBP, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RSI, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_RDI, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R8, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R9, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R10, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R11, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R12, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R13, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R14, 0),
+        dcpu->readArchIntReg(X86ISA::INTREG_R15, 0)
         );
 }
+#endif
 
 bool RevizorIPC::prepareNext() {
     if (tracingTestCase) {
@@ -405,7 +361,6 @@ bool RevizorIPC::prepareNext() {
         send(&cache_tags[0], cache_tags.length());
         tracingTestCase = false;
     }
-
     while (true) {
         uint64_t op = 0;
         recv(&op, sizeof op);
@@ -424,11 +379,12 @@ bool RevizorIPC::prepareNext() {
     return false;
 }
 
-// RevizorIPC *
-// RevizorIPCParams::create() const
-// {
-//     RevizorIPC *revizor_ipc = new RevizorIPC(*this);
-//     return revizor_ipc;
-// }
+#if 0
+RevizorIPC *
+RevizorIPCParams::create()
+{
+    return new RevizorIPC(this);
+}
+#endif
 
-} // namespace gem5
+}
