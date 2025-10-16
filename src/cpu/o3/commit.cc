@@ -69,6 +69,7 @@
 #include "debug/TPT.hh"
 #include "debug/TPTRetire.hh"
 #include "debug/TransmitterStalls.hh"
+#include "arch/x86/regs/int.hh"
 
 namespace gem5
 {

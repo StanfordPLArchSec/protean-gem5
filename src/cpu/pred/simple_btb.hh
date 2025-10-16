@@ -86,6 +86,7 @@ class SimpleBTB : public BranchTargetBuffer
         StaticInstPtr inst = nullptr;
     };
 
+    void reset() override;
 
     /** Returns the index into the BTB, based on the branch's PC.
      *  @param inst_PC The branch to look up.

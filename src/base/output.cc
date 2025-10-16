@@ -214,7 +214,7 @@ OutputDirectory::create(const std::string &name, bool binary, bool no_gz)
         return file;
 
     const std::ios_base::openmode mode(
-        std::ios::trunc | (binary ? std::ios::binary : (std::ios::openmode)0));
+        std::ios::app | (binary ? std::ios::binary : (std::ios::openmode)0));
     const bool recreateable(!isAbsolute(name));
 
     return open(name, mode, recreateable, no_gz);

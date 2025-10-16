@@ -320,6 +320,25 @@ TournamentBP::squash(ThreadID tid, void * &bp_history)
     bp_history = nullptr;
 }
 
+void
+TournamentBP::reset() {
+    for (int i = 0; i < localHistoryTableSize; ++i)
+        localHistoryTable[i] = 0;
+    for (unsigned &entry: globalHistory)
+        entry = 0;
+    for (int i = 0; i < localPredictorSize; ++i)
+        localCtrs[i].reset();
+    for (int i = 0; i < globalPredictorSize; ++i)
+        globalCtrs[i].reset();
+    for (int i = 0; i < choicePredictorSize; ++i)
+        choiceCtrs[i].reset();
+    for (auto &hist: predHist)
+        hist.clear();
+    btb->reset();
+    ras->reset();
+    iPred->reset();
+}
+
 #ifdef GEM5_DEBUG
 int
 TournamentBP::BPHistory::newCount = 0;

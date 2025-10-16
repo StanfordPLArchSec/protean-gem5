@@ -21,6 +21,7 @@
 #include "cpu/base.hh"
 #include "arch/x86/regs/int.hh"
 #include "cpu/o3/cpu.hh"
+#include "cpu/pred/bpred_unit.hh"
 
 namespace gem5 {
 
@@ -34,6 +35,11 @@ static const uint64_t opAckLoadTestCase = 0x847431e37076fb26;
 static const uint64_t opTraceTestCase = 0x9ca711a73355bea;
 static const uint64_t opAckTraceTestCase = 0xc1f8bc29862ef946;
 static const uint64_t opResetLog = 0x7e310c4276780c9b;
+static const uint64_t opGetBranchPredictorState = 0x98df1da695dd7afe;
+static const uint64_t opAckBranchPredictorState = 0x7d5cc0725ba80cf4;
+static const uint64_t opResetBranchPredictor = 0xcd0b48f441b827af;
+
+using branch_prediction::BPredUnit;
 
 // simple hash function that we implement both here and in revizor
 // just to make sure data is being sent correctly.
@@ -45,6 +51,15 @@ static uint64_t hashBytes(const uint8_t *bytes, size_t count) {
     }
     return hash;
 }
+
+static BPredUnit *getBPred() {
+    BPredUnit *bpred = dynamic_cast<BPredUnit *>(SimObject::find("system.cpu.branchPred"));
+    if (!bpred) {
+        fatal("Expected system.cpu.branchPred to be a BPredUnit.");
+    }
+    return bpred;
+}
+
 
 void RevizorIPC::recv(void *buf, size_t size) {
     uint8_t *b = (uint8_t *)buf;
@@ -351,6 +366,10 @@ bool RevizorIPC::prepareNext() {
         // dumpRegisters();
         DPRINTF(RevizorIPC,
             "Finished running test case. Sending acknowledgement.\n");
+        auto *dcpu = dynamic_cast<o3::CPU *>(cpu);
+        std::cerr << "gem5 rsp=" << std::hex << dcpu->getArchReg(X86ISA::int_reg::Rsp, 0) << "\n";
+        std::cerr << "gem5 r14=" << std::hex << dcpu->getArchReg(X86ISA::int_reg::R14, 0) << "\n";
+
         std::string cache_tags = Serializable::serializeAllCachesToString();
         uint64_t ack[] = {
             opAckTraceTestCase,
@@ -371,6 +390,20 @@ bool RevizorIPC::prepareNext() {
             return true;
         } else if (op == opResetLog) {
             trace::getDebugLogger()->reset();
+        } else if (op == opGetBranchPredictorState) {
+            std::stringstream state;
+            SimObject *bpred = getBPred();
+            bpred->serializeSection(state, bpred->name());
+            std::string state_string = state.str();
+            uint64_t ack[] = {
+                opAckBranchPredictorState,
+                state_string.length()
+            };
+            send(ack, sizeof ack);
+            send(&state_string[0], state_string.length());
+        } else if (op == opResetBranchPredictor) {
+            BPredUnit *bpred = getBPred();
+            bpred->reset();
         } else {
             fatal("unrecognized command from client: %#" PRIx64 "\n", op);
         }
