@@ -20,7 +20,7 @@
 #include "sim/serialize.hh"
 #include "cpu/base.hh"
 #include "arch/x86/regs/int.hh"
-#include "cpu/o3/cpu.hh"
+// #include "cpu/o3/cpu.hh"
 #include "cpu/pred/bpred_unit.hh"
 
 namespace gem5 {
@@ -366,9 +366,11 @@ bool RevizorIPC::prepareNext() {
         // dumpRegisters();
         DPRINTF(RevizorIPC,
             "Finished running test case. Sending acknowledgement.\n");
+#if 0
         auto *dcpu = dynamic_cast<o3::CPU *>(cpu);
         std::cerr << "gem5 rsp=" << std::hex << dcpu->getArchReg(X86ISA::int_reg::Rsp, 0) << "\n";
         std::cerr << "gem5 r14=" << std::hex << dcpu->getArchReg(X86ISA::int_reg::R14, 0) << "\n";
+#endif
 
         std::string cache_tags = Serializable::serializeAllCachesToString();
         uint64_t ack[] = {
