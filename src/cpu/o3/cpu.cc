@@ -115,7 +115,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
-      sptBugfix(params.sptBugfix)
+      sptBugfix(params.sptBugfix),
+      sptBugfixPending(params.sptBugfixPending)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");

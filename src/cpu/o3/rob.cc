@@ -748,7 +748,7 @@ ROB::propagateUntaint(ThreadID tid)
 }
 
 DynInstPtr
-ROB::getResolvedPendingSquashInst(ThreadID tid)
+ROB::getResolvedPendingSquashInstBuggy(ThreadID tid)
 {
     for (const DynInstPtr& inst : instList[tid]) {
         if (inst->hasPendingSquash()
