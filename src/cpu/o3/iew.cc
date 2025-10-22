@@ -1277,7 +1277,17 @@ IEW::executeInsts()
         // instruction first, so the branch resolution order will be correct.
         ThreadID tid = inst->threadNumber;
 
-        if (!fetchRedirect[tid] ||
+        if (cpu->sptBugfixPending && inst->isControl() && inst->mispredicted() &&
+            inst->isArgsTainted() && !inst->isUnsquashable()) {
+            DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Tainted branch mispredicted detected.\n",
+                    tid, inst->seqNum);
+            if (!(toCommit->pendingMispredictInst[tid] &&
+                  inst->seqNum >= toCommit->pendingMispredictInst[tid]->seqNum)) {
+                DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Marking tainted misprediction as pending.\n",
+                        tid, inst->seqNum);
+                toCommit->pendingMispredictInst[tid] = inst;
+            }
+        } else if (!fetchRedirect[tid] ||
             !toCommit->squash[tid] ||
             toCommit->squashedSeqNum[tid] > inst->seqNum) {
 
