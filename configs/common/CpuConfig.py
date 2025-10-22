@@ -136,4 +136,4 @@ def config_scheme(cpu_cls, cpu_list, options):
                 cpu.configImpFlow = options.configImpFlow
 
             cpu.sptBugfix = options.spt_bugfix
-            
+            cpu.sptBugfixPending = options.spt_bugfix_pending
