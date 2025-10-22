@@ -672,7 +672,7 @@ ROB::compute_taint()
 }
 
 DynInstPtr
-ROB::getResolvedPendingSquashInst(ThreadID tid)
+ROB::getResolvedPendingSquashInstBuggy(ThreadID tid)
 {
     for (auto instIt = instList[tid].begin(); instIt != instList[tid].end(); instIt++) {
         auto inst = (*instIt);
