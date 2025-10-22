@@ -470,6 +470,9 @@ class Commit
     int htmStarts[MaxThreads];
     int htmStops[MaxThreads];
 
+    // Protean
+    DynInstPtr pendingSquashInst[MaxThreads];
+
     struct CommitStats : public statistics::Group
     {
         CommitStats(CPU *cpu, Commit *commit);
@@ -517,6 +520,9 @@ class Commit
     } stats;
 
     void printTaintDebug(const DynInstPtr &inst,  const std::string &type) const;
+
+    void updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst);
+    void resolvePendingSquash(ThreadID tid);
 };
 
 } // namespace o3
