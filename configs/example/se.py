@@ -288,18 +288,12 @@ else:
     MemConfig.config_mem(args, system)
     config_filesystem(system, args)
 
-print("HERE: 1")
-    
 system.workload = SEWorkload.init_compatible(mp0_path)
-
-print("HERE: 2")
 
 if args.wait_gdb:
     system.workload.wait_for_remote_gdb = True
 
 CpuConfig.config_scheme(CPUClass, system.cpu, args)
-
-print("HERE: 3")
 
 root = Root(full_system=False, system=system)
 
