@@ -128,6 +128,9 @@ class Logger
     /** Add objects to activate */
     void addActivate(const ObjectMatch &activate_) { activate.add(activate_); }
 
+    /** if possible, seek logger to start of output file */
+    virtual void reset() { }
+
     virtual ~Logger() { }
 };
 
@@ -146,6 +149,7 @@ class OstreamLogger : public Logger
             const std::string &flag, const std::string &message) override;
 
     std::ostream &getOstream() override { return stream; }
+    void reset() override;
 };
 
 /** Get the current global debug logger.  This takes ownership of the given

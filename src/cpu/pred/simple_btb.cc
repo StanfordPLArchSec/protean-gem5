@@ -172,5 +172,13 @@ SimpleBTB::update(ThreadID tid, Addr instPC,
     btb[btb_idx].inst = inst;
 }
 
+void
+SimpleBTB::reset()
+{
+    for (unsigned i = 0; i < numEntries; ++i) {
+        btb[i].valid = false;
+    }
+}
+
 } // namespace branch_prediction
 } // namespace gem5

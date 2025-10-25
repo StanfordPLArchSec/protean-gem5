@@ -198,9 +198,11 @@ class ReturnAddrStack : public SimObject
 
     void makeRASHistory(void* &ras_history);
 
+public:
     /** The RAS itself. */
     std::vector<AddrStack> addrStacks;
 
+private:
     /** The number of entries in the RAS. */
     unsigned numEntries;
     /** The number of threads */

@@ -1090,4 +1090,10 @@ CommitCPUStats::updateComCtrlStats(const StaticInstPtr staticInst)
     }
 }
 
+void
+BaseCPU::logCommit(Tick tick)
+{
+    commitLog ^= tick;
+}
+
 } // namespace gem5

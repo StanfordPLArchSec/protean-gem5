@@ -38,6 +38,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import sys
+import time
 from os import getcwd
 from os.path import join as joinpath
 
@@ -252,10 +253,10 @@ def scriptCheckpoints(options, maxtick, cptdir):
         period = int(period)
         num_checkpoints = 0
 
-        exit_event = m5.simulate(when - m5.curTick())
+        exit_event = m5.simulate(when - m5.curTick(), dump_stats = options.dump_stats)
         exit_cause = exit_event.getCause()
         while exit_cause == "checkpoint":
-            exit_event = m5.simulate(when - m5.curTick())
+            exit_event = m5.simulate(when - m5.curTick(), dump_stats = options.dump_stats)
             exit_cause = exit_event.getCause()
 
         if exit_cause == "simulate() limit reached":
@@ -287,7 +288,10 @@ def scriptCheckpoints(options, maxtick, cptdir):
 
 
 def benchCheckpoints(options, maxtick, cptdir):
+    if options.profile: start = time.time()
     exit_event = m5.simulate(maxtick - m5.curTick())
+    if options.profile:
+        print("SIMULATION TIME:", time.time() - start)
     exit_cause = exit_event.getCause()
 
     num_checkpoints = 0
@@ -825,11 +829,14 @@ def run(options, root, testsys, cpu_class):
         else:
             exit_event = benchCheckpoints(options, maxtick, cptdir)
 
+    # m5.stats.dump()
     print(
         "Exiting @ tick %i because %s" % (m5.curTick(), exit_event.getCause())
     )
     if options.checkpoint_at_end:
         m5.checkpoint(joinpath(cptdir, "cpt.%d"))
+    if options.dump_caches:
+        m5.dumpCaches(joinpath(cptdir, "tags.%d"))
 
     if exit_event.getCode() != 0:
         print("Simulated exit code not 0! Exit code is", exit_event.getCode())

@@ -50,6 +50,8 @@ namespace gem5
 // static list of all SimObjects, used for initialization etc.
 //
 SimObject::SimObjectList SimObject::simObjectList;
+SimObject::SimObjectList SimObject::microSimObjectList;
+SimObject::SimObjectList SimObject::cachesList;
 SimObjectResolver *SimObject::_objNameResolver = NULL;
 
 //
@@ -61,6 +63,13 @@ SimObject::SimObject(const Params &p)
       _params(p)
 {
     simObjectList.push_back(this);
+    if (p.micro_component) {
+        fprintf(stderr, "adding to microSimObjectList\n");
+        microSimObjectList.push_back(this);
+    }
+    if (p.cache_component){
+        cachesList.push_back(this);
+    }
     probeManager = new ProbeManager(this);
 }
 
@@ -190,5 +199,37 @@ debug_serialize(const std::string &cpt_dir)
 {
     SimObject::serializeAll(cpt_dir);
 }
+
+void SimObject::serializeAllMicro(CheckpointOut &cp, bool ignore_caches)
+{
+    SimObjectList::reverse_iterator ri = microSimObjectList.rbegin();
+    SimObjectList::reverse_iterator rend = microSimObjectList.rend();
+
+    assert(!microSimObjectList.empty());
+
+    for (; ri != rend; ++ri) {
+        SimObject *obj = *ri;
+        // This works despite name() returning a fully qualified name
+        // since we are at the top level.
+        if(ignore_caches && std::find(cachesList.begin(), cachesList.end(), obj) != cachesList.end())
+            continue;
+        else
+            obj->serializeSection(cp, obj->name());
+    }
+}
+
+void SimObject::serializeAllCaches(CheckpointOut &dump)
+{
+    SimObjectList::reverse_iterator ri = cachesList.rbegin();
+    SimObjectList::reverse_iterator rend = cachesList.rend();
+
+    for (; ri != rend; ++ri) {
+        SimObject *obj = *ri;
+        // This works despite name() returning a fully qualified name
+        // since we are at the top level.
+        obj->serializeSection(dump, obj->name());
+    }
+}
+  
 
 } // namespace gem5

@@ -151,6 +151,10 @@ class SimObject : public EventManager, public Serializable, public Drainable,
 
     /** List of all instantiated simulation objects. */
     static SimObjectList simObjectList;
+    /** List of all instantiated simulation objects with micro-arch state. */
+    static SimObjectList microSimObjectList;
+    /** List of all instantiated cache objects that need to be dumped. */
+    static SimObjectList cachesList;
 
     /** Helper to resolve an object given its name. */
     static SimObjectResolver *_objNameResolver;
@@ -329,6 +333,15 @@ class SimObject : public EventManager, public Serializable, public Drainable,
      */
     static void serializeAll(const std::string &cpt_dir);
 
+    /**
+    * Serialize all Micro-SimObjects in the system.
+    */
+    static void serializeAllMicro(CheckpointOut &cp, bool ignore_caches);
+    /**
+    Dumping the caches tags using serilize helpers
+    */
+    static void serializeAllCaches(CheckpointOut &dump);
+ 
     /**
      * Find the SimObject with the given name and return a pointer to
      * it.  Primarily used for interactive debugging.  Argument is

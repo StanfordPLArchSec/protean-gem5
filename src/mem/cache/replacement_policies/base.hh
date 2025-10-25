@@ -109,6 +109,8 @@ class Base : public SimObject
      * @return A shared pointer to the new replacement data.
      */
     virtual std::shared_ptr<ReplacementData> instantiateEntry() = 0;
+
+    virtual uint64_t state(int64_t set) { return 0; }
 };
 
 } // namespace replacement_policy
