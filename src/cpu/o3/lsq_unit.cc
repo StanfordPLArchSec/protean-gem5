@@ -52,6 +52,7 @@
 #include "debug/IEW.hh"
 #include "debug/LSQUnit.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/Squashed.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 
@@ -923,6 +924,7 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
     DPRINTF(LSQUnit, "Squashing until [sn:%lli]!"
             "(Loads:%i Stores:%i)\n", squashed_num, loadQueue.size(),
             storeQueue.size());
+    DPRINTF(Squashed, "Squashing from [sn:%lli]\n", squashed_num);
 
     while (loadQueue.size() != 0 &&
             loadQueue.back().instruction()->seqNum > squashed_num) {
@@ -930,6 +932,11 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
                 "[sn:%lli]\n",
                 loadQueue.back().instruction()->pcState(),
                 loadQueue.back().instruction()->seqNum);
+
+        DynInstPtr ld_inst = loadQueue.back().instruction();
+        if(ld_inst->effAddrValid()){
+            DPRINTF(Squashed, "LSQUnit - Squashed Load: PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x\n", ld_inst->pcState().instAddr(), ld_inst->seqNum, ld_inst->physEffAddr, ld_inst->effAddr);
+        }
 
         if (isStalled() && loadQueue.tail() == stallingLoadIdx) {
             stalled = false;
@@ -1009,6 +1016,11 @@ LSQUnit::squash(const InstSeqNum &squashed_num)
                 "idx:%i [sn:%lli]\n",
                 storeQueue.back().instruction()->pcState(),
                 storeQueue.tail(), storeQueue.back().instruction()->seqNum);
+        
+        DynInstPtr str_inst = storeQueue.back().instruction();
+        if(str_inst->effAddrValid()){
+            DPRINTF(Squashed, "LSQUnit - Squashed Store: PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x\n", str_inst->pcState().instAddr(), str_inst->seqNum, str_inst->physEffAddr, str_inst->effAddr);
+        }
 
         // I don't think this can happen.  It should have been cleared
         // by the stalling load.
@@ -1571,6 +1583,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     DPRINTF(LSQUnit, "Doing memory access for inst [sn:%lli] PC %s\n",
             load_inst->seqNum, load_inst->pcState());
 
+    DPRINTF(Squashed, "Attempting load request - PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x\n", load_inst->pcState().instAddr(), load_inst->seqNum, request->mainReq()->getPaddr(), request->mainReq()->getVaddr());    
+
     // Allocate memory if this is the first time a load is issued.
     if (!load_inst->memData) {
         load_inst->memData = new uint8_t[request->mainReq()->getSize()];
@@ -1597,6 +1611,10 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
     if (!request->isSent())
         iewStage->blockMemInst(load_inst);
 
+    Addr block_addr = request->mainReq()->getPaddr() & ~(Addr(64 - 1) );
+    DPRINTF(Squashed, "Successfully sent out load request - PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x, block addr %#x\n", 
+        load_inst->pcState().instAddr(), load_inst->seqNum, request->mainReq()->getPaddr(), request->mainReq()->getVaddr(), block_addr);
+    
     return NoFault;
 }
 
@@ -1609,6 +1627,9 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
             "[sn:%llu]\n",
             store_idx - 1, request->req()->getPaddr(), storeQueue.head() - 1,
             storeQueue[store_idx].instruction()->seqNum);
+    DynInstPtr store_inst = storeQueue[store_idx].instruction();
+    DPRINTF(Squashed, "Store request - PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x\n", 
+        store_inst->pcState().instAddr(), store_inst->seqNum, request->req()->getPaddr(), request->req()->getVaddr());
 
     storeQueue[store_idx].setRequest(request);
     unsigned size = request->_size;

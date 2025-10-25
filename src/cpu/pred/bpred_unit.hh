@@ -241,6 +241,12 @@ class BPredUnit : public SimObject
         return btb->update(tid, instPC, target);
     }
 
+  public:
+    virtual void
+    reset()
+    {
+        fatal("BPredUnit::reset() not implemented for this branch predictor type");
+    }
 
     void dump();
 

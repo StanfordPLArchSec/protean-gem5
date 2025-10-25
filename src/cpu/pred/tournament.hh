@@ -107,6 +107,8 @@ class TournamentBP : public BPredUnit
      */
     inline void updateLocalHist(unsigned local_history_idx, bool taken);
 
+    void reset() override;
+
     /**
      * The branch history information that is created upon predicting
      * a branch.  It will be passed back upon updating and squashing,

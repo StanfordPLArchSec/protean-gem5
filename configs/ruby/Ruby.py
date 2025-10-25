@@ -125,6 +125,19 @@ def define_options(parser):
         help="Recycle latency for ruby controller input buffers",
     )
 
+    parser.add_argument("--enable-prefetch", action="store_true", default=False,
+                        help="Enable Ruby HW Prefetcher")
+
+    
+    parser.add_argument("--DC_TBEs", type=int, default=256,
+                      help="Number of TBEs for Ruby Directory Controller / MSHR equivalents to use. Default=256")
+    parser.add_argument("--L1_TBEs", type=int, default=256,
+                      help="Number of TBEs for L1 cache / MSHR equivalents to use. Default=256")
+    parser.add_argument("--L2_TBEs", type=int, default=256,
+                      help="Number of TBEs for L2 cache / MSHR equivalents to use. Default=256")
+    parser.add_argument("--max_outstanding_requests", type=int, default=16,
+                      help="LSQ Size; Max outstanding requests for load sequencer. Default=16")
+    
     protocol = buildEnv["PROTOCOL"]
     exec(f"""
 from . import {protocol}
@@ -310,6 +323,7 @@ def create_directories(options, bootmem, ruby_system, system):
         dir_cntrl.version = i
         dir_cntrl.directory = RubyDirectoryMemory()
         dir_cntrl.ruby_system = ruby_system
+        dir_cntrl.number_of_TBEs = options.DC_TBEs
 
         exec("ruby_system.dir_cntrl%d = dir_cntrl" % i)
         dir_cntrl_nodes.append(dir_cntrl)
