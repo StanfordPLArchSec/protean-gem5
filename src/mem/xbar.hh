@@ -419,6 +419,10 @@ class BaseXBar : public ClockedObject
                   PortID idx=InvalidPortID) override;
 
     void regStats() override;
+
+    inline size_t memSidePortCount() const {
+        return memSidePorts.size();
+    }
 };
 
 } // namespace gem5

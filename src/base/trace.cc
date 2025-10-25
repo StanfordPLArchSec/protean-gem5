@@ -169,5 +169,11 @@ OstreamLogger::logMessage(Tick when, const std::string &name,
     }
 }
 
+void
+OstreamLogger::reset() {
+    stream.flush();
+    stream.seekp(0, std::ios_base::beg);
+}
+
 } // namespace trace
 } // namespace gem5

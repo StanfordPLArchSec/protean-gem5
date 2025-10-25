@@ -152,6 +152,10 @@ class RequestPort: public Port, public AtomicRequestProtocol,
 
     virtual ~RequestPort();
 
+    ResponsePort &getResponsePort() const { return *_responsePort; }
+
+    SimObject &getOwner() const { return owner; }
+
     /**
      * Bind this request port to a response port. This also does the
      * mirror action and binds the response port to the request port.
@@ -366,6 +370,12 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
     ResponsePort(const std::string& name, PortID id=InvalidPortID);
 
     virtual ~ResponsePort();
+
+    /** Get this response port's request port (SlavePort.getMasterPort()) */
+    RequestPort& getRequestPort() const { return *_requestPort; }
+
+    /** Get the port's owner */
+    SimObject& getOwner() const { return owner; }
 
     /**
      * Find out if the peer request port is snooping or not.

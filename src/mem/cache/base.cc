@@ -80,6 +80,7 @@ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
 
 BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
     : ClockedObject(p),
+      num_sets(p.size / (p.assoc * blk_size)),
       cpuSidePort (p.name + ".cpu_side_port", *this, "CpuSidePort"),
       memSidePort(p.name + ".mem_side_port", this, "MemSidePort"),
       accessor(*this),
@@ -184,7 +185,7 @@ BaseCache::CacheResponsePort::processSendRetry()
 }
 
 Addr
-BaseCache::regenerateBlkAddr(CacheBlk* blk)
+BaseCache::regenerateBlkAddr(CacheBlk* blk) const
 {
     if (blk != tempBlock) {
         return tags->regenerateBlkAddr(blk);
@@ -1858,7 +1859,7 @@ BaseCache::invalidateVisitor(CacheBlk &blk)
                   "Expect things to break.\n");
 
     if (blk.isValid()) {
-        assert(!blk.isSet(CacheBlk::DirtyBit));
+        // assert(!blk.isSet(CacheBlk::DirtyBit));
         invalidateBlock(&blk);
     }
 }
@@ -2010,21 +2011,17 @@ BaseCache::sendWriteQueuePacket(WriteQueueEntry* wq_entry)
 void
 BaseCache::serialize(CheckpointOut &cp) const
 {
-    bool dirty(isDirty());
-
-    if (dirty) {
-        warn("*** The cache still contains dirty data. ***\n");
-        warn("    Make sure to drain the system using the correct flags.\n");
-        warn("    This checkpoint will not restore correctly " \
-             "and dirty data in the cache will be lost!\n");
-    }
-
-    // Since we don't checkpoint the data in the cache, any dirty data
-    // will be lost when restoring from a checkpoint of a system that
-    // wasn't drained properly. Flag the checkpoint as invalid if the
-    // cache contains dirty data.
-    bool bad_checkpoint(dirty);
-    SERIALIZE_SCALAR(bad_checkpoint);
+  fprintf(stderr, "HERE HERE HERE\n");
+    std::vector<Addr> addresses = {};
+    tags->forEachBlk([&](CacheBlk &blk) {
+        if (blk.isValid()) {
+            // Addr blk_addr = regenerateBlkAddr(&blk);
+            // DPRINTF(Speclfb,"victim is %x,%x,%d\n",blk->getTag(),blk->getSet()<<6,blk->getSet());
+            Addr phys_addr = (Addr) blk.getTag() * (Addr) blkSize * (Addr) num_sets + (Addr) blk.getSet() * (Addr) blkSize;
+            addresses.push_back(phys_addr);
+        }
+    });
+    SERIALIZE_CONTAINER(addresses);
 }
 
 void

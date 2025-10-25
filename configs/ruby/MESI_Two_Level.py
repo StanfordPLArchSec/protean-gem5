@@ -86,12 +86,14 @@ def create_system(
             assoc=options.l1i_assoc,
             start_index_bit=block_size_bits,
             is_icache=True,
+            cache_component=True,
         )
         l1d_cache = L1Cache(
             size=options.l1d_size,
             assoc=options.l1d_assoc,
             start_index_bit=block_size_bits,
             is_icache=False,
+            cache_component=True,
         )
 
         prefetcher = RubyPrefetcher()
@@ -109,6 +111,7 @@ def create_system(
             clk_domain=clk_domain,
             transitions_per_cycle=options.ports,
             enable_prefetch=options.enable_prefetch,
+            number_of_TBEs = options.L1_TBEs,
         )
 
         cpu_seq = RubySequencer(
@@ -151,6 +154,7 @@ def create_system(
             size=options.l2_size,
             assoc=options.l2_assoc,
             start_index_bit=l2_index_start,
+            cache_component=True,
         )
 
         l2_cntrl = L2Cache_Controller(
@@ -158,6 +162,7 @@ def create_system(
             L2cache=l2_cache,
             transitions_per_cycle=options.ports,
             ruby_system=ruby_system,
+            number_of_TBEs = options.L2_TBEs,
         )
 
         exec("ruby_system.l2_cntrl%d = l2_cntrl" % i)

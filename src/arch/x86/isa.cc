@@ -346,8 +346,8 @@ ISA::setMiscReg(RegIndex idx, RegVal val)
         break;
       case misc_reg::Rflags:
         {
-            RFLAGS rflags = val;
-            panic_if(rflags.vm, "Virtual 8086 mode is not supported.");
+            // RFLAGS rflags = val;
+            // panic_if(rflags.vm, "Virtual 8086 mode is not supported.");
             break;
         }
       case misc_reg::CsAttr:

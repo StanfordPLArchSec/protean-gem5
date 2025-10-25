@@ -368,6 +368,8 @@ class Packet : public Printable, public Extensible<Packet>
   public:
     typedef MemCmd::Command Command;
 
+    auto getFlags() const { return flags; }
+
     /// The command field of the packet.
     MemCmd cmd;
 
