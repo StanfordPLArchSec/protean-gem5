@@ -1061,6 +1061,16 @@ Commit::commitInsts()
                 "Trying to commit head instruction, [tid:%i] [sn:%llu]\n",
                 tid, head_inst->seqNum);
 
+        // AMULET: Add to the commit log.
+#if TRACING_ON
+        cpu->logCommit(head_inst->fetchTick);
+        cpu->logCommit(head_inst->decodeTick);
+        cpu->logCommit(head_inst->dispatchTick);
+        cpu->logCommit(head_inst->issueTick);
+        cpu->logCommit(head_inst->completeTick);
+        cpu->logCommit(curTick() - head_inst->fetchTick);
+#endif
+        
         // If the head instruction is squashed, it is ready to retire
         // (be removed from the ROB) at any time.
         if (head_inst->isSquashed()) {
