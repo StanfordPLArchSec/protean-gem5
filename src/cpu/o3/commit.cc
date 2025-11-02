@@ -1010,9 +1010,6 @@ Commit::handleSquashSignalFromROB(ThreadID tid, DynInstPtr &pendingMispInst)
             pendingMispInst->seqNum);
         pendingMispInst->staticInst->advancePC(*nextPC);
     } else if (pendingMispInst->isLoad()){
-        // Protean: This is impossible?
-        // Keep it around in case we want to revive this. 
-        std::abort(); 
         DPRINTF(Commit,
             "[tid:%i]: (Lazy) Squashing due to order violation [sn:%i]\n",
             tid, pendingMispInst->seqNum);
