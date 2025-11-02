@@ -796,8 +796,16 @@ Commit::commit()
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
-          if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy && fromIEW->instCausingSquash[tid]->isArgsTainted()) {
+            const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
+            panic_if(/* cpu->sttBugfixPending && */
+                     inst_causing_squash->isCondCtrl() && 
+                     inst_causing_squash->isArgsTainted() &&
+                     !inst_causing_squash->isUnsquashable(),
+                     "Security violation during branch resolution!\n");
+
+            if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy && inst_causing_squash->isArgsTainted()) {
                 if (fromIEW->mispredictInst[tid]) {
+                    assert(!cpu->sptBugfixPending);
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
                             fromIEW->instCausingSquash[tid]->seqNum,
@@ -812,16 +820,13 @@ Commit::commit()
                             fromIEW->instCausingSquash[tid]->pcState());
                     ++stats.stalledMemoryViolations;
                 }
+#if 0
+                panic_if(cpu->sptBugfixPending, "Shouldn't get here!\n");
+#endif
                 fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
                 goto done;
             }
 
-            // PROTEAN: This would result in a security violation.
-            [[maybe_unused]] const DynInstPtr &inst_causing_squash =
-                                 fromIEW->instCausingSquash[tid];
-            assert(!inst_causing_squash->isArgsTainted() ||
-                   inst_causing_squash->isUnsquashable());
-            
             if (fromIEW->mispredictInst[tid]) {
                 DPRINTF(Commit, "[tid:%i]: A incoming squash [sn:%lli,0x%lx] PC %s can be resolved now\n",
                         tid,
@@ -894,7 +899,9 @@ Commit::commit()
             }
         }
 
-      done:
+        resolvePendingSquash(tid);
+        
+    done:
 
         if (commitStatus[tid] == ROBSquashing) {
             num_squashing_threads++;
@@ -1681,8 +1688,6 @@ Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
                 tid, inst->seqNum, pending->seqNum);
         return;
     }
-    if (pending)
-        pending->hasPendingSquash(false);
     DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
             tid, inst->seqNum);
     inst->hasPendingSquash(true);
@@ -1700,7 +1705,6 @@ Commit::resolvePendingSquash(ThreadID tid)
     panic_if(++pendingSquashInstCounter >= 500e4, "braindead!\n");
     
     if (inst->isSquashed()) {
-        inst->hasPendingSquash(false);
         inst = nullptr;
         return;
     }
