@@ -199,7 +199,7 @@ class BaseO3CPU(BaseCPU):
 
     # [SPT]
     spt = Param.Bool(False, "[SPT] Enable SPT")
-    sptBugfix = Param.Bool(False, "[SPT] Enable SPT bugfixes")
+    sptBugfixRename = Param.Bool(False, "[SPT] Enable SPT bugfixes for initializing taints at rename")
     sptBugfixPending = Param.Bool(False, "[SPT] Enable SPT bugfix for delayed branch resolution")
     configImpFlow = Param.String('Ignore', "How to handle implicit flow")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")

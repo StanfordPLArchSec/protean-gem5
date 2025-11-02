@@ -135,5 +135,5 @@ def config_scheme(cpu_cls, cpu_list, options):
             if len(str(options.configImpFlow)) != 0:
                 cpu.configImpFlow = options.configImpFlow
 
-            cpu.sptBugfix = options.spt_bugfix
+            cpu.sptBugfixRename = options.spt_bugfix_rename
             cpu.sptBugfixPending = options.spt_bugfix_pending

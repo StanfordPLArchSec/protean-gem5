@@ -694,7 +694,7 @@ class CPU : public BaseCPU
      **/
     std::unordered_map<Addr, bool> shadowL1;
 
-    bool sptBugfix;
+    bool sptBugfixRename;
     bool sptBugfixPending;
 };
 
