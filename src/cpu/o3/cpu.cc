@@ -115,7 +115,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
-      sptBugfix(params.sptBugfix),
+      sptBugfixRename(params.sptBugfixRename),
       sptBugfixPending(params.sptBugfixPending)
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -369,7 +369,8 @@ CPU::CPU(const BaseO3CPUParams &params)
     if (enableShadowL1)
         std::cout << "Shadow L1 bottomless? " << (bottomlessShadowL1 ? "yes" : "no") << std::endl;
     std::cout << "Untaint Rounds = " << untaintRounds << std::endl;
-    cprintf("sptBugfix = %d\n", sptBugfix);
+    cprintf("sptBugfixRename = %d\n", sptBugfixRename);
+    cprintf("sptBugfixPending = %d\n", sptBugfixPending);
 }
 
 void
