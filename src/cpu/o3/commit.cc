@@ -1784,6 +1784,8 @@ Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
                 tid, inst->seqNum, pending->seqNum);
         return;
     }
+    if (pending)
+        pending->hasPendingSquash(false);
     DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
             tid, inst->seqNum);
     inst->hasPendingSquash(true);
@@ -1801,11 +1803,13 @@ Commit::resolvePendingSquash(ThreadID tid)
     panic_if(++pendingSquashInstCounter >= 500e4, "braindead!\n");
     
     if (inst->isSquashed()) {
+        inst->hasPendingSquash(false);
         inst = nullptr;
         return;
     }
 
-    if (commitStatus[tid] == TrapPending || inst > youngestSeqNum[tid])
+    if (commitStatus[tid] == TrapPending ||
+        inst->seqNum > youngestSeqNum[tid])
         return;
 
     assert(cpu->spt);
