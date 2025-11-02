@@ -259,7 +259,7 @@ class RefCountingPtr
     bool operator!() const { return data == 0; }
 
     /// Check if the pointer is non-empty
-    operator bool() const { return data != 0; }
+    explicit operator bool() const { return data != 0; }
 };
 
 /// Check for equality of two reference counting pointers.
