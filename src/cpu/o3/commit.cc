@@ -1747,7 +1747,8 @@ Commit::resolvePendingSquash(ThreadID tid)
         return;
     }
 
-    if (commitStatus[tid] == TrapPending || inst > youngestSeqNum[tid])
+    if (commitStatus[tid] == TrapPending ||
+        inst->seqNum > youngestSeqNum[tid])
         return;
 
     assert(cpu->mieros != Mieros::None);
