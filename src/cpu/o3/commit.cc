@@ -1729,6 +1729,8 @@ Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
                 tid, inst->seqNum, pending->seqNum);
         return;
     }
+    if (pending)
+        pending->hasPendingSquash(false);
     DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
             tid, inst->seqNum);
     inst->hasPendingSquash(true);
@@ -1743,6 +1745,7 @@ Commit::resolvePendingSquash(ThreadID tid)
         return;
 
     if (inst->isSquashed()) {
+        inst->hasPendingSquash(false);
         inst = nullptr;
         return;
     }
