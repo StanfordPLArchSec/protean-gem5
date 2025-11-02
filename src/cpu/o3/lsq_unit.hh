@@ -309,7 +309,7 @@ class LSQUnit
     /** Returns if there is a memory ordering violation. Value is reset upon
      * call to getMemDepViolator().
      */
-    bool violation() { return memDepViolator; }
+    bool violation() { return static_cast<bool>(memDepViolator); }
 
     /** Returns the memory ordering violator. */
     DynInstPtr getMemDepViolator();
