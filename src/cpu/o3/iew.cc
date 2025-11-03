@@ -1161,7 +1161,7 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            if (cpu->sttBugfixes) {
+            if (cpu->sttBugfixStore) {
                 if (inst->fenceDelay()) {
                     assert(!(inst->isAddrTainted() && inst->translationStarted()));
                     instQueue.deferMemInst(inst);
