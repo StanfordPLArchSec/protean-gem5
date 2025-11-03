@@ -1665,7 +1665,7 @@ LSQUnit::updateVisibleState()
     }
 
     // Also iterate over stores.
-    if (cpu->sttBugfixes) {
+    if (cpu->sttBugfixStore) {
         for (const SQEntry &store_ent : storeQueue) {
             const DynInstPtr &inst = store_ent.instruction();
             inst->fenceDelay(cpu->stt && inst->isAddrTainted());

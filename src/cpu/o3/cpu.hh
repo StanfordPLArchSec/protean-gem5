@@ -612,7 +612,7 @@ class CPU : public BaseCPU
     ImplicitChannelMode impChannel;  
 
     /** [STT] Whether to enable bugfixes to restore security of STT. */
-    bool sttBugfixes;
+    bool sttBugfixStore;
 
     // whether consider more transmit instructions
     int moreTransmitInsts;

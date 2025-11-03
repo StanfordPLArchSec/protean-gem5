@@ -323,11 +323,11 @@ CPU::CPU(const BaseO3CPUParams &params)
 
     /*** [STT] additional configurations ***/
     stt = params.stt;
-    sttBugfixes = params.sttBugfixes;
+    sttBugfixStore = params.sttBugfixStore;
     impChannel = params.implicitChannel;
     moreTransmitInsts = params.moreTransmitInsts;
-    cprintf("stt = %d, stt-bugfixes = %d, implicit-channel = %d, more-transmit-insts = %d\n",
-            stt, sttBugfixes, (int) impChannel, moreTransmitInsts);
+    cprintf("stt = %d, stt-bugfix-store = %d, implicit-channel = %d, more-transmit-insts = %d\n",
+            stt, sttBugfixStore, (int) impChannel, moreTransmitInsts);
     assert (moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
 }
 

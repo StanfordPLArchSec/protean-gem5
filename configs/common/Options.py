@@ -702,8 +702,8 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     # [STT] add options to configure needsTSO and scheme
     parser.add_argument("--stt", action="store_true",
             help="Whether using STT mechanism(threat_model mustn't be Unsafe.")
-    parser.add_argument("--stt-bugfixes", action="store_true",
-                        help="[STT] Enable bugfixes to STT to restore security.")
+    parser.add_argument("--stt-bugfix-store", action="store_true",
+                        help="[STT] Treat stores as speculative transmitters.")
     parser.add_argument(
         "--implicit-channel",
         choices=["None", "Eager", "Lazy"],
