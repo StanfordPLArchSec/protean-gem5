@@ -798,7 +798,7 @@ Commit::commit()
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
             const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
-            panic_if(/* cpu->sttBugfixPending && */
+            panic_if(cpu->sttBugfixPending &&
                      inst_causing_squash->isCondCtrl() && 
                      inst_causing_squash->isArgsTainted() &&
                      !inst_causing_squash->isUnsquashable(),
@@ -806,7 +806,7 @@ Commit::commit()
 
             if (cpu->stt && cpu->impChannel == ImplicitChannelMode::Lazy && inst_causing_squash->isArgsTainted()) {
                 if (fromIEW->mispredictInst[tid]) {
-                    assert(!cpu->sptBugfixPending);
+                    assert(!cpu->sttBugfixPending);
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
                             fromIEW->instCausingSquash[tid]->seqNum,
@@ -821,9 +821,6 @@ Commit::commit()
                             fromIEW->instCausingSquash[tid]->pcState());
                     ++stats.stalledMemoryViolations;
                 }
-#if 0
-                panic_if(cpu->sptBugfixPending, "Shouldn't get here!\n");
-#endif
                 fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
                 goto done;
             }
@@ -1729,7 +1726,7 @@ Commit::resolvePendingSquash(ThreadID tid)
         inst->seqNum > youngestSeqNum[tid])
         return;
 
-    assert(cpu->spt);
+    assert(cpu->stt);
 
     if (inst->isArgsTainted() && !inst->isUnsquashable())
         return;

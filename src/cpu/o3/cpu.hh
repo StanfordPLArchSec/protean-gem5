@@ -613,6 +613,7 @@ class CPU : public BaseCPU
 
     /** [STT] Whether to enable bugfixes to restore security of STT. */
     bool sttBugfixStore;
+    bool sttBugfixPending;
 
     // whether consider more transmit instructions
     int moreTransmitInsts;
