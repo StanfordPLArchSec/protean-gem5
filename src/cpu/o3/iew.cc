@@ -1277,7 +1277,7 @@ IEW::executeInsts()
         // instruction first, so the branch resolution order will be correct.
         ThreadID tid = inst->threadNumber;
 
-        if (cpu->sptBugfixPending && inst->isControl() && inst->mispredicted() &&
+        if (cpu->sttBugfixPending && inst->isControl() && inst->mispredicted() &&
             inst->isArgsTainted() && !inst->isUnsquashable()) {
             DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Tainted branch mispredicted detected.\n",
                     tid, inst->seqNum);

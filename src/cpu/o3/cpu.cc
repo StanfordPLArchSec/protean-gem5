@@ -114,7 +114,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       globalSeqNum(1),
       system(params.system),
       lastRunningCycle(curCycle()),
-      cpuStats(this)
+      cpuStats(this),
+      sttBugfixPending(params.sttBugfixPending)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -326,8 +327,8 @@ CPU::CPU(const BaseO3CPUParams &params)
     sttBugfixStore = params.sttBugfixStore;
     impChannel = params.implicitChannel;
     moreTransmitInsts = params.moreTransmitInsts;
-    cprintf("stt = %d, stt-bugfix-store = %d, implicit-channel = %d, more-transmit-insts = %d\n",
-            stt, sttBugfixStore, (int) impChannel, moreTransmitInsts);
+    cprintf("stt = %d, stt-bugfix-store = %d, stt-bugfix-pending = %d, implicit-channel = %d, more-transmit-insts = %d\n",
+            stt, sttBugfixStore, sttBugfixPending, (int) impChannel, moreTransmitInsts);
     assert (moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
 }
 

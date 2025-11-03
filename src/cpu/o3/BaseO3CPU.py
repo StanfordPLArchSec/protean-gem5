@@ -205,5 +205,6 @@ class BaseO3CPU(BaseCPU):
     # [STT] STT configurations
     stt = Param.Bool(False, "Apply STT protection mechanism")
     sttBugfixStore = Param.Bool(False, "[STT] Treat stores as speculative transmitters")
+    sttBugfixPending = Param.Bool(False, "[STT] Fix delayed branch resolution bug")
     implicitChannel = Param.ImplicitChannelMode("None", "[STT] How to handle implicit channels")
     moreTransmitInsts = Param.Int(0, "More transmit instruction types")

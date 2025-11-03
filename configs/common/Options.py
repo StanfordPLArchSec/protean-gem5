@@ -717,6 +717,8 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
             help="Whether using STT mechanism(threat_model mustn't be Unsafe.")
     parser.add_argument("--stt-bugfix-store", action="store_true",
                         help="[STT] Treat stores as speculative transmitters.")
+    parser.add_argument("--stt-bugfix-pending", action="store_true",
+                        help="[STT] Fix delayed branch resolution bug.")
     parser.add_argument(
         "--implicit-channel",
         choices=["None", "Eager", "Lazy"],

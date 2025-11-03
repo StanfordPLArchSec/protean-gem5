@@ -82,5 +82,6 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.speculationModel = options.speculation_model
             cpu.stt = options.stt
             cpu.sttBugfixStore = options.stt_bugfix_store
+            cpu.sttBugfixPending = options.stt_bugfix_pending
             cpu.implicitChannel = options.implicit_channel
             cpu.moreTransmitInsts = options.more_transmit_insts
