@@ -1503,6 +1503,7 @@ InstructionQueue::addIfReady(const DynInstPtr &inst)
             assert (inst->isArgsTainted());
             if (!inst->isInStallList()) {
                 inst->addToStallList();
+                inst->stallTick = curTick();
                 stalledTaintedInstList[inst->threadNumber].push_back(inst);
             }
         }
@@ -1659,11 +1660,13 @@ InstructionQueue::wakeUntaintInsts()
             if (inst->isSquashed()) {
                 inst->removeFromStallList();
                 it = stalledTaintedInstList[tid].erase(it);
+                inst->unstallTick = curTick();
             }
             else if (inst->readyToIssue_UT()) {
                 inst->removeFromStallList();
                 addIfReady(inst);
                 it = stalledTaintedInstList[tid].erase(it);
+                inst->unstallTick = curTick();
             }
             else {
                 it++;

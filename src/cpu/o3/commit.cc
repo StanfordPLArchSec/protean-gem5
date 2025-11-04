@@ -66,6 +66,7 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include "debug/STTRetire.hh"
 
 namespace gem5
 {
@@ -1402,6 +1403,21 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         head_inst->commitTick = curTick() - head_inst->fetchTick;
     }
 #endif
+
+    // [STT] Stall info.
+    const Addr inst_addr = head_inst->pcState().instAddr();
+    if (debug::STTRetire) {
+        DPRINTFR(STTRetire, "STT retire %#x\n", inst_addr);
+        if (head_inst->stallTick != -1) {
+            if (head_inst->unstallTick == -1) {
+                warn("missing unstallTick!\n");
+                head_inst->unstallTick = curTick();
+            }
+            const Tick stalls = head_inst->unstallTick - head_inst->stallTick;
+            DPRINTFR(STTRetire, "STT stall %lld %#x\n", stalls, inst_addr);
+        }
+    }
+
 
     // If this was a store, record it for this cycle.
     if (head_inst->isStore() || head_inst->isAtomic())
