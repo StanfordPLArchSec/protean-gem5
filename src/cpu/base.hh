@@ -822,6 +822,11 @@ class BaseCPU : public ClockedObject
     std::vector<std::unique_ptr<FetchCPUStats>> fetchStats;
     std::vector<std::unique_ptr<ExecuteCPUStats>> executeStats;
     std::vector<std::unique_ptr<CommitCPUStats>> commitStats;
+
+  public:
+    std::vector<uint64_t> commitLog;
+
+    void logCommit(Tick tick);
 };
 
 } // namespace gem5

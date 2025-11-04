@@ -949,6 +949,16 @@ Commit::commitInsts()
                 "Trying to commit head instruction, [tid:%i] [sn:%llu]\n",
                 tid, head_inst->seqNum);
 
+        // AMULET: Add to the commit log.
+#if TRACING_ON
+        cpu->logCommit(head_inst->fetchTick);
+        cpu->logCommit(head_inst->decodeTick);
+        cpu->logCommit(head_inst->dispatchTick);
+        cpu->logCommit(head_inst->issueTick);
+        cpu->logCommit(head_inst->completeTick);
+        cpu->logCommit(curTick() - head_inst->fetchTick);
+#endif
+        
         // If the head instruction is squashed, it is ready to retire
         // (be removed from the ROB) at any time.
         if (head_inst->isSquashed()) {
@@ -1111,7 +1121,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     assert(head_inst);
 
     ThreadID tid = head_inst->threadNumber;
-
+    
     // If the instruction is not executed yet, then it will need extra
     // handling.  Signal backwards that it should be executed.
     if (!head_inst->isExecuted()) {
@@ -1154,7 +1164,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
         return false;
     }
-
+    
     // Check if the instruction caused a fault.  If so, trap.
     Fault inst_fault = head_inst->getFault();
 

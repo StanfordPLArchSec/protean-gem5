@@ -38,6 +38,8 @@ static const uint64_t opResetLog = 0x7e310c4276780c9b;
 static const uint64_t opGetBranchPredictorState = 0x98df1da695dd7afe;
 static const uint64_t opAckBranchPredictorState = 0x7d5cc0725ba80cf4;
 static const uint64_t opResetBranchPredictor = 0xcd0b48f441b827af;
+static const uint64_t opResetCommitLog = 0xdeadbeefbaddecaf;
+static const uint64_t opGetCommitLog = 0xfeedfacefeedface;
 
 using branch_prediction::BPredUnit;
 
@@ -406,6 +408,14 @@ bool RevizorIPC::prepareNext() {
         } else if (op == opResetBranchPredictor) {
             BPredUnit *bpred = getBPred();
             bpred->reset();
+        } else if (op == opResetCommitLog) {
+            cpu->commitLog.clear();
+        } else if (op == opGetCommitLog) {
+            auto &commit = cpu->commitLog;
+            auto size = commit.size() * 8;
+            uint64_t ack[] = {opGetCommitLog, size};
+            send(ack, sizeof ack);
+            send(commit.data(), size);
         } else {
             fatal("unrecognized command from client: %#" PRIx64 "\n", op);
         }
