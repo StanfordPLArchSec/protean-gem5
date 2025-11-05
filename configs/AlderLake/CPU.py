@@ -1,8 +1,4 @@
-from m5.objects import (
-    TAGE_SC_L_64KB,
-    X86O3CPU,
-)
-
+from m5.objects import *
 
 class GoldenCove(X86O3CPU):
     def __init__(self, *args, **kwargs):

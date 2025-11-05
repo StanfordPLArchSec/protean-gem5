@@ -678,6 +678,8 @@ class CPU : public BaseCPU
     // whether to perform backward untainting
     bool bwdUntaint;
 
+    bool spUntaint;
+
     // whether to perform ideal untainting
     bool idealUntaint;
 

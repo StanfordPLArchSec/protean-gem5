@@ -308,7 +308,9 @@ def create_directories(options, bootmem, ruby_system, system):
     for i in range(options.num_dirs):
         dir_cntrl = Directory_Controller()
         dir_cntrl.version = i
-        dir_cntrl.directory = RubyDirectoryMemory()
+        dir_cntrl.directory = RubyDirectoryMemory(
+            block_size=ruby_system.block_size_bytes
+        )
         dir_cntrl.ruby_system = ruby_system
 
         exec("ruby_system.dir_cntrl%d = dir_cntrl" % i)

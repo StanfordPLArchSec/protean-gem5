@@ -221,6 +221,7 @@ class BaseO3CPU(BaseCPU):
     disableUntaint = Param.Bool(False, "Whether to disable untainting")
     fwdUntaint = Param.Bool(False, "Whether to perform forward untainting")
     bwdUntaint = Param.Bool(False, "Whether to perform backward untainting")
+    spUntaint = Param.Bool(False, "Stack pointer untainting")
     idealUntaint = Param.Bool(False, "Whether to perform ideal untainting")
     enableShadowL1 = Param.Bool(False, "Whether to enable the shadow L1 cache")
     bottomlessShadowL1 = Param.Bool(False, "Whether the shadow L1 cache is bottomless, i.e. ignores evictions")

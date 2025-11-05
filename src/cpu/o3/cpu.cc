@@ -355,6 +355,7 @@ CPU::CPU(const BaseO3CPUParams &params)
     disableUntaint = params.disableUntaint;
     fwdUntaint = params.fwdUntaint && !disableUntaint;
     bwdUntaint = params.bwdUntaint && params.fwdUntaint && !disableUntaint;
+    spUntain = params.spUntaint;
     idealUntaint = params.idealUntaint && !disableUntaint;
     enableShadowL1 = params.enableShadowL1 && !disableUntaint;
     bottomlessShadowL1 = params.bottomlessShadowL1 && enableShadowL1;

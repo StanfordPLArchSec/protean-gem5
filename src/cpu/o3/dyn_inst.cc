@@ -633,6 +633,8 @@ DynInst::isArgsIdxTainted(int i) const
     auto szAndOffs = getSrcRegSizeAndOffs(i);
     auto size = szAndOffs.first;
     auto offs = szAndOffs.second;
+    if (cpu->spUntaint && srcRegIdx(i) == X86ISA::int_reg::Rsp)
+        return false;
     return cpu->readPartialTaint(renamedSrcIdx(i), size, offs);
 }
 

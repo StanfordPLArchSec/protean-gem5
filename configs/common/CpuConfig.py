@@ -84,11 +84,11 @@ def config_scheme(cpu_cls, cpu_list, options):
 
         print("**********")
         print("info: Configure for DerivO3CPU. spt=%s; implicitFlow=%s; " \
-            "moreTransmitInsts=%s, disableUntaint=%s, fwdUntaint=%s, bwdUntaint=%s, " \
+            "moreTransmitInsts=%s, disableUntaint=%s, fwdUntaint=%s, bwdUntaint=%s, spUntaint=%s, " \
             "idealUntaint=%s, enableShadowL1=%s, bottomlessShadowL1=%s, untaintRounds=%s" \
             % (options.spt, options.configImpFlow,
                 str(options.moreTransmitInsts),
-                str(options.disableUntaint), str(options.fwdUntaint), str(options.bwdUntaint), str(options.idealUntaint),
+                str(options.disableUntaint), str(options.fwdUntaint), str(options.bwdUntaint), options.spUntaint, str(options.idealUntaint),
                 str(options.enableShadowL1), str(options.bottomlessShadowL1),
                 str(options.untaint_rounds)))
         print("**********")
@@ -114,6 +114,8 @@ def config_scheme(cpu_cls, cpu_list, options):
                 cpu.bwdUntaint = True;
             else:
                 cpu.bwdUntaint = False;
+
+            cpu.spUntaint = options.spUntaint
 
             if options.idealUntaint:
                 cpu.idealUntaint = True;
