@@ -283,7 +283,6 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
                "taint primitives to unprotected load"),
       ADD_STAT(delayedWritebackTicks, "[TPT] Average number of cycles the writeback of mispredicted access instructions are delayed"),
       ADD_STAT(delayedWritebackCount, "[TPT] See delayedWritebackTicks"),
-                "first time a load is issued and its completion"),
       ADD_STAT(addedLoadsAndStores, statistics::units::Count::get(),
                "Number of loads and stores written to the Load Store Queue")
 {

@@ -569,17 +569,5 @@ ROB::updateVisibleState()
     }
 }
 
-DynInstPtr
-ROB::getResolvedPendingSquashInst(ThreadID tid)
-{
-    for (const DynInstPtr &inst : instList[tid])
-        if (inst->hasPendingSquash()
-            && !inst->taintedXmits()
-            && !inst->isSquashed()  // if it's already squashed, we ignore it
-            )
-            return inst;
-    return nullptr;
-}
-
 } // namespace o3
 } // namespace gem5

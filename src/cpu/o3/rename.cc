@@ -1046,13 +1046,6 @@ Rename::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
         if (hb_it->newEntry != hb_it->prevEntry) {
             freeList->addReg(hb_it->prevEntry.physReg);
         }
-        if (hb_it->prevPhysReg->classValue()== FloatRegClass) {
-           ++stats.fpReturned;
-        }
-        if (hb_it->prevPhysReg->classValue()== IntRegClass) {
-           ++stats.intReturned;
-        }
-
 
         ++stats.committedMaps;
 

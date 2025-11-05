@@ -274,13 +274,6 @@ class ROB
     /** Registers statistics. */
     void regStats();
 
-    // compute the number of cycles from an instruction being issued to it being !argsTainted
-    // used to evaluate
-
-    // find a instr in a rob list which has a pending squash, but is not argTaintewhich has a pending squash, but is not argTainted
-    // which means that we should execute this squash
-    DynInstPtr getResolvedPendingSquashInst(ThreadID tid);
-
   private:
     /** Reset the ROB state */
     void resetState();

@@ -608,20 +608,20 @@ class CPU : public BaseCPU
     bool ptexPages;
 
     /** [Mieros] */
-    Mieros mieros;
+    const Mieros mieros;
 
     /** [Mieros] Protect explicit flows [Yu+ MICRO'19],
      * specifically, loads and stores. */
-    bool mierosExp;
+    const bool mierosExp;
 
     /** [Mieros] Protect implicit flows [Yu+ MICRO'19],
      * specifically, branches. */
-    bool mierosImp;
+    const bool mierosImp;
 
-    MierosPredMode mierosPredMode;
+    const MierosPredMode mierosPredMode;
 
     const bool mierosDelay = true; // MIEROS-TODO: Make a param.
-    const bool mierosDelayAll = false; // MIEROS-TODO: Make this a parameter.
+    const bool mierosDelayAll; // MIEROS-TODO: Make this a parameter.
     const bool mierosDelayOpt;
 
     std::unique_ptr<BaseAccessPredictor> accessPred;
