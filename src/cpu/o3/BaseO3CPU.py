@@ -210,6 +210,7 @@ class BaseO3CPU(BaseCPU):
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
     speculationModel = Param.SpeculationModel(
         "Futuristic", "[TPE, STT, SPT] Speculation model"
+    )
 
     recvRespThrottling = Param.Bool(
         False, "Enable load receive response throttling in the LSQ"

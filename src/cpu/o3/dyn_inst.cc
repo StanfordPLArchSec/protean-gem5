@@ -512,6 +512,7 @@ DynInst::isSpeculationPrimitive() const
     }
 }
 
+bool
 DynInst::checkHFICtrl(Addr pc)
 {
     using namespace X86ISA;
