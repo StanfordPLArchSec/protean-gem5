@@ -375,10 +375,10 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t sqIdx = -1;
     typename LSQUnit::SQIterator sqIt;
 
-    /** [Mieros-Taint] The tainted instruction we forwarded from. */
+    /** [Protean-Taint] The tainted instruction we forwarded from. */
     DynInstPtr taintedStFwdInst;
 
-    /** [Mieros-Track] YRoT among transmitter's sensitive
+    /** [Protean-Track] YRoT among transmitter's sensitive
      * input registers.
      * If this is valid, then we need to stall the transmission
      * until this yrot is nonspec. */

@@ -84,10 +84,10 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.speculationModel = options.speculation_model
             cpu.ptexMem = options.ptex_mem
             cpu.ptexPages = options.ptex_pages
-            cpu.mieros = options.mieros
-            cpu.mierosExp = not options.mieros_no_exp
-            cpu.mierosImp = not options.mieros_no_imp
-            cpu.mierosPredMode = options.mieros_pred_mode
-            cpu.mierosPredSize = options.mieros_pred_size
-            cpu.mierosPredProt = options.mieros_pred_prot
-            cpu.mierosDelayOpt = options.mieros_delay_opt
+            cpu.protean = options.protean
+            cpu.proteanExp = not options.protean_no_exp
+            cpu.proteanImp = not options.protean_no_imp
+            cpu.proteanPredMode = options.protean_pred_mode
+            cpu.proteanPredSize = options.protean_pred_size
+            cpu.proteanPredProt = options.protean_pred_prot
+            cpu.proteanDelayOpt = options.protean_delay_opt

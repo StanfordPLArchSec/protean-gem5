@@ -72,7 +72,7 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/ptex.hh"
-#include "enums/Mieros.hh"
+#include "enums/Protean.hh"
 
 namespace gem5
 {
@@ -604,26 +604,26 @@ class CPU : public BaseCPU
     DeclassifyMode ptexMem;
     bool ptexPages;
 
-    /** [Mieros] */
-    const Mieros mieros;
+    /** [Protean] */
+    const Protean protean;
 
-    /** [Mieros] Protect explicit flows [Yu+ MICRO'19],
+    /** [Protean] Protect explicit flows [Yu+ MICRO'19],
      * specifically, loads and stores. */
-    const bool mierosExp;
+    const bool proteanExp;
 
-    /** [Mieros] Protect implicit flows [Yu+ MICRO'19],
+    /** [Protean] Protect implicit flows [Yu+ MICRO'19],
      * specifically, branches. */
-    const bool mierosImp;
+    const bool proteanImp;
 
-    const MierosPredMode mierosPredMode;
+    const ProteanPredMode proteanPredMode;
 
-    const bool mierosDelay = true; // MIEROS-TODO: Make a param.
-    const bool mierosDelayAll; // MIEROS-TODO: Make this a parameter.
-    const bool mierosDelayOpt;
+    const bool proteanDelay = true; // MIEROS-TODO: Make a param.
+    const bool proteanDelayAll; // MIEROS-TODO: Make this a parameter.
+    const bool proteanDelayOpt;
 
     std::unique_ptr<BaseAccessPredictor> accessPred;
 
-    // [Mieros-Track] The last nonspeculative instruction.
+    // [Protean-Track] The last nonspeculative instruction.
     InstSeqNum untaintBroadcast = NoYRoT;
 
     friend class LSQUnit;

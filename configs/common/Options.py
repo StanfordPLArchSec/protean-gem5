@@ -712,44 +712,44 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="[PTeX] Enable page extension",
     )
 
-    # [Mieros-Track]
+    # [Protean-Track]
     parser.add_argument(
-        "--mieros",
+        "--protean",
         choices=["None", "Delay", "Track"],
         default="None",
-        help="[Mieros] Enable the Mieros-Delay/Track defense",
+        help="[Protean] Enable the Protean-Delay/Track defense",
     )
     parser.add_argument(
-        "--mieros-no-exp",
+        "--protean-no-exp",
         action="store_true",
-        help="[Mieros] Whether enabling defense mechanism for explicit channel",
+        help="[Protean] Whether enabling defense mechanism for explicit channel",
     )
     parser.add_argument(
-        "--mieros-no-imp",
+        "--protean-no-imp",
         action="store_true",
-        help="[Mieros] Whether enabling defense mechanism for implicit channel",
+        help="[Protean] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
-        "--mieros-pred-mode",
+        "--protean-pred-mode",
         type=str,
         default="Predict",
-        help="[Mieros-Track] Access prediction mode",
+        help="[Protean-Track] Access prediction mode",
     )
     parser.add_argument(
-        "--mieros-pred-size",
+        "--protean-pred-size",
         type=int,
         default=1024,
-        help="[Mieros-Track] Number of access predictor entries (0 = infinite)",
+        help="[Protean-Track] Number of access predictor entries (0 = infinite)",
     )
     parser.add_argument(
-        "--mieros-pred-prot",
+        "--protean-pred-prot",
         action="store_true",
-        help="[Mieros-Track] Also predict access for protected loads",
+        help="[Protean-Track] Also predict access for protected loads",
     )
     parser.add_argument(
-        "--mieros-delay-opt",
+        "--protean-delay-opt",
         action="store_true",
-        help="[Mieros-Track] Delay optimizations",
+        help="[Protean-Track] Delay optimizations",
     )
 
 

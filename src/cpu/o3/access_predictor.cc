@@ -10,18 +10,18 @@ namespace gem5::o3
 BaseAccessPredictor *
 BaseAccessPredictor::makePredictor(const BaseO3CPUParams &params)
 {
-    switch (params.mierosPredMode) {
-      case MierosPredMode::Protected:
+    switch (params.proteanPredMode) {
+      case ProteanPredMode::Protected:
         return new DummyAccessPredictor(Protected);
 
-      case MierosPredMode::Unprotected:
+      case ProteanPredMode::Unprotected:
         return new DummyAccessPredictor(Unprotected);
 
-      case MierosPredMode::Predict:
-        return new AccessPredictor(params.mierosPredSize,
-                                   params.mierosPredProt);
+      case ProteanPredMode::Predict:
+        return new AccessPredictor(params.proteanPredSize,
+                                   params.proteanPredProt);
 
-      default: panic("Bad MierosPredMode!\n");
+      default: panic("Bad ProteanPredMode!\n");
     }
 }
 

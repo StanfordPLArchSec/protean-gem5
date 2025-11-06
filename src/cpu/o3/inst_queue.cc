@@ -1093,7 +1093,7 @@ wakeDependentsTaintedEligible(const DynInstPtr &dep_inst)
     // the operand to protected. This empirically gets better
     // performance.
     // The instruction will therefore be stalled until retirement? 
-    if (dep_inst->cpu->mieros == Mieros::Delay && dep_inst->isControl()) {
+    if (dep_inst->cpu->protean == Protean::Delay && dep_inst->isControl()) {
         dep_inst->setSrcProt(0, Protected);
         return true;
     }
@@ -1115,10 +1115,10 @@ int
 InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 {
     // Only do this if we've enabled the delay optimizations.
-    if (!cpu->mierosDelayOpt)
+    if (!cpu->proteanDelayOpt)
         return 0;
 
-    assert(cpu->mieros != Mieros::None);
+    assert(cpu->protean != Protean::None);
 
     DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
             completed_inst->disassembleWithProt());
