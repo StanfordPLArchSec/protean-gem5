@@ -799,13 +799,6 @@ Commit::commit()
         // Squashed sequence number must be older than youngest valid
         // instruction in the ROB. This prevents squashes from younger
         // instructions overriding squashes from older instructions.
-
-        // Mark pending mispredictions as having a pending squash.
-        if (DynInstPtr inst = std::move(fromIEW->pendingMispredictInst[tid])) {
-            DPRINTF(Commit, "[tid:%i] [sn:%llu] Pending mispredicted instruction received from IEW.\n",
-                    tid, inst->seqNum);
-            updatePendingMispredictInst(tid, std::move(inst));
-        }
         
         if (fromIEW->squash[tid] &&
             commitStatus[tid] != TrapPending &&
@@ -876,8 +869,11 @@ Commit::commit()
             }
 
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
-        } else {
-            resolvePendingSquash(tid);
+        } else if (DynInstPtr inst = rob->getResolvedPendingSquashInst(tid);
+                   inst && commitStatus[tid] != TrapPending &&
+                   inst->seqNum <= youngestSeqNum[tid]) {
+            inst->clearPendingSquash();
+            handleSquashSignalFromROB(tid, inst);
         }
 
         if (commitStatus[tid] == ROBSquashing) {
@@ -1717,55 +1713,6 @@ Commit::printTaintDebug(const DynInstPtr &inst, const std::string &type) const
     const Addr inst_addr = inst->pcState().instAddr();
     DPRINTFR(TPT, "TPT %s %#x :: %s\n",
              type, inst_addr, inst->disassembleWithProt());
-}
-
-void
-Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
-{
-    DynInstPtr &pending = pendingSquashInst[tid];
-    if (pending && pending->seqNum <= inst->seqNum) {
-        DPRINTF(Commit, "[tid:%i] [sn:%llu] Skipping pending mispredict, "
-                "since [sn:%llu] already registered.\n",
-                tid, inst->seqNum, pending->seqNum);
-        return;
-    }
-    if (pending)
-        pending->hasPendingSquash(false);
-    DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
-            tid, inst->seqNum);
-    inst->hasPendingSquash(true);
-    pending = std::move(inst);
-}
-
-void
-Commit::resolvePendingSquash(ThreadID tid)
-{
-    DynInstPtr &inst = pendingSquashInst[tid];
-    if (!inst)
-        return;
-
-    if (inst->isSquashed()) {
-        inst->hasPendingSquash(false);
-        inst = nullptr;
-        return;
-    }
-
-    if (commitStatus[tid] == TrapPending ||
-        inst->seqNum > youngestSeqNum[tid])
-        return;
-
-    assert(cpu->mieros != Mieros::None);
-
-    if (inst->taintedXmits())
-        return;
-
-    DPRINTF(Commit, "[tid:%i] [sn:%llu] Resolving pending squash.\n",
-            tid, inst->seqNum);
-    
-    handleSquashSignalFromROB(tid, inst);
-
-    inst->hasPendingSquash(false);
-    inst = nullptr;
 }
 
 } // namespace o3

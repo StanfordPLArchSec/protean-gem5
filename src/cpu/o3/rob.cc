@@ -353,7 +353,7 @@ ROB::doSquash(ThreadID tid)
         // it can drain out of the pipeline.
         (*squashIt[tid])->setSquashed();
 
-        (*squashIt[tid])->hasPendingSquash(false);
+        (*squashIt[tid])->clearPendingSquash();
 
         (*squashIt[tid])->setCanCommit();
 
@@ -567,6 +567,20 @@ ROB::updateVisibleState()
                 break;
         }
     }
+}
+
+DynInstPtr
+ROB::getResolvedPendingSquashInst(ThreadID tid)
+{
+    for (const DynInstPtr &inst : instList[tid]) {
+        if (inst->hasPendingSquash() &&
+            !inst->taintedXmits() &&
+            !inst->isSquashed()) {
+            inst->unstallTick = curTick();
+            return inst;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace o3
