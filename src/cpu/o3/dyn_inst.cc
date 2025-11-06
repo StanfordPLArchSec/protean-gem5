@@ -818,16 +818,6 @@ DynInst::setExecuted()
              "setExecuted for tainted transmitter!\n");
 }
 
-void
-DynInst::hasPendingSquash(bool f)
-{
-    instFlags[HasPendingSquash] = f;
-
-    // [Mieros] Sanity check.
-    panic_if(f && !cpu->mierosImp,
-             "hasPendingSquash() when mierosImp disabled!\n");
-}
-
 // MIEROS-TODO: Eliminate this and add a status flag instead
 // or something.
 void
