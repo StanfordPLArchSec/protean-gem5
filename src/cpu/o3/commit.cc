@@ -934,7 +934,7 @@ Commit::commit()
 void
 Commit::handleSquashSignalFromROB(ThreadID tid, DynInstPtr &pendingMispInst)
 {
-    assert(cpu->mieros != Mieros::None);
+    assert(cpu->protean != Protean::None);
 
     DPRINTF(Commit, "[tid:%i]: (Lazy enabled) A pending squash [sn:%lli,0x%lx] PC %s can be resolved now\n",
             tid,

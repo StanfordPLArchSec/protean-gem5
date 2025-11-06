@@ -117,12 +117,12 @@ CPU::CPU(const BaseO3CPUParams &params)
       lastRunningCycle(curCycle()),
       cpuStats(this),
       ptexPages(params.ptexPages),
-      mieros(params.mieros),
-      mierosExp(mieros != Mieros::None && params.mierosExp),
-      mierosImp(mieros != Mieros::None && params.mierosImp),
-      mierosPredMode(params.mierosPredMode),
-      mierosDelayAll(mieros == Mieros::Delay && params.mierosDelayAll),
-      mierosDelayOpt(mieros != Mieros::None && params.mierosDelayOpt),
+      protean(params.protean),
+      proteanExp(protean != Protean::None && params.proteanExp),
+      proteanImp(protean != Protean::None && params.proteanImp),
+      proteanPredMode(params.proteanPredMode),
+      proteanDelayAll(protean == Protean::Delay && params.proteanDelayAll),
+      proteanDelayOpt(protean != Protean::None && params.proteanDelayOpt),
       accessPred(BaseAccessPredictor::makePredictor(params))
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -347,22 +347,22 @@ CPU::CPU(const BaseO3CPUParams &params)
             ptex_mem_strtab.at(ptexMem), ptexPages);
 
     // Print TPT configuration.
-    static const std::map<Mieros, std::string> mieros_to_str = {
-        {Mieros::None, "None"},
-        {Mieros::Delay, "Delay"},
-        {Mieros::Track, "Track"},
+    static const std::map<Protean, std::string> protean_to_str = {
+        {Protean::None, "None"},
+        {Protean::Delay, "Delay"},
+        {Protean::Track, "Track"},
     };
-    static const std::map<MierosPredMode, std::string> mieros_pred_mode_strtab = {
-        {MierosPredMode::Protected, "Protected"},
-        {MierosPredMode::Unprotected, "Unprotected"},
-        {MierosPredMode::Predict, "Predict"},
+    static const std::map<ProteanPredMode, std::string> protean_pred_mode_strtab = {
+        {ProteanPredMode::Protected, "Protected"},
+        {ProteanPredMode::Unprotected, "Unprotected"},
+        {ProteanPredMode::Predict, "Predict"},
     };
-    cprintf("[*] Mieros configuration: mieros=%s mierosExp=%d mierosImp=%d "
-            "mierosPredMode=%s mierosPredSize=%d mierosPredProt=%d "
-            "mierosDelayOpt=%d\n",
-            mieros_to_str.at(mieros), mierosExp, mierosImp,
-            mieros_pred_mode_strtab.at(mierosPredMode), params.mierosPredSize, params.mierosPredProt,
-            mierosDelayOpt);
+    cprintf("[*] Protean configuration: protean=%s proteanExp=%d proteanImp=%d "
+            "proteanPredMode=%s proteanPredSize=%d proteanPredProt=%d "
+            "proteanDelayOpt=%d\n",
+            protean_to_str.at(protean), proteanExp, proteanImp,
+            protean_pred_mode_strtab.at(proteanPredMode), params.proteanPredSize, params.proteanPredProt,
+            proteanDelayOpt);
 }
 
 void

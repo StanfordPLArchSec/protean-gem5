@@ -1185,14 +1185,14 @@ LSQUnit::writeback(const DynInstPtr &inst, PacketPtr pkt)
         }
     }
 
-    // [Mieros-Track] Need to insert instruction into queue to commit
+    // [Protean-Track] Need to insert instruction into queue to commit
     if (inst->delayWakeup()) {
         delaySpeculativeWriteback(inst);
     } else {
         iewStage->instToCommit(inst);
     }
 
-    // [Mieros-Track] Update predictor.
+    // [Protean-Track] Update predictor.
     assert(inst->isLoad());
     cpu->accessPred->update(*inst, inst->readUnprotectedMem() ? Unprotected : Protected);
 
@@ -1607,7 +1607,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                     stats.ptexUnprotUnprotForwards++;
                     // NOTE: If the store is tainted, then we'll mark it as a condition for the load
                     // to delay writeback on.
-                    if (cpu->mieros == Mieros::Track && store_inst->taintedSrcs())
+                    if (cpu->protean == Protean::Track && store_inst->taintedSrcs())
                         load_inst->taintedStFwdInst = store_inst;
                 } else if (load_prot == Unprotected && store_prot == Protected) {
                     stats.ptexProtUnprotForwards++;
@@ -1668,7 +1668,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
     DPRINTF(Squashed, "Attempting load request - PC %#x, SQ: [sn:%lli], Paddr %#x, Vaddr %#x\n", load_inst->pcState().instAddr(), load_inst->seqNum, request->mainReq()->getPaddr(), request->mainReq()->getVaddr());    
 
-    if (cpu->mieros != Mieros::None) {
+    if (cpu->protean != Protean::None) {
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");

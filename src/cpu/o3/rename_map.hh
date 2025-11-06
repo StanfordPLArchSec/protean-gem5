@@ -66,7 +66,7 @@ struct RenameEntry
 {
     PhysRegIdPtr physReg;
     Protection prot;
-    InstSeqNum yrot = -1; // [Mieros-Track]
+    InstSeqNum yrot = -1; // [Protean-Track]
 
     RenameEntry() = default;
 

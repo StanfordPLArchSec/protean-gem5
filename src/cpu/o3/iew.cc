@@ -1162,9 +1162,9 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            // [Mieros] Stall loads/stores with tainted inputs.
+            // [Protean] Stall loads/stores with tainted inputs.
             assert(inst->isLoad() || inst->isStore());
-            if (cpu->mieros != Mieros::None && inst->taintedXmits()) {
+            if (cpu->protean != Protean::None && inst->taintedXmits()) {
                 assert(!inst->translationStarted());
                 instQueue.deferMemInst(inst);
                 continue;

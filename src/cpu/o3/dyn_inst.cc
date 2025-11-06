@@ -655,35 +655,35 @@ DynInst::isTransmitter() const
 bool
 DynInst::delayWakeup() const
 {
-    if (!cpu->mierosDelay)
+    if (!cpu->proteanDelay)
         return false;
 
-    switch (cpu->mieros) {
-      case Mieros::None:
+    switch (cpu->protean) {
+      case Protean::None:
         return false;
 
-      case Mieros::Delay:
+      case Protean::Delay:
         return delayWakeupDelay();
 
-      case Mieros::Track:
+      case Protean::Track:
         return delayWakeupTrack();
 
-      default: panic("Bad Mieros mode\n");
+      default: panic("Bad Protean mode\n");
     }
 }
 
 bool
 DynInst::delayWakeupTrack() const
 {
-    assert(cpu->mieros == Mieros::Track);
+    assert(cpu->protean == Protean::Track);
 
     if (!predictedNoAccess())
         return false;
 
     assert(isLoad());
-    // MIEROS-TODO: Need to generalize this for Mieros::Delay.
-    assert(cpu->mieros == Mieros::Track &&
-           cpu->mierosPredMode != MierosPredMode::Protected);
+    // MIEROS-TODO: Need to generalize this for Protean::Delay.
+    assert(cpu->protean == Protean::Track &&
+           cpu->proteanPredMode != ProteanPredMode::Protected);
 
     // Don't stall if it's nonspeculative.
     if (isUnsquashable())
@@ -706,7 +706,7 @@ DynInst::delayWakeupTrack() const
 bool
 DynInst::delayWakeupDelay() const
 {
-    assert(cpu->mieros == Mieros::Delay);
+    assert(cpu->protean == Protean::Delay);
 
     // If it's nonspeculative, don't delay it.
     if (isUnsquashable())
@@ -721,7 +721,7 @@ DynInst::delayWakeupDelay() const
         return false;
 
     // If we're delaying all accesses, then delay this access.
-    if (cpu->mierosDelayAll)
+    if (cpu->proteanDelayAll)
         return true;
 
     // Otherwise, only delay if we are actually writing to an
@@ -738,7 +738,7 @@ DynInst::delayWakeupDelay() const
 bool
 DynInst::taintedXmitsTrack() const
 {
-    assert(cpu->mieros == Mieros::Track);
+    assert(cpu->protean == Protean::Track);
     if (isUnsquashable())
         assert(yrotXmits <= cpu->untaintBroadcast);
     return yrotXmits > cpu->untaintBroadcast;
@@ -747,7 +747,7 @@ DynInst::taintedXmitsTrack() const
 bool
 DynInst::taintedXmitsDelay() const
 {
-    assert(cpu->mieros == Mieros::Delay);
+    assert(cpu->protean == Protean::Delay);
 
     // If it's nonspeculative, untaint it.
     if (isUnsquashable())
@@ -767,30 +767,30 @@ DynInst::taintedXmits() const
     // If we aren't considering explicit channels
     // (namely, loads/stores), then pretend it's not
     // tainted.
-    if (!cpu->mierosExp && isMemRef())
+    if (!cpu->proteanExp && isMemRef())
         return false;
 
     // If we're not consider implicit channels,
     // (namely, branches), then pretend it's not
     // tainted.
-    if (!cpu->mierosImp && isControl())
+    if (!cpu->proteanImp && isControl())
         return false;
 
-    switch (cpu->mieros) {
-      case Mieros::Delay:
+    switch (cpu->protean) {
+      case Protean::Delay:
         return taintedXmitsDelay();
 
-      case Mieros::Track:
+      case Protean::Track:
         return taintedXmitsTrack();
 
-      default: panic("Bad Mieros mode!\n");
+      default: panic("Bad Protean mode!\n");
     }
 }
 
 bool
 DynInst::taintedSrcs() const
 {
-    assert(cpu->mieros == Mieros::Track);
+    assert(cpu->protean == Protean::Track);
     if (isUnsquashable())
         assert(yrotSrcs <= cpu->untaintBroadcast);
     return yrotSrcs > cpu->untaintBroadcast;
@@ -801,8 +801,8 @@ DynInst::translationStarted(bool f)
 {
     instFlags[TranslationStarted] = f;
 
-    // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None && f && taintedXmits(),
+    // [Protean-Track] Sanity checks.
+    panic_if(cpu->protean != Protean::None && f && taintedXmits(),
              "translationStarted for tainted transmitter!\n");
 }
 
@@ -812,8 +812,8 @@ DynInst::setExecuted()
 {
     status.set(Executed);
 
-    // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None &&
+    // [Protean-Track] Sanity checks.
+    panic_if(cpu->protean != Protean::None &&
              isMemRef() && !isSquashed() && taintedXmits(),
              "setExecuted for tainted transmitter!\n");
 }
