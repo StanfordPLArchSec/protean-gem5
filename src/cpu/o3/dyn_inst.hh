@@ -420,7 +420,8 @@ class DynInst : public ExecContext, public RefCounted
     void hasExplicitFlow(bool f) { instFlags[HasExplicitFlow] = f; }
 
     bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
-    void hasPendingSquash(bool f) { instFlags[HasPendingSquash] = f; }
+    void setPendingSquash() { instFlags[HasPendingSquash] = true; }
+    void clearPendingSquash() { instFlags[HasPendingSquash] = false; }
 
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }

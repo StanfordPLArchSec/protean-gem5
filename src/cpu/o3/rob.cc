@@ -381,7 +381,7 @@ ROB::doSquash(ThreadID tid)
         // it can drain out of the pipeline.
         (*squashIt[tid])->setSquashed();
 
-        (*squashIt[tid])->hasPendingSquash(false);
+        (*squashIt[tid])->clearPendingSquash();
 
         (*squashIt[tid])->setCanCommit();
 
@@ -665,18 +665,17 @@ ROB::compute_taint()
 }
 
 DynInstPtr
-ROB::getResolvedPendingSquashInstBuggy(ThreadID tid)
+ROB::getResolvedPendingSquashInst(ThreadID tid)
 {
-    for (auto instIt = instList[tid].begin(); instIt != instList[tid].end(); instIt++) {
-        auto inst = (*instIt);
-        if (inst->hasPendingSquash()
-            && !inst->isArgsTainted()
-            && !inst->isSquashed()  // if it's already squashed, we ignore it
-            ) {
+    for (DynInstPtr &inst : instList[tid]) {
+        if (inst->hasPendingSquash() &&
+            !inst->isArgsTainted() &&
+            !inst->isSquashed()) {
+            inst->unstallTick = curTick();
             return inst;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 } // namespace o3
