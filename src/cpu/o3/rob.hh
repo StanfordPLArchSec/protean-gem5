@@ -284,7 +284,7 @@ class ROB
 
     // find a instr in a rob list which has a pending squash, but is not argTaintewhich has a pending squash, but is not argTainted
     // which means that we should execute this squash
-    DynInstPtr getResolvedPendingSquashInstBuggy(ThreadID tid);
+    DynInstPtr getResolvedPendingSquashInst(ThreadID tid);
 
   private:
     /** Reset the ROB state */
