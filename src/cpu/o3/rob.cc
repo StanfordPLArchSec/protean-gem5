@@ -384,7 +384,7 @@ ROB::doSquash(ThreadID tid)
         // it can drain out of the pipeline.
         (*squashIt[tid])->setSquashed();
 
-        (*squashIt[tid])->hasPendingSquash(false);
+        (*squashIt[tid])->clearPendingSquash();
 
         (*squashIt[tid])->setCanCommit();
 
@@ -748,13 +748,12 @@ ROB::propagateUntaint(ThreadID tid)
 }
 
 DynInstPtr
-ROB::getResolvedPendingSquashInstBuggy(ThreadID tid)
+ROB::getResolvedPendingSquashInst(ThreadID tid)
 {
-    for (const DynInstPtr& inst : instList[tid]) {
+    for (DynInstPtr& inst : instList[tid]) {
         if (inst->hasPendingSquash()
-            && inst->isUnsquashable()   // SPT: a delayed branch wait until it reaches VP
-            && !inst->isSquashed()  // if it's already squashed, we ignore it
-            ) {
+            && inst->isUnsquashable()
+            && !inst->isSquashed()) {
             inst->unstallTick = curTick();
             return inst;
         }
