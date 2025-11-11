@@ -358,6 +358,12 @@ DynInst::readyToIssue_UT() const
             ret = ret && (!instFlags[IsArgsTainted]);
         break;
 
+        // [Protean] Only DIV is a transmitter in gem5.
+      case 3:
+        if (opClass() == IntDivOp && isArgsTainted())
+            ret = false;
+        break;
+
       default:
         panic("moreTransmitInsts=%d\n", cpu->moreTransmitInsts);
     }
