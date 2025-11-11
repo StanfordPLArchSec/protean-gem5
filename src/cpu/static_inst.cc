@@ -108,7 +108,7 @@ bool
 StaticInst::srcTransmitted(int src_idx) const
 {
     assert(!isMemRef());
-    return isControl();
+    return isControl() || opClass() == IntDivOp;
 }
 
 } // namespace gem5

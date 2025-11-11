@@ -193,6 +193,8 @@ class DynInst : public ExecContext, public RefCounted
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
         Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
+        // [Protean] This misc. transmitter is stalled from executing.
+        InStallList, 
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
         // [TPT]
         ReadUnprotectedMem,      /// [TPT] An unprotected load read from unprotected memory.
@@ -419,6 +421,10 @@ class DynInst : public ExecContext, public RefCounted
     void setPendingSquash() { instFlags[HasPendingSquash] = true; }
     void clearPendingSquash() { instFlags[HasPendingSquash] = false; }
     bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
+
+    void addToStallList() { instFlags.set(InStallList); }
+    void removeFromStallList() { instFlags.reset(InStallList); }
+    bool isInStallList() const { return instFlags[InStallList]; }
 
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }
@@ -1071,6 +1077,13 @@ class DynInst : public ExecContext, public RefCounted
     Tick stallTick = -1;
     Tick unstallTick = -1;
     Tick delayedWritebackTick = -1;
+
+    void
+    setStallTick()
+    {
+        if (stallTick == -1)
+            stallTick = curTick();
+    }
 
     /* Values used by LoadToUse stat */
     Tick firstIssue = -1;

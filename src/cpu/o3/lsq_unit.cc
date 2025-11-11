@@ -1774,7 +1774,7 @@ LSQUnit::delaySpeculativeWriteback(const DynInstPtr &inst)
 {
     delayedWritebackQueue.push_back(inst);
     inst->delayedWritebackTick = curTick();
-    inst->stallTick = curTick();
+    inst->setStallTick();
 }
 
 } // namespace o3
