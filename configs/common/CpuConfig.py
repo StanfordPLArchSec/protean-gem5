@@ -81,6 +81,7 @@ def config_etrace(cpu_cls, cpu_list, options):
 def config_scheme(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         for cpu in cpu_list:
+            cpu.forwardComSize = 8
             cpu.speculationModel = options.speculation_model
             cpu.ptexMem = options.ptex_mem
             cpu.ptexPages = options.ptex_pages
@@ -91,3 +92,4 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.proteanPredSize = options.protean_pred_size
             cpu.proteanPredProt = options.protean_pred_prot
             cpu.proteanDelayOpt = options.protean_delay_opt
+            cpu.proteanDelayAll = options.protean_delay_all

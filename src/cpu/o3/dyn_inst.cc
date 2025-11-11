@@ -737,7 +737,7 @@ bool
 DynInst::taintedXmitsTrack() const
 {
     assert(cpu->protean == Protean::Track);
-    if (isUnsquashable())
+    if (cpu->speculationModel == SpeculationModel::AtRet && isUnsquashable())
         assert(yrotXmits <= cpu->untaintBroadcast);
     return yrotXmits > cpu->untaintBroadcast;
 }
@@ -812,6 +812,7 @@ DynInst::setExecuted()
 
     // [Protean-Track] Sanity checks.
     panic_if(cpu->protean != Protean::None &&
+             cpu->speculationModel == SpeculationModel::AtRet &&
              isMemRef() && !isSquashed() && taintedXmits(),
              "setExecuted for tainted transmitter!\n");
 }

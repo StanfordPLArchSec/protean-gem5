@@ -751,6 +751,11 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         action="store_true",
         help="[Protean-Track] Delay optimizations",
     )
+    parser.add_argument(
+        "--protean-delay-all",
+        action="store_true",
+        help="[Protean-Delay] Delay all accesses, not just PROT-unprefixed ones",
+    )
 
 
 def addSEOptions(parser):
