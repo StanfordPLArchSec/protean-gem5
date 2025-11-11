@@ -239,6 +239,7 @@ class InstructionQueue
     /** Wakes all dependents of a completed instruction. */
     int wakeDependents(const DynInstPtr &completed_inst);
     int wakeDependentsTainted(const DynInstPtr &completed_inst);
+    void wakeUntaintInsts();
 
     /** Adds a ready memory instruction to the ready list. */
     void addReadyMemInst(const DynInstPtr &ready_inst);
@@ -324,6 +325,12 @@ private:
 
     /** List of all the instructions in the IQ (some of which may be issued). */
     std::list<DynInstPtr> instList[MaxThreads];
+
+    /**
+     * [Protean] Stall misc. tainted/protected transmitters (e.g., DIV).
+     * NOTE: From STT.
+     */
+    std::list<DynInstPtr> stalledTaintedInstList[MaxThreads];    
 
     /** List of instructions that are ready to be executed. */
     std::list<DynInstPtr> instsToExecute;

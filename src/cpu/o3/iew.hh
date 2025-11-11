@@ -274,6 +274,9 @@ class IEW
      */
     void writebackInsts();
 
+    /** [Protean] Wakeup stalled misc transmitter insts. */ 
+    void wakeUntaintInsts();
+
     /** Checks if any of the stall conditions are currently true. */
     bool checkStall(ThreadID tid);
 

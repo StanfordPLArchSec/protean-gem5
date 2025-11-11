@@ -1207,7 +1207,7 @@ void
 InstructionQueue::deferMemInst(const DynInstPtr &deferred_inst)
 {
     assert(deferred_inst->taintedXmits());
-    deferred_inst->stallTick = curTick();
+    deferred_inst->setStallTick();
     deferredMemInsts.push_back(deferred_inst);
 }
 
@@ -1522,11 +1522,23 @@ InstructionQueue::addToProducers(const DynInstPtr &new_inst)
 
 void
 InstructionQueue::addIfReady(const DynInstPtr &inst)
-{
+{        
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
     if (inst->readyToIssue()) {
-        //Add the instruction to the proper ready list.
+        // [Protean] Stall any misc tainted/protected transmitters.
+        if (inst->taintedXmits() &&
+            !inst->isControl() &&
+            !inst->isMemRef()) {
+            if (!inst->isInStallList()) {
+                inst->addToStallList();
+                inst->setStallTick();
+                stalledTaintedInstList[inst->threadNumber].push_back(inst);
+            }
+            return;
+        }
+
+//Add the instruction to the proper ready list.
         if (inst->isMemRef()) {
 
             DPRINTF(IQ, "Checking if memory instruction [sn:%lli] can issue.\n", inst->seqNum);
@@ -1687,6 +1699,33 @@ InstructionQueue::dumpInsts()
 
         inst_list_it++;
         ++num;
+    }
+}
+
+void
+InstructionQueue::wakeUntaintInsts()
+{
+    assert(cpu->protean != Protean::None);
+
+    for (ThreadID tid : *activeThreads) {
+        auto &list = stalledTaintedInstList[tid];
+        for (auto it = list.begin(); it != list.end(); ) {
+            DynInstPtr inst = *it;
+            auto unstall = [&] () {
+                inst->removeFromStallList();
+                it = list.erase(it);
+                inst->unstallTick = curTick();
+            };
+            if (inst->isSquashed()) {
+                unstall();
+            } else if (!inst->taintedXmits()) {
+                assert(inst->readyToIssue());
+                unstall();
+                addIfReady(inst);
+            } else {
+                ++it;
+            }
+        }
     }
 }
 

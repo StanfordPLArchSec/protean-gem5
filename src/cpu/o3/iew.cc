@@ -1269,6 +1269,7 @@ IEW::executeInsts()
             DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Tainted branch "
                     "mispredicted detected.\n", tid, inst->seqNum);
             inst->setPendingSquash();
+            inst->setStallTick();
         } else if (!fetchRedirect[tid] ||
             !toCommit->squash[tid] ||
             toCommit->squashedSeqNum[tid] > inst->seqNum) {
@@ -1444,6 +1445,9 @@ IEW::tick()
 
         writebackInsts();
 
+        if (cpu->protean != Protean::None)
+            wakeUntaintInsts();
+
         // Have the instruction queue try to schedule any ready instructions.
         // (In actuality, this scheduling is for instructions that will
         // be executed next cycle.)
@@ -1601,6 +1605,12 @@ IEW::checkMisprediction(const DynInstPtr& inst)
             }
         }
     }
+}
+
+void
+IEW::wakeUntaintInsts()
+{
+    instQueue.wakeUntaintInsts();
 }
 
 } // namespace o3
