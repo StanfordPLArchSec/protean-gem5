@@ -664,6 +664,8 @@ class DynInst : public ExecContext, public RefCounted
             if (opClass() == IntDivOp ||
                 isFloating())
                 return true;
+        } else if (cpu->moreTransmitInsts == 3) {
+            return opClass() == IntDivOp;
         }
         return false;
     }
