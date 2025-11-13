@@ -132,7 +132,6 @@ Commit::Commit(CPU *_cpu, const BaseO3CPUParams &params)
         renameMap[tid] = nullptr;
         htmStarts[tid] = 0;
         htmStops[tid] = 0;
-        pendingSquashInst[tid] = nullptr;
     }
     interrupt = NoFault;
     stalled_counter = 0;
@@ -316,7 +315,6 @@ Commit::clearStates(ThreadID tid)
     pc[tid].reset(cpu->tcBase(tid)->getIsaPtr()->newPCState());
     lastCommitedSeqNum[tid] = 0;
     squashAfterInst[tid] = NULL;
-    pendingSquashInst[tid] = nullptr;
 }
 
 void Commit::drain() { drainPending = true; }
@@ -381,7 +379,6 @@ Commit::takeOverFrom()
         trapSquash[tid] = false;
         tcSquash[tid] = false;
         squashAfterInst[tid] = NULL;
-        pendingSquashInst[tid] = nullptr;
     }
     rob->takeOverFrom();
 }
