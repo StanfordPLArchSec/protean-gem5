@@ -470,9 +470,6 @@ class Commit
     int htmStarts[MaxThreads];
     int htmStops[MaxThreads];
 
-    // Protean
-    DynInstPtr pendingSquashInst[MaxThreads];
-
     struct CommitStats : public statistics::Group
     {
         CommitStats(CPU *cpu, Commit *commit);
