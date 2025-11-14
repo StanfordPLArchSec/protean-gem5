@@ -71,7 +71,7 @@
 #include "enums/DeclassifyMode.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/process.hh"
-#include "cpu/ptex.hh"
+#include "cpu/protean.hh"
 #include "enums/Protean.hh"
 
 namespace gem5
@@ -596,13 +596,13 @@ class CPU : public BaseCPU
     void htmSendAbortSignal(ThreadID tid, uint64_t htm_uid,
                             HtmFailureFaultCause cause) override;
 
-    /** [TPE, STT, SPT] Speculation model. */
+    /** [Protean] Speculation model. */
     SpeculationModel speculationModel;
 
-    /** [PTeX] */
-    static const inline bool ptex = true;
-    DeclassifyMode ptexMem;
-    bool ptexPages;
+    /** [ProtISA] */
+    static const inline bool protisa = true;
+    DeclassifyMode protisaMem;
+    bool protisaPages;
 
     /** [Protean] */
     const Protean protean;

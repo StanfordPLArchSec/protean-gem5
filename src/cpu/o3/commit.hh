@@ -508,10 +508,8 @@ class Commit
         /** Stat for the total number of delayed memory violation squashes. */
         statistics::Scalar stalledMemoryViolations;
 
-        /** [PTeX] */
-        statistics::Scalar ptexProtStores;
-
-        /** [TPT] */
+        /** [Protean] */
+        statistics::Scalar protStores;
         statistics::Scalar regTaints, memTaints, xmitTaints;
         statistics::Scalar predAccess, predNoAccess, mispredAccess, mispredNoAccess;
     } stats;

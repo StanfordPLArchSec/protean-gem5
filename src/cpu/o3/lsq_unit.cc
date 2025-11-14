@@ -55,7 +55,7 @@
 #include "debug/Squashed.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
-#include "debug/TPT.hh"
+#include "debug/ProtDelay.hh"
 #include "cpu/o3/access_predictor.hh"
 
 namespace gem5
@@ -275,15 +275,15 @@ LSQUnit::LSQUnitStats::LSQUnitStats(statistics::Group *parent)
                "being blocked"),
       ADD_STAT(loadToUse, "Distribution of cycle latency between the "
                "first time a load is issued and its completion"),
-      ADD_STAT(loadsFromUnprotPages, "[PTeX] Loads from unprotected pages."),
-      ADD_STAT(ptexUnprotUnprotForwards, "[PTeX] Forwards from unprotected store to unprotected load"),
-      ADD_STAT(ptexProtUnprotForwards, "[PTeX] Forwards from protected store to unprotected load"),
-      ADD_STAT(ptexProtProtForwards, "[PTeX] Forwards from protected store to protected store"),
-      ADD_STAT(ptexUnprotProtForwards, "[PTeX] Forwards from unprotected store to protected store"),
-      ADD_STAT(tptUnprotUnprotForwards, "[TPT] Forwards from unprotected store with no prior "
+      ADD_STAT(loadsFromUnprotPages, "[ProtISA] Loads from unprotected pages."),
+      ADD_STAT(proteanUnprotUnprotForwards, "[ProtISA] Forwards from unprotected store to unprotected load"),
+      ADD_STAT(proteanProtUnprotForwards, "[ProtISA] Forwards from protected store to unprotected load"),
+      ADD_STAT(proteanProtProtForwards, "[ProtISA] Forwards from protected store to protected store"),
+      ADD_STAT(proteanUnprotProtForwards, "[ProtISA] Forwards from unprotected store to protected store"),
+      ADD_STAT(tptUnprotUnprotForwards, "[Protean] Forwards from unprotected store with no prior "
                "taint primitives to unprotected load"),
-      ADD_STAT(delayedWritebackTicks, "[TPT] Average number of cycles the writeback of mispredicted access instructions are delayed"),
-      ADD_STAT(delayedWritebackCount, "[TPT] See delayedWritebackTicks")
+      ADD_STAT(delayedWritebackTicks, "[Protean] Average number of cycles the writeback of mispredicted access instructions are delayed"),
+      ADD_STAT(delayedWritebackCount, "[Protean] See delayedWritebackTicks")
 {
     loadToUse
         .init(0, 299, 10)
@@ -452,7 +452,7 @@ LSQUnit::checkSnoop(PacketPtr pkt)
         cpu->thread[x]->noSquashFromTC = no_squash;
     }
 
-    // [PTeX] Evict memory from declmem.
+    // [ProtISA] Evict memory from declmem.
     for (SafeSpeculationUnit& SSU : iewStage->instQueue.safeSpecUnit)
         SSU.evictRange(pkt->getAddr(), pkt->getSize());
 
@@ -628,11 +628,11 @@ LSQUnit::executeLoad(const DynInstPtr &inst)
     if (inst->isTranslationDelayed() && load_fault == NoFault)
         return load_fault;
 
-    // [PTeX] EXPERIMENTAL: If the translation completed and didn't
-    // read PTeX-protected, we can mark the load as reading from unprotected
+    // [ProtISA] EXPERIMENTAL: If the translation completed and didn't
+    // read ProtISA-protected, we can mark the load as reading from unprotected
     // memory.
-    if (cpu->ptexPages && inst->translationCompleted() && load_fault == NoFault &&
-        !(inst->memReqFlags & Request::PTEX_PROTECTED))
+    if (cpu->protisaPages && inst->translationCompleted() && load_fault == NoFault &&
+        !(inst->memReqFlags & Request::PROTISA_PROTECTED))
         inst->setReadUnprotectedMem();
 
     if (load_fault != NoFault && inst->translationCompleted() &&
@@ -758,8 +758,8 @@ LSQUnit::commitLoad()
                     inst->lastWakeDependents - inst->firstIssue));
     }
 
-    // [PTeX] Update Safe Spec Unit
-    // PTEX-TODO: Add stats.
+    // [Protean] Update Safe Spec Unit
+    // PROTEAN-TODO: Add stats.
     if (inst->loadProtection() == Unprotected)
         iewStage->instQueue.safeSpecUnit[inst->threadNumber].setDeclassified(inst);
 
@@ -860,8 +860,8 @@ LSQUnit::writebackStores()
 
 
         SafeSpeculationUnit& SSU = iewStage->instQueue.safeSpecUnit[inst->threadNumber];
-        // PTEX-TODO: Why would we ever get a store here?
-        // PTEX-TODO: Add back in stats.
+        // PROTEAN-TODO: Why would we ever get a store here?
+        // PROTEAN-TODO: Add back in stats.
         if (!inst->staticInst->isPrefetch()) {
             switch (inst->storeProtection()) {
               case Unprotected:
@@ -870,7 +870,7 @@ LSQUnit::writebackStores()
 
               case Protected:
                 {
-                    // PTEX-TODO: Should remove boolean on setClassified.
+                    // PROTEAN-TODO: Should remove boolean on setClassified.
                     [[maybe_unused]] const bool success = SSU.setClassified(inst);
                     panic_if(!success, "Expected setClassified to always succeed\n");
                 }
@@ -1593,7 +1593,7 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
                 // Don't need to do anything special for split loads.
                 ++stats.forwLoads;
 
-                // [TPT] For now, let's just say all unprotected loads forwarding
+                // [Protean] For now, let's just say all unprotected loads forwarding
                 // from stores are m-taint primitives.
                 // Thus, we won't do the following:
                 // if (cpu->tpt && load_inst->loadProtection() == Unprotected)
@@ -1604,17 +1604,17 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
 
                 // TODO: We can setReadUnprotectedMem() even if the output protection is protected...
                 if (load_prot == Unprotected && store_prot == Unprotected) {
-                    stats.ptexUnprotUnprotForwards++;
+                    stats.proteanUnprotUnprotForwards++;
                     // NOTE: If the store is tainted, then we'll mark it as a condition for the load
                     // to delay writeback on.
                     if (cpu->protean == Protean::Track && store_inst->taintedSrcs())
                         load_inst->taintedStFwdInst = store_inst;
                 } else if (load_prot == Unprotected && store_prot == Protected) {
-                    stats.ptexProtUnprotForwards++;
+                    stats.proteanProtUnprotForwards++;
                 } else if (load_prot == Protected && store_prot == Protected) {
-                    stats.ptexProtProtForwards++;
+                    stats.proteanProtProtForwards++;
                 } else if (load_prot == Protected && store_prot == Unprotected) {
-                    stats.ptexUnprotProtForwards++;
+                    stats.proteanUnprotProtForwards++;
                 }
 
                 if (store_prot == Unprotected)
@@ -1672,8 +1672,8 @@ LSQUnit::read(LSQRequest *request, ssize_t load_idx)
         SafeSpeculationUnit &SSU = iewStage->instQueue.safeSpecUnit[load_inst->threadNumber];
         if (request->mainReq()->getPaddr() != load_inst->physEffAddr)
             warn_once("mismatch in request and load addresses! Debug when you get the chance!\n");
-        Protection mem_prot = SSU.checkDeclassified(load_inst) ? Unprotected : Protected; // PTEX-FIXME: Should return protection type.
-        if (cpu->ptexPages && !(load_inst->memReqFlags & Request::PTEX_PROTECTED)) {
+        Protection mem_prot = SSU.checkDeclassified(load_inst) ? Unprotected : Protected; // PROTEAN-FIXME: Should return protection type.
+        if (cpu->protisaPages && !(load_inst->memReqFlags & Request::PROTISA_PROTECTED)) {
             mem_prot = Unprotected;
             ++stats.loadsFromUnprotPages;
         }
@@ -1772,7 +1772,7 @@ LSQUnit::tick()
         const DynInstPtr inst = *it;
         if (inst->isSquashed()) {
             it = delayedWritebackQueue.erase(it);
-            DPRINTF(TPT, "Removing squashed load [sn:%u] from delayed writeback queue\n", inst->seqNum);
+            DPRINTF(ProtDelay, "Removing squashed load [sn:%u] from delayed writeback queue\n", inst->seqNum);
         } else if (!inst->delayWakeup()) {
           iewStage->instToCommit(inst);
           iewStage->activityThisCycle();
@@ -1780,7 +1780,7 @@ LSQUnit::tick()
           stats.delayedWritebackTicks += curTick() - inst->delayedWritebackTick;
           stats.delayedWritebackCount++;
           inst->unstallTick = curTick();
-          DPRINTF(TPT, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
+          DPRINTF(ProtDelay, "Sending delayed-writeback load [sn:%lli] to commit (%lli remain)\n",
                   inst->seqNum, delayedWritebackQueue.size());
         } else {
             // MIEROS-TODO: Make this more realistic.

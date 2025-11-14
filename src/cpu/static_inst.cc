@@ -95,7 +95,7 @@ StaticInst::advancePC(ThreadContext *tc) const
 bool
 StaticInst::hasProtPrefix() const
 {
-    return flags[IsPTeXProtected] && !flags[IsPTeXUnprotectedOverride];
+    return flags[IsProtISAProtected] && !flags[IsProtISAUnprotectedOverride];
 }
 
 bool

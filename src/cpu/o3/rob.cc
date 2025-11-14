@@ -49,7 +49,6 @@
 #include "debug/ROB.hh"
 #include "debug/TransmitterStallsVerbose.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 #include "debug/Squashed.hh"
 
 namespace gem5

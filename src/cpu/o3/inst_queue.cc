@@ -49,10 +49,11 @@
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/IQ.hh"
+#include "debug/Protean.hh"
+#include "debug/ProtDelay.hh"
 #include "enums/OpClass.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/core.hh"
-#include "debug/TPT.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std
@@ -1120,7 +1121,7 @@ InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 
     assert(cpu->protean != Protean::None);
 
-    DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
+    DPRINTF(ProtDelay, "Protean: waking dependents (tainted): %s\n",
             completed_inst->disassembleWithProt());
     assert(!completed_inst->isUnsquashable());
     assert(!completed_inst->isSquashed());

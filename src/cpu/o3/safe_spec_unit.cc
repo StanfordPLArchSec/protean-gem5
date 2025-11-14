@@ -11,11 +11,11 @@ namespace gem5::o3 {
 
 SafeSpeculationUnit::Stats::Stats(statistics::Group *parent):
     statistics::Group(parent),
-    ADD_STAT(hits, "[TPE] Number of decltab hits"),
-    ADD_STAT(misses, "[TPE] Number of decltab misses"),
-    ADD_STAT(averagePubBytes, "[TPE] Average public bytes"),
-    ADD_STAT(averageBytes, "[TPE] Average total bytes"),
-    ADD_STAT(averageSamples, "[TPE] Number of samples for the averages")
+    ADD_STAT(hits, "[ProtISA] Number of decltab hits"),
+    ADD_STAT(misses, "[ProtISA] Number of decltab misses"),
+    ADD_STAT(averagePubBytes, "[ProtISA] Average public bytes"),
+    ADD_STAT(averageBytes, "[ProtISA] Average total bytes"),
+    ADD_STAT(averageSamples, "[ProtISA] Number of samples for the averages")
 {
 }
 
@@ -37,10 +37,10 @@ void SafeSpeculationUnit::init(CPU *cpu, const BaseO3CPUParams& params, unsigned
 
     cpu->addStatGroup(csprintf("decltab%i", id).c_str(), &stats);
 
-    const DeclassifyMode decl_mode = params.ptexMem;
+    const DeclassifyMode decl_mode = params.proteanMem;
 
-    // PTeX: the decltab should be disabled if PTeX is disabled.
-    assert(cpu->ptex || decl_mode == DeclassifyMode::None);
+    // ProtISA: the decltab should be disabled if ProtISA is disabled.
+    assert(cpu->protisa || decl_mode == DeclassifyMode::None);
 
     declassified_addresses.reset(makeDeclassificationTable(decl_mode));
     declassified_addresses->init(cpu, params, csprintf("decltab%i", id));

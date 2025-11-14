@@ -65,7 +65,7 @@ Decoder::doResetState()
 
     emi.modRM = 0;
     emi.sib = 0;
-    emi.ptex_prot = false;
+    emi.protisa_prot = false;
 
     if (instBytes->si) {
         return FromCacheState;
@@ -201,8 +201,8 @@ Decoder::doPrefixState(uint8_t nextByte)
         break;
         // Segment override prefixes
       case SSOverride:
-        if (ptex) {
-            emi.ptex_prot = true;
+        if (protisa) {
+            emi.protisa_prot = true;
             break;
         }
       case CSOverride:

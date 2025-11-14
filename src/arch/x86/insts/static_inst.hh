@@ -122,8 +122,8 @@ class X86StaticInst : public StaticInst
     X86StaticInst(const char *mnem, ExtMachInst _machInst, OpClass __opClass) :
         StaticInst(mnem, __opClass), machInst(_machInst)
     {
-        if (machInst.ptex_prot)
-            setFlag(IsPTeXProtected);
+        if (machInst.protisa_prot)
+            setFlag(IsProtISAProtected);
     }
 
     std::string generateDisassembly(

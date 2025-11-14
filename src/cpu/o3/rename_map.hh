@@ -54,7 +54,7 @@
 #include "cpu/o3/free_list.hh"
 #include "cpu/o3/regfile.hh"
 #include "cpu/reg_class.hh"
-#include "cpu/ptex.hh"
+#include "cpu/protean.hh"
 
 namespace gem5
 {
@@ -257,7 +257,7 @@ class UnifiedRenameMap
          } else if (reg_class == MiscRegClass) {
             // misc regs aren't really renamed, they keep the same
             // mapping throughout the execution.
-            // [PTeX] Misc regs are unprotected.
+            // [ProtISA] Misc regs are unprotected.
             return RenameEntry(
                 regFile->getMiscRegId(arch_reg.index()),
                 Unprotected, NoYRoT);

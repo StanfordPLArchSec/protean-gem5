@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "cpu/o3/dyn_inst_ptr.hh"
-#include "cpu/ptex.hh"
+#include "cpu/protean.hh"
 
 namespace gem5
 {

@@ -395,12 +395,12 @@ class StaticInst : public RefCounted, public StaticInstFlags
      */
     virtual size_t asBytes(void *buf, size_t max_size) { return 0; }
 
-    // [PTeX]
+    // [ProtISA]
     bool hasProtPrefix() const;
     bool isZeroIdiom() const { return flags[IsZeroIdiom]; }
     virtual bool destPartial(unsigned dest_idx) const;
 
-    // [TPT]
+    // [ProtTrack/ProtDelay]
     virtual bool srcTransmitted(int src_idx) const;
 };
 

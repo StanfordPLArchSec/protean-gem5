@@ -57,7 +57,6 @@
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 
 namespace gem5
 {

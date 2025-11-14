@@ -51,7 +51,6 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 #include "cpu/o3/access_predictor.hh"
 
 namespace gem5
@@ -1147,7 +1146,7 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         RegId flat_dest_regid = dest_reg.flatten(*isa);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());
 
-        // [PTeX]
+        // [ProtISA]
         const Protection prot = inst->computeDestProtection(dest_idx);
 
         rename_result = map->rename(flat_dest_regid, prot, inst->yrotDests);

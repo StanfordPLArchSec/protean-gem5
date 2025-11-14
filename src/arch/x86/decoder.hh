@@ -358,7 +358,7 @@ class Decoder : public InstDecoder
             MicroPC micropc, StaticInstPtr curMacroop) override;
 
   private:
-    static inline constexpr bool ptex = true;
+    static inline constexpr bool protisa = true;
 };
 
 } // namespace X86ISA
