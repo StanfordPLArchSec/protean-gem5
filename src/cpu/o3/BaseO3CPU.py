@@ -206,22 +206,22 @@ class BaseO3CPU(BaseCPU):
     )
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
     speculationModel = Param.SpeculationModel(
-        "Futuristic", "[TPE, STT, SPT] Speculation model"
+        "Futuristic", "[Protean] Speculation model"
     )
-    ptexMem = Param.DeclassifyMode(
+    proteanMem = Param.DeclassifyMode(
         "ShadowL1",
-        "[PTeX] Memory declassification implementation",
+        "[ProtISA] Memory declassification implementation",
     )
-    ptexPages = Param.Bool(True, "[PTeX] Enable page extension")
+    proteanPages = Param.Bool(False, "[ProtISA] Enable page extension")
 
-    # [TPT]
+    # [Protean]
     protean = Param.Protean("None", "[Protean] Enable Protean-Delay/Track defense")
     proteanExp = Param.Bool(True, "[Protean] Secure explicit channels (loads, stores)")
     proteanImp = Param.Bool(True, "[Protean] Secure implicit channels (branches)")
     proteanPredMode = Param.ProteanPredMode("Predict", "[Protean-Track] Access mode")
-    proteanPredSize = Param.Int(1024, "[TPT] Access predictor size")
+    proteanPredSize = Param.Int(1024, "[ProtTrack] Access predictor size")
     proteanPredProt = Param.Bool(
-        False, "[TPT] Predict access for protected loads, too"
+        False, "[ProtTrack] Predict access for protected loads, too"
     )
-    proteanDelayAll = Param.Bool(False, "[Protean-Delay] Delay all access instructions")
+    proteanDelayAll = Param.Bool(False, "[ProtDelay] Delay all access instructions")
     proteanDelayOpt = Param.Bool(False, "[Protean] Enable wakeup delay optimization -- allow wakeup of protected dependents")

@@ -39,8 +39,6 @@
 
 #include "arch/x86/regs/misc.hh"
 
-#include "debug/TPT.hh"
-
 namespace gem5
 {
 

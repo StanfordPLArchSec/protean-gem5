@@ -542,14 +542,14 @@ class LSQUnit
          * is issued and its completion */
         statistics::Distribution loadToUse;
 
-        /** Total unprotected loads from PTeX-unprotected pages. */
+        /** Total unprotected loads from ProtISA-unprotected pages. */
         statistics::Scalar loadsFromUnprotPages;
 
-        /** [PTeX] Types of store-to-load forwards. */
-        statistics::Scalar ptexUnprotUnprotForwards;
-        statistics::Scalar ptexProtUnprotForwards;
-        statistics::Scalar ptexProtProtForwards;
-        statistics::Scalar ptexUnprotProtForwards;
+        /** [ProtISA] Types of store-to-load forwards. */
+        statistics::Scalar proteanUnprotUnprotForwards;
+        statistics::Scalar proteanProtUnprotForwards;
+        statistics::Scalar proteanProtProtForwards;
+        statistics::Scalar proteanUnprotProtForwards;
         statistics::Scalar tptUnprotUnprotForwards;
         statistics::Scalar delayedWritebackTicks;
         statistics::Scalar delayedWritebackCount;

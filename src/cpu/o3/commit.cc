@@ -66,8 +66,8 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
-#include "debug/TPT.hh"
-#include "debug/TPTRetire.hh"
+#include "debug/Protean.hh"
+#include "debug/ProteanRetire.hh"
 #include "debug/TransmitterStalls.hh"
 
 namespace gem5
@@ -174,17 +174,17 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
       ADD_STAT(stalledBranchMispredicts, statistics::units::Cycle::get(), "Number of delayed branch squashes"),
       ADD_STAT(stalledMemoryViolations, statistics::units::Cycle::get(),
                "Number of delayed memory violation squashes"),
-      ADD_STAT(ptexProtStores, statistics::units::Count::get(), "[PTeX] Number of protected stores"),
+      ADD_STAT(protStores, statistics::units::Count::get(), "[Protean] Number of protected stores"),
       ADD_STAT(regTaints, statistics::units::Count::get(),
-               "[TPT] Number of r-taint primitives"),
+               "[Protean] Number of r-taint primitives"),
       ADD_STAT(memTaints, statistics::units::Count::get(),
-               "[TPT] Number of m-taint primitives"),
+               "[Protean] Number of m-taint primitives"),
       ADD_STAT(xmitTaints, statistics::units::Count::get(),
-               "[TPT] Number of x-taint primitives"),
-      ADD_STAT(predAccess, statistics::units::Count::get(), "[TPT] Correctly predicted access loads"),
-      ADD_STAT(predNoAccess, statistics::units::Count::get(), "[TPT] Correctly predicted no-access loads"),
-      ADD_STAT(mispredAccess, statistics::units::Count::get(), "[TPT] Mispredicted access loads"),
-      ADD_STAT(mispredNoAccess, statistics::units::Count::get(), "[TPT] Mispredicted no-access loads")
+               "[Protean] Number of x-taint primitives"),
+      ADD_STAT(predAccess, statistics::units::Count::get(), "[Protean] Correctly predicted access loads"),
+      ADD_STAT(predNoAccess, statistics::units::Count::get(), "[Protean] Correctly predicted no-access loads"),
+      ADD_STAT(mispredAccess, statistics::units::Count::get(), "[Protean] Mispredicted access loads"),
+      ADD_STAT(mispredNoAccess, statistics::units::Count::get(), "[Protean] Mispredicted no-access loads")
 {
     using namespace statistics;
 
@@ -1406,8 +1406,8 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     if (head_inst->isStore() || head_inst->isAtomic())
         committedStores[tid] = true;
 
-    // [TPT] Taint primitive stats.
-    if (debug::TPTRetire)
+    // [Protean] Taint primitive stats.
+    if (debug::ProteanRetire)
         printTaintDebug(head_inst, "retire");
     if (!head_inst->isMemRef() && head_inst->inputProtection() == Protected &&
         head_inst->outputProtection() == Unprotected) {
@@ -1458,9 +1458,9 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     }
 
     if (head_inst->isStore() && head_inst->storeProtection() == Protected)
-        stats.ptexProtStores++;
+        stats.protStores++;
 
-    // [PTeX] HACK: Mark the instruction page as unprotected. We can't do this
+    // [ProtISA] HACK: Mark the instruction page as unprotected. We can't do this
     // earlier because gem5 SE mode doesn't track which pages are executable.
     head_inst->tcBase()->setUnprotected(head_inst->pcState().instAddr());
 
@@ -1520,7 +1520,7 @@ Commit::markCompletedInsts()
         }
     }
 
-    // [TPE, STT, SPT] Recompute which instructions are nonspeculative.
+    // [Protean] Recompute which instructions are nonspeculative.
     rob->updateVisibleState();
 }
 
@@ -1708,7 +1708,7 @@ void
 Commit::printTaintDebug(const DynInstPtr &inst, const std::string &type) const
 {
     const Addr inst_addr = inst->pcState().instAddr();
-    DPRINTFR(TPT, "TPT %s %#x :: %s\n",
+    DPRINTFR(Protean, "Protean %s %#x :: %s\n",
              type, inst_addr, inst->disassembleWithProt());
 }
 

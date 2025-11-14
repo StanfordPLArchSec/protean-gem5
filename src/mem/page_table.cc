@@ -234,14 +234,14 @@ void
 EmulationPageTable::unprotectAll()
 {
     for (auto &[_, entry] : pTable)
-        entry.flags &= ~PTeXProtected;
+        entry.flags &= ~ProtISAProtected;
 }
 
 void
 EmulationPageTable::setUnprotected(Addr addr)
 {
     if (Entry *entry = lookup(addr))
-        entry->flags &= ~PTeXProtected;
+        entry->flags &= ~ProtISAProtected;
 }
 
 } // namespace gem5

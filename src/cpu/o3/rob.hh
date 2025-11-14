@@ -212,7 +212,7 @@ class ROB
     /** Updates the tail instruction with the new youngest instruction. */
     void updateTail();
 
-    /** [TPE, STT, SPT]
+    /** [Protean]
      * Compute which instructions are speculative vs. nonspeculative.
      */
     void updateVisibleState();

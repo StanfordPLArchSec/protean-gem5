@@ -46,7 +46,7 @@
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
-#include "debug/PTeX.hh"
+#include "debug/ProtISA.hh"
 #include "cpu/op_class.hh"
 
 namespace gem5
@@ -450,10 +450,10 @@ DynInst::writeMem(uint8_t *data, unsigned size, Addr addr,
                         const std::vector<bool> &byte_enable)
 {
     assert(byte_enable.size() == size);
-    // [PTeX] If this store is protected, then set the appropriate request
+    // [ProtISA] If this store is protected, then set the appropriate request
     // flag.
     if (storeProtection() == Protected)
-        flags.set(Request::PTEX_PROTECTED);
+        flags.set(Request::PROTISA_PROTECTED);
     return cpu->pushRequest(
         dynamic_cast<DynInstPtr::PtrType>(this),
         /* st */ false, data, size, addr, flags, res, nullptr,
@@ -485,11 +485,11 @@ DynInst::isSpeculationPrimitive() const
         return false;
 
       case SpeculationModel::Ctrl:
-        // TPE-TODO: Double-check this with STT/SPT?
+        // PROTEAN-TODO: Double-check this with STT/SPT?
         return (isCondCtrl() || isIndirectCtrl()) && (!isExecuted() || mispredicted());
 
       case SpeculationModel::CtrlSt:
-        // TPE-TODO: Double-check this with ReCon?
+        // PROTEAN-TODO: Double-check this with ReCon?
         if (isCondCtrl() || isIndirectCtrl()) {
             return !isExecuted() || mispredicted();
         } else if (isStore()) {
@@ -499,7 +499,7 @@ DynInst::isSpeculationPrimitive() const
         }
 
       case SpeculationModel::Futuristic:
-        // TPE-TODO: Double-check this with STT/SPT?
+        // PROTEAN-TODO: Double-check this with STT/SPT?
         return
             isNonSpeculative() ||
             isStoreConditional() ||
@@ -595,7 +595,7 @@ DynInst::computeDestProtection(unsigned dest_idx) const
             }
         }
         if (!any) {
-            DPRINTF(PTeX, "WARNING: PTEX: didn't find implicit src for partial dest %s in %s!\n",
+            DPRINTF(ProtISA, "WARNING: ProtISA: didn't find implicit src for partial dest %s in %s!\n",
                     dest_reg, staticInst->disassemble(pcState().instAddr()));
         }
     }

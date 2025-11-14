@@ -116,7 +116,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
-      ptexPages(params.ptexPages),
+      protisaPages(params.proteanPages),
       protean(params.protean),
       proteanExp(protean != Protean::None && params.proteanExp),
       proteanImp(protean != Protean::None && params.proteanImp),
@@ -259,8 +259,8 @@ CPU::CPU(const BaseO3CPUParams &params)
                 // Note that we can't use the rename() method because we don't
                 // want special treatment for the zero register at this point
                 PhysRegIdPtr phys_reg = freeList.getReg(type);
-                // [PTeX] All registers are unprotected at startup.
-                // PTEX-TODO: If we add register protection type as
+                // [Protean] All registers are unprotected at startup.
+                // PROTEAN-TODO: If we add register protection type as
                 // architectural state, may need to restore here.
                 const RenameEntry rename_entry(phys_reg, Unprotected, NoYRoT);
                 renameMap[tid].setEntry(id, rename_entry);
@@ -331,22 +331,22 @@ CPU::CPU(const BaseO3CPUParams &params)
               "Ensure createInterruptController() is called.\n", name());
     }
 
-    // [TPE, STT, SPT] Set speculation model.
+    // [Protean] Set speculation model.
     speculationModel = params.speculationModel;
 
-    // [PTeX] Set PTeX enable and PTeX memory implementation.
-    ptexMem = params.ptexMem;
+    // [ProtISA] Set ProtISA memory implementation.
+    protisaMem = params.proteanMem;
 
-    // Print PTeX configuration.
-    static const std::map<DeclassifyMode, std::string> ptex_mem_strtab = {
+    // Print ProtISA configuration.
+    static const std::map<DeclassifyMode, std::string> protisa_mem_strtab = {
         {DeclassifyMode::None, "None"},
         {DeclassifyMode::ShadowL1, "ShadowL1"},
         {DeclassifyMode::ShadowMem, "ShadowMem"},
     };
-    cprintf("[*] PTeX configuration: ptexMem=%s ptexPages=%d\n",
-            ptex_mem_strtab.at(ptexMem), ptexPages);
+    cprintf("[*] ProtISA configuration: protisaMem=%s protisaPages=%d\n",
+            protisa_mem_strtab.at(protisaMem), protisaPages);
 
-    // Print TPT configuration.
+    // Print Protean configuration.
     static const std::map<Protean, std::string> protean_to_str = {
         {Protean::None, "None"},
         {Protean::Delay, "Delay"},
@@ -659,7 +659,7 @@ CPU::insertThread(ThreadID tid)
             type = (RegClassType)(type + 1)) {
         for (auto &id: *regClasses.at(type)) {
             PhysRegIdPtr phys_reg = freeList.getReg(type);
-            // [PTeX] Initialize all registers to unprotected at startup.
+            // [ProtISA] Initialize all registers to unprotected at startup.
             renameMap[tid].setEntry(id, RenameEntry(phys_reg, Unprotected, NoYRoT));
             scoreboard.setReg(phys_reg);
         }

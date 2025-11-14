@@ -691,28 +691,28 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="Override vendor string returned by CPUID instruction in X86.",
     )
 
-    # [TPE, STT, SPT] Options
+    # [Protean]
     parser.add_argument(
         "--speculation-model",
         choices=["None", "Ctrl", "CtrlSt", "Futuristic", "AtRet"],
         required=True,
-        help="[TPE, STT, SPT] Speculation model",
+        help="[Protean] Speculation model",
     )
 
-    # [PTeX] PTeX Options
+    # [Protean]
     parser.add_argument(
-        "--ptex-mem",
+        "--protean-mem",
         choices=["None", "ShadowL1", "ShadowMem"],
         default="ShadowL1",
-        help="[PTeX] Memory declassification method",
+        help="[Protean] Memory declassification method",
     )
     parser.add_argument(
-        "--ptex-pages",
+        "--protean-pages",
         action="store_true",
-        help="[PTeX] Enable page extension",
+        help="[Protean] Enable page extension",
     )
 
-    # [Protean-Track]
+    # [Protean]
     parser.add_argument(
         "--protean",
         choices=["None", "Delay", "Track"],
@@ -733,28 +733,28 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         "--protean-pred-mode",
         type=str,
         default="Predict",
-        help="[Protean-Track] Access prediction mode",
+        help="[Protean] Access prediction mode",
     )
     parser.add_argument(
         "--protean-pred-size",
         type=int,
         default=1024,
-        help="[Protean-Track] Number of access predictor entries (0 = infinite)",
+        help="[Protean] Number of access predictor entries (0 = infinite)",
     )
     parser.add_argument(
         "--protean-pred-prot",
         action="store_true",
-        help="[Protean-Track] Also predict access for protected loads",
+        help="[Protean] Also predict access for protected loads",
     )
     parser.add_argument(
         "--protean-delay-opt",
         action="store_true",
-        help="[Protean-Track] Delay optimizations",
+        help="[Protean] Delay optimizations",
     )
     parser.add_argument(
         "--protean-delay-all",
         action="store_true",
-        help="[Protean-Delay] Delay all accesses, not just PROT-unprefixed ones",
+        help="[Protean] Delay all accesses, not just PROT-unprefixed ones",
     )
 
 

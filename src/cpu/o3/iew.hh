@@ -295,7 +295,7 @@ class IEW
      */
     void tick();
 
-    /** [TPE, STT, SPT] Wake delayed-issue instructions. */
+    /** [Protean] Wake delayed-issue instructions. */
     void wakeDelayedIssueInsts();
 
   private:

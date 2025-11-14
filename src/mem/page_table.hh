@@ -98,7 +98,7 @@ class EmulationPageTable : public Serializable
         Clobber     = 1,
         Uncacheable = 4,
         ReadOnly    = 8,
-        PTeXProtected = 16,
+        ProtISAProtected = 16,
     };
 
     // flag which marks the page table as shared among software threads
