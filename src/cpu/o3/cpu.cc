@@ -345,7 +345,7 @@ CPU::CPU(const BaseO3CPUParams &params)
         }
     }
 
-    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
+    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 3);
     if (moreTransmitInsts != 0)
         assert(spt);
 
