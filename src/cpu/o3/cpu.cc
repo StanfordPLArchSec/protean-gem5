@@ -329,7 +329,7 @@ CPU::CPU(const BaseO3CPUParams &params)
     moreTransmitInsts = params.moreTransmitInsts;
     cprintf("stt = %d, stt-bugfix-store = %d, stt-bugfix-pending = %d, implicit-channel = %d, more-transmit-insts = %d\n",
             stt, sttBugfixStore, sttBugfixPending, (int) impChannel, moreTransmitInsts);
-    assert (moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
+    assert (moreTransmitInsts >= 0 && moreTransmitInsts <= 3);
 }
 
 void
