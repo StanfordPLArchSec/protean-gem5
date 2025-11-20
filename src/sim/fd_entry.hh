@@ -35,6 +35,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <unistd.h>
 
 #include "sim/serialize.hh"
 
@@ -131,7 +132,13 @@ class FileFDEntry: public HBFDEntry
                 uint64_t file_offset, bool close_on_exec = false)
         : HBFDEntry(flags, sim_fd, close_on_exec),
           _fileName(file_name), _fileOffset(file_offset)
-    { _class = FDClass::fd_file; }
+    {
+        _class = FDClass::fd_file;
+	if (char *path = realpath(_fileName.c_str(), nullptr)) {
+	    _fileName = path;
+	    std::free(path);
+	}
+    }
 
     FileFDEntry(FileFDEntry const& reg, bool close_on_exec = false)
         : HBFDEntry(reg._flags, reg._simFD, close_on_exec),

@@ -620,9 +620,16 @@ BaseKvmCPU::tick()
                   queue.empty() ? MaxTick : queue.nextTick());
           // Enter into KVM and complete pending IO instructions if we
           // have an instruction event pending.
-          const Tick ticksToExecute(
-              nextInstEvent > ctrInsts ?
-              curEventQueue()->nextTick() - curTick() : 0);
+          Tick ticksToExecute;
+          if (nextInstEvent > ctrInsts) {
+              if (curEventQueue()->empty()) {
+                  ticksToExecute = MaxTick;
+              } else {
+                  ticksToExecute = curEventQueue()->nextTick() - curTick();
+              }
+          } else {
+              ticksToExecute = 0;
+          }
 
           if (alwaysSyncTC)
               threadContextDirty = true;
@@ -687,8 +694,11 @@ BaseKvmCPU::tick()
     // Schedule a new tick if we are still running
     if (_status != Idle && _status != RunningMMIOPending) {
         if (_kvmRun->exit_reason == KVM_EXIT_INTR && runTimer->expired())
-            schedule(tickEvent, clockEdge(ticksToCycles(
-                     curEventQueue()->nextTick() - curTick() + 1)));
+            if (curEventQueue()->empty()) {
+                schedule(tickEvent, MaxTick);
+            } else {
+                schedule(tickEvent, clockEdge(ticksToCycles(curEventQueue()->nextTick() - curTick() + 1)));
+            }
         else
             schedule(tickEvent, clockEdge(ticksToCycles(delay)));
     }

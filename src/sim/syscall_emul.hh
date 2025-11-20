@@ -867,7 +867,7 @@ openatFunc(SyscallDesc *desc, ThreadContext *tc,
         auto ffdp = std::dynamic_pointer_cast<FileFDEntry>(fdep);
         if (!ffdp)
             return -EBADF;
-        abs_path = ffdp->getFileName() + path;
+        abs_path = ffdp->getFileName() + "/" + path;
         redir_path = p->checkPathRedirect(abs_path);
     }
 
@@ -948,7 +948,7 @@ openatFunc(SyscallDesc *desc, ThreadContext *tc,
      * Return the indirect target file descriptor back to the simulated
      * process to act as a handle for the opened file.
      */
-    auto ffdp = std::make_shared<FileFDEntry>(sim_fd, host_flags, path, 0);
+    auto ffdp = std::make_shared<FileFDEntry>(sim_fd, host_flags, redir_path, 0);
     // Record the file mode for checkpoint restoring
     ffdp->setFileMode(mode);
     int tgt_fd = p->fds->allocFD(ffdp);
@@ -1487,6 +1487,8 @@ newfstatatFunc(SyscallDesc *desc, ThreadContext *tc, int dirfd,
     if (!SETranslatingPortProxy(tc).tryReadString(path, pathname))
         return -EFAULT;
 
+    DPRINTF_SYSCALL(Verbose, "newfstatat: pre: %s\n", path);
+
     if (path.empty() && !(flags & OS::TGT_AT_EMPTY_PATH))
         return -ENOENT;
     flags = flags & ~OS::TGT_AT_EMPTY_PATH;
@@ -1502,6 +1504,8 @@ newfstatatFunc(SyscallDesc *desc, ThreadContext *tc, int dirfd,
 
     // Adjust path for cwd and redirection
     path = p->checkPathRedirect(path);
+
+    DPRINTF_SYSCALL(Verbose, "newfstatat: redirected: %s\n", path);
 
     struct stat host_buf;
     int result = stat(path.c_str(), &host_buf);
