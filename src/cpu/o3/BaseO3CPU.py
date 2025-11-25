@@ -225,3 +225,4 @@ class BaseO3CPU(BaseCPU):
     )
     proteanDelayAll = Param.Bool(False, "[ProtDelay] Delay all access instructions")
     proteanDelayOpt = Param.Bool(False, "[Protean] Enable wakeup delay optimization -- allow wakeup of protected dependents")
+    proteanDelayFlagsOpt = Param.Bool(False, "[ProtDelay] Automatically PROT-prefix all instructions with only CC reg outputs")

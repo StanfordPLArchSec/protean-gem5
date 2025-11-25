@@ -620,6 +620,7 @@ class CPU : public BaseCPU
     const bool proteanDelay = true; // MIEROS-TODO: Make a param.
     const bool proteanDelayAll; // MIEROS-TODO: Make this a parameter.
     const bool proteanDelayOpt;
+    const bool proteanDelayFlagsOpt;
 
     std::unique_ptr<BaseAccessPredictor> accessPred;
 
