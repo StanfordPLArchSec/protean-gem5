@@ -1624,6 +1624,13 @@ CPU::untaintOtherTransmit(DynInstPtr inst) {
         moreTransmitInsts == 0 ||
         !inst->isOtherTransmit())
         return;
+    // Protean: Disabling untainting other transmitters like DIV, as
+    // doing so is unsafe. DIV only leaks a small amount of information
+    // about its inputs, not its entire input. Thus, it's not safe
+    // to untaint/unprotect the inputs to nonspeculative DIV instructions.
+    if (inst->opClass() == IntDivOp)
+        return;
+
     inst->setArgsTaint(false);
 }
 
