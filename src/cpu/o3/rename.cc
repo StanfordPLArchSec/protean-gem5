@@ -1110,21 +1110,23 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
 
         // [Protean-Track] Update YRoT for transmitters and dests.
         const bool src_transmitted = inst->srcTransmitted(src_idx);
-        switch (rename_entry.prot) {
-          case Protected:
-            // If this protected source is transmitted,
-            // then the transmitter's YRoT is itself.
-            if (src_transmitted)
-                inst->yrotXmits = inst->seqNum;
-            inst->yrotSrcs = std::max(inst->yrotSrcs, inst->seqNum);
-            break;
-          case Unprotected:
-            if (src_transmitted)
-                inst->yrotXmits = std::max(inst->yrotXmits, rename_entry.yrot);
-            inst->yrotSrcs = std::max(inst->yrotSrcs, rename_entry.yrot);
-            break;
-          default: panic("bad protection\n");
-        }
+	if (!inst->staticInst->isFalseDep(src_idx)) {
+            switch (rename_entry.prot) {
+              case Protected:
+                // If this protected source is transmitted,
+                // then the transmitter's YRoT is itself.
+                if (src_transmitted)
+                    inst->yrotXmits = inst->seqNum;
+                inst->yrotSrcs = std::max(inst->yrotSrcs, inst->seqNum);
+                break;
+              case Unprotected:
+                if (src_transmitted)
+                    inst->yrotXmits = std::max(inst->yrotXmits, rename_entry.yrot);
+                inst->yrotSrcs = std::max(inst->yrotSrcs, rename_entry.yrot);
+                break;
+              default: panic("bad protection\n");
+            }
+	}
 
         ++stats.lookups;
     }

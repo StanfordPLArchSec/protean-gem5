@@ -544,7 +544,8 @@ DynInst::inputProtection() const
         return Unprotected;
 
     for (size_t src_idx = 0; src_idx < numSrcs(); ++src_idx)
-        if (!srcRegIdx(src_idx).is(InvalidRegClass) &&
+        if (!staticInst->isFalseDep(src_idx) &&
+	    !srcRegIdx(src_idx).is(InvalidRegClass) &&
             srcProt(src_idx) == Protected)
             return Protected;
 

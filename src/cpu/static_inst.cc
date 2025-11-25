@@ -111,4 +111,14 @@ StaticInst::srcTransmitted(int src_idx) const
     return isControl() || opClass() == IntDivOp;
 }
 
+bool
+StaticInst::isFalseDep(unsigned src_idx) const
+{
+    // x86 movfp micro-ops have a false dependency on
+    // the prior value in the xmmh/l register.
+    if (getName() == "movfp")
+        return src_idx != 0;
+    return false;
+}
+
 } // namespace gem5
