@@ -399,6 +399,7 @@ class StaticInst : public RefCounted, public StaticInstFlags
     bool hasProtPrefix() const;
     bool isZeroIdiom() const { return flags[IsZeroIdiom]; }
     virtual bool destPartial(unsigned dest_idx) const;
+    bool isFalseDep(unsigned src_idx) const;
 
     // [ProtTrack/ProtDelay]
     virtual bool srcTransmitted(int src_idx) const;
