@@ -577,12 +577,38 @@ DynInst::storeProtection() const
     return inputProtection();
 }
 
+static bool
+protDelayFlagsOpt(const DynInst *inst)
+{
+    bool has_dest = false;
+    for (int dest_idx = 0; dest_idx < inst->numDests(); ++dest_idx) {
+        const RegId &dest = inst->destRegIdx(dest_idx);
+        if (dest.is(InvalidRegClass))
+            continue;
+        has_dest = true;
+        if (!dest.is(CCRegClass))
+            return false;
+    }
+
+    if (!has_dest)
+        return false;
+
+    return true;
+}
+
 Protection
 DynInst::computeDestProtection(unsigned dest_idx) const
 {
     // All outputs of PROT-prefixed instructions are protected.
     if (hasProtPrefix())
         return Protected;
+
+    // Are we running ProtDelay mode and are all of this instruction's
+    // destinations CC regs?
+    if (cpu->protean == Protean::Delay && cpu->proteanDelayFlagsOpt &&
+        protDelayFlagsOpt(this)) {
+        return Protected;
+    }
 
     const RegId &dest_reg = destRegIdx(dest_idx);
 
@@ -713,7 +739,7 @@ DynInst::delayWakeupDelay() const
     if (isUnsquashable())
         return false;
 
-    // Compute whether this is an access instruction. 
+    // Compute whether this is an access instruction.
     const bool access = (isLoad() && !readUnprotectedMem()) ||
         inputProtection() == Protected;
 
@@ -732,7 +758,7 @@ DynInst::delayWakeupDelay() const
         return false;
     if (outputProtection() == Protected)
         return false;
-    
+
     return true;
 }
 
@@ -760,7 +786,7 @@ DynInst::taintedXmitsDelay() const
             return true;
     return false;
 }
-    
+
 
 bool
 DynInst::taintedXmits() const

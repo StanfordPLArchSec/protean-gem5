@@ -123,6 +123,7 @@ CPU::CPU(const BaseO3CPUParams &params)
       proteanPredMode(params.proteanPredMode),
       proteanDelayAll(protean == Protean::Delay && params.proteanDelayAll),
       proteanDelayOpt(protean != Protean::None && params.proteanDelayOpt),
+      proteanDelayFlagsOpt(protean == Protean::Delay && params.proteanDelayFlagsOpt),
       accessPred(BaseAccessPredictor::makePredictor(params))
 {
     fatal_if(FullSystem && params.numThreads > 1,
@@ -359,10 +360,10 @@ CPU::CPU(const BaseO3CPUParams &params)
     };
     cprintf("[*] Protean configuration: protean=%s proteanExp=%d proteanImp=%d "
             "proteanPredMode=%s proteanPredSize=%d proteanPredProt=%d "
-            "proteanDelayOpt=%d\n",
+            "proteanDelayOpt=%d proteanDelayFlagsOpt=%d\n",
             protean_to_str.at(protean), proteanExp, proteanImp,
             protean_pred_mode_strtab.at(proteanPredMode), params.proteanPredSize, params.proteanPredProt,
-            proteanDelayOpt);
+            proteanDelayOpt, proteanDelayFlagsOpt);
 }
 
 void

@@ -93,3 +93,4 @@ def config_scheme(cpu_cls, cpu_list, options):
             cpu.proteanPredProt = options.protean_pred_prot
             cpu.proteanDelayOpt = options.protean_delay_opt
             cpu.proteanDelayAll = options.protean_delay_all
+            cpu.proteanDelayFlagsOpt = options.protean_delay_flags_opt
