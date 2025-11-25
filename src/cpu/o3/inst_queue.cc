@@ -1629,6 +1629,10 @@ InstructionQueue::wakeDelayedIssueInsts()
 void
 InstructionQueue::updateVisibleState()
 {
+    // Protean: Disabling untainting other transmitters like DIV, as
+    // doing so is unsafe. DIV only leaks a small amount of information
+    // about its inputs, not its entire input. Thus, it's not safe
+    // to untaint/unprotect the inputs to nonspeculative DIV instructions.
     for (ThreadID tid : *activeThreads)
         for (const DynInstPtr& inst : instList[tid])
             if (inst->isOtherTransmit() && inst->isUnsquashable())

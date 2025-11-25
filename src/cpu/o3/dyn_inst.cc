@@ -518,9 +518,8 @@ bool
 DynInst::readyToIssue_UT() const
 {
     bool ret = status[CanIssue];
-    if (isOtherTransmit()) {
-        ret = ret && !isArgsTainted();
-    }
+    if (isOtherTransmit() && isArgsTainted() && !isUnsquashable())
+        ret = false;
     return ret;
 }
 
