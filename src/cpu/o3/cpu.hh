@@ -696,6 +696,7 @@ class CPU : public BaseCPU
 
     bool sptBugfixRename;
     bool sptBugfixPending;
+    bool sptBugfixDataSize;
 };
 
 } // namespace o3

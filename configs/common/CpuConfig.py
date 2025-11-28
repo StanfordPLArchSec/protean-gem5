@@ -137,3 +137,4 @@ def config_scheme(cpu_cls, cpu_list, options):
 
             cpu.sptBugfixRename = options.spt_bugfix_rename
             cpu.sptBugfixPending = options.spt_bugfix_pending
+            cpu.sptBugfixDataSize = options.spt_bugfix_datasize

@@ -565,16 +565,24 @@ void
 DynInst::setDestTaint(bool f)
 {
     for (int i = 0; i < numDestRegs(); i++) {
-        auto szAndOffs = getDestRegSizeAndOffs(i);
-        cpu->setPartialTaint(renamedDestIdx(i), f, szAndOffs.first, szAndOffs.second);
+        auto [size, offset] = getDestRegSizeAndOffs(i);
+        if (cpu->sptBugfixDataSize && destRegIdx(i).is(IntRegClass) &&
+	    size == 4 && offset == 0) {
+            size = 8;
+	}
+        cpu->setPartialTaint(renamedDestIdx(i), f, size, offset);
     }
 }
 
 void
 DynInst::setDestIdxTaintVec(int i, const BitVec& taintVec)
 {
-    auto szAndOffs = getDestRegSizeAndOffs(i);
-    cpu->setPartialTaintVec(renamedDestIdx(i), taintVec, szAndOffs.first, szAndOffs.second);
+    auto [size, offset] = getDestRegSizeAndOffs(i);
+    cpu->setPartialTaintVec(renamedDestIdx(i), taintVec, size, offset);
+    if (cpu->sptBugfixDataSize && destRegIdx(i).is(IntRegClass) &&
+	size == 4 && offset == 0) {
+        cpu->setPartialTaint(renamedDestIdx(i), false, 4, 4);
+    }
 }
 
 std::pair<uint8_t, uint8_t>

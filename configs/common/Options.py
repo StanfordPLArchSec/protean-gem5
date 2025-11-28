@@ -713,6 +713,8 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
                         help="[SPT] Enable bugfixes for initializing registers to untainted at rename")
     parser.add_argument("--spt-bugfix-pending", action="store_true",
                         help="[SPT] Enable bugfix for pending squashes")
+    parser.add_argument("--spt-bugfix-datasize", action="store_true",
+                        help="[SPT] Enable bugfix for tainting all 64-bits of a 32-bit register write (x86).")
     parser.add_argument("--configImpFlow", default="Lazy", action="store", 
             choices=["Ignore", "Lazy", "Eager"],
             help="implicit flow handling mechanism")

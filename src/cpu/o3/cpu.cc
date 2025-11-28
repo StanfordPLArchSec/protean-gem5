@@ -116,7 +116,8 @@ CPU::CPU(const BaseO3CPUParams &params)
       lastRunningCycle(curCycle()),
       cpuStats(this),
       sptBugfixRename(params.sptBugfixRename),
-      sptBugfixPending(params.sptBugfixPending)
+      sptBugfixPending(params.sptBugfixPending),
+      sptBugfixDataSize(params.sptBugfixDataSize)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -371,6 +372,7 @@ CPU::CPU(const BaseO3CPUParams &params)
     std::cout << "Untaint Rounds = " << untaintRounds << std::endl;
     cprintf("sptBugfixRename = %d\n", sptBugfixRename);
     cprintf("sptBugfixPending = %d\n", sptBugfixPending);
+    cprintf("sptBugfixDataSize = %d\n", sptBugfixDataSize);
 }
 
 void
