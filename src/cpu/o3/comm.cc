@@ -80,7 +80,6 @@ IEWStruct::clearStates(ThreadID tid)
     pc[tid] = nullptr;
     squash[tid] = false;
     branchMispredict[tid] = false;
-    pendingMispredictInst[tid] = nullptr;
 }
 
 void

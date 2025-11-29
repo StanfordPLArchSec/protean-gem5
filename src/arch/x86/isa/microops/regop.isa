@@ -372,7 +372,7 @@ let {{
             ops = list([Type(op_iter).ctor_args() for Type in operand_types])
             op_args = ', '.join(ops)
             if self.noProt:
-                microFlags.append("IsPTeXUnprotectedOverride")
+                microFlags.append("IsProtISAUnprotectedOverride")
             micro_flags_text = self.microFlagsText(microFlags)
 
             # Handle zero idioms

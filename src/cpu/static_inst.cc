@@ -95,7 +95,7 @@ StaticInst::advancePC(ThreadContext *tc) const
 bool
 StaticInst::hasProtPrefix() const
 {
-    return flags[IsPTeXProtected] && !flags[IsPTeXUnprotectedOverride];
+    return flags[IsProtISAProtected] && !flags[IsProtISAUnprotectedOverride];
 }
 
 bool
@@ -108,7 +108,17 @@ bool
 StaticInst::srcTransmitted(int src_idx) const
 {
     assert(!isMemRef());
-    return isControl();
+    return isControl() || opClass() == IntDivOp;
+}
+
+bool
+StaticInst::isFalseDep(unsigned src_idx) const
+{
+    // x86 movfp micro-ops have a false dependency on
+    // the prior value in the xmmh/l register.
+    if (getName() == "movfp")
+        return src_idx != 0;
+    return false;
 }
 
 } // namespace gem5

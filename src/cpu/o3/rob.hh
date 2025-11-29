@@ -212,7 +212,7 @@ class ROB
     /** Updates the tail instruction with the new youngest instruction. */
     void updateTail();
 
-    /** [TPE, STT, SPT]
+    /** [Protean]
      * Compute which instructions are speculative vs. nonspeculative.
      */
     void updateVisibleState();
@@ -326,6 +326,8 @@ class ROB
 
     /** Dummy instruction returned if there are no insts left. */
     DynInstPtr dummyInst;
+
+    DynInstPtr getResolvedPendingSquashInst(ThreadID tid);
 
   private:
     /** The sequence number of the squashed instruction. */

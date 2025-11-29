@@ -51,7 +51,6 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 #include "cpu/o3/access_predictor.hh"
 
 namespace gem5
@@ -736,17 +735,17 @@ Rename::renameInsts(ThreadID tid)
             serializeAfter(insts_to_rename, tid);
         }
 
-        // [Mieros-Track] Predict if load will access protected memory.
+        // [Protean-Track] Predict if load will access protected memory.
         // NOTE: In theory, can be implemented as a parallel lookup
         // with rename. But we only use the results if the output register
         // is unprotected.
-        if (cpu->mieros == Mieros::Track && inst->isLoad() &&
+        if (cpu->protean == Protean::Track && inst->isLoad() &&
             !inst->hasProtPrefix() && cpu->accessPred->predict(*inst) == Unprotected)
             inst->setPredictedNoAccess();
 
         renameSrcRegs(inst, inst->threadNumber);
 
-        // [Mieros-Track] Compute the initial dest prot as follows.
+        // [Protean-Track] Compute the initial dest prot as follows.
         // Initialize it to the YRoT among all sources.
         // Then, if we have a load that is predicted to access
         // protected memory, then set the instruction to be the YRoT.
@@ -1061,7 +1060,7 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
     unsigned num_src_regs = inst->numSrcRegs();
     auto *isa = tc->getIsaPtr();
 
-    // [Mieros-Track] Track the running YRoT among all inputs.
+    // [Protean-Track] Track the running YRoT among all inputs.
     // 1. Initialize to NoYRot (0).
     // 2. For each source:
     //    a. If protected, mark instruction as its own YRoT.
@@ -1133,23 +1132,25 @@ Rename::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
                     renamed_reg->className());
         }
 
-        // [Mieros-Track] Update YRoT for transmitters and dests.
+        // [Protean-Track] Update YRoT for transmitters and dests.
         const bool src_transmitted = inst->srcTransmitted(src_idx);
-        switch (rename_entry.prot) {
-          case Protected:
-            // If this protected source is transmitted,
-            // then the transmitter's YRoT is itself.
-            if (src_transmitted)
-                inst->yrotXmits = inst->seqNum;
-            inst->yrotSrcs = std::max(inst->yrotSrcs, inst->seqNum);
-            break;
-          case Unprotected:
-            if (src_transmitted)
-                inst->yrotXmits = std::max(inst->yrotXmits, rename_entry.yrot);
-            inst->yrotSrcs = std::max(inst->yrotSrcs, rename_entry.yrot);
-            break;
-          default: panic("bad protection\n");
-        }
+	if (!inst->staticInst->isFalseDep(src_idx)) {
+            switch (rename_entry.prot) {
+              case Protected:
+                // If this protected source is transmitted,
+                // then the transmitter's YRoT is itself.
+                if (src_transmitted)
+                    inst->yrotXmits = inst->seqNum;
+                inst->yrotSrcs = std::max(inst->yrotSrcs, inst->seqNum);
+                break;
+              case Unprotected:
+                if (src_transmitted)
+                    inst->yrotXmits = std::max(inst->yrotXmits, rename_entry.yrot);
+                inst->yrotSrcs = std::max(inst->yrotSrcs, rename_entry.yrot);
+                break;
+              default: panic("bad protection\n");
+            }
+	}
 
         ++stats.lookups;
     }
@@ -1171,7 +1172,7 @@ Rename::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         RegId flat_dest_regid = dest_reg.flatten(*isa);
         flat_dest_regid.setNumPinnedWrites(dest_reg.getNumPinnedWrites());
 
-        // [PTeX]
+        // [ProtISA]
         const Protection prot = inst->computeDestProtection(dest_idx);
 
         rename_result = map->rename(flat_dest_regid, prot, inst->yrotDests);

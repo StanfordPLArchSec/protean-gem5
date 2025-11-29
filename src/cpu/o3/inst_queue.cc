@@ -49,10 +49,11 @@
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/limits.hh"
 #include "debug/IQ.hh"
+#include "debug/Protean.hh"
+#include "debug/ProtDelay.hh"
 #include "enums/OpClass.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/core.hh"
-#include "debug/TPT.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std
@@ -1093,7 +1094,7 @@ wakeDependentsTaintedEligible(const DynInstPtr &dep_inst)
     // the operand to protected. This empirically gets better
     // performance.
     // The instruction will therefore be stalled until retirement? 
-    if (dep_inst->cpu->mieros == Mieros::Delay && dep_inst->isControl()) {
+    if (dep_inst->cpu->protean == Protean::Delay && dep_inst->isControl()) {
         dep_inst->setSrcProt(0, Protected);
         return true;
     }
@@ -1115,12 +1116,12 @@ int
 InstructionQueue::wakeDependentsTainted(const DynInstPtr &completed_inst)
 {
     // Only do this if we've enabled the delay optimizations.
-    if (!cpu->mierosDelayOpt)
+    if (!cpu->proteanDelayOpt)
         return 0;
 
-    assert(cpu->mieros != Mieros::None);
+    assert(cpu->protean != Protean::None);
 
-    DPRINTF(TPT, "TPT: waking dependents (tainted): %s\n",
+    DPRINTF(ProtDelay, "Protean: waking dependents (tainted): %s\n",
             completed_inst->disassembleWithProt());
     assert(!completed_inst->isUnsquashable());
     assert(!completed_inst->isSquashed());
@@ -1207,7 +1208,7 @@ void
 InstructionQueue::deferMemInst(const DynInstPtr &deferred_inst)
 {
     assert(deferred_inst->taintedXmits());
-    deferred_inst->stallTick = curTick();
+    deferred_inst->setStallTick();
     deferredMemInsts.push_back(deferred_inst);
 }
 
@@ -1522,11 +1523,23 @@ InstructionQueue::addToProducers(const DynInstPtr &new_inst)
 
 void
 InstructionQueue::addIfReady(const DynInstPtr &inst)
-{
+{        
     // If the instruction now has all of its source registers
     // available, then add it to the list of ready instructions.
     if (inst->readyToIssue()) {
-        //Add the instruction to the proper ready list.
+        // [Protean] Stall any misc tainted/protected transmitters.
+        if (inst->taintedXmits() &&
+            !inst->isControl() &&
+            !inst->isMemRef()) {
+            if (!inst->isInStallList()) {
+                inst->addToStallList();
+                inst->setStallTick();
+                stalledTaintedInstList[inst->threadNumber].push_back(inst);
+            }
+            return;
+        }
+
+//Add the instruction to the proper ready list.
         if (inst->isMemRef()) {
 
             DPRINTF(IQ, "Checking if memory instruction [sn:%lli] can issue.\n", inst->seqNum);
@@ -1687,6 +1700,33 @@ InstructionQueue::dumpInsts()
 
         inst_list_it++;
         ++num;
+    }
+}
+
+void
+InstructionQueue::wakeUntaintInsts()
+{
+    assert(cpu->protean != Protean::None);
+
+    for (ThreadID tid : *activeThreads) {
+        auto &list = stalledTaintedInstList[tid];
+        for (auto it = list.begin(); it != list.end(); ) {
+            DynInstPtr inst = *it;
+            auto unstall = [&] () {
+                inst->removeFromStallList();
+                it = list.erase(it);
+                inst->unstallTick = curTick();
+            };
+            if (inst->isSquashed()) {
+                unstall();
+            } else if (!inst->taintedXmits()) {
+                assert(inst->readyToIssue());
+                unstall();
+                addIfReady(inst);
+            } else {
+                ++it;
+            }
+        }
     }
 }
 

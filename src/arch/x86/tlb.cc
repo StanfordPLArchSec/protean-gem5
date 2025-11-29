@@ -56,7 +56,7 @@
 #include "sim/full_system.hh"
 #include "sim/process.hh"
 #include "sim/pseudo_inst.hh"
-#include "debug/PTeXPages.hh"
+#include "debug/ProtISAPages.hh"
 
 namespace gem5
 {
@@ -64,7 +64,7 @@ namespace gem5
 namespace X86ISA {
 
 static void
-ptexDemapPage(ThreadContext *tc, Addr addr)
+protisaDemapPage(ThreadContext *tc, Addr addr)
 {
     tc->getMMUPtr()->demapPage(addr, 0);
 }
@@ -412,13 +412,13 @@ TLB::translate(const RequestPtr &req,
             const Addr pageAlignedVaddr = pageAlignVaddr(vaddr, tc);
             TlbEntry *entry = lookup(pageAlignedVaddr);
 
-            // [PTeX] Is this TLB entry PTeX-protected?
-            if (mode == BaseMMU::Write && entry && !entry->ptexProtected &&
-                (req->getFlags() & Request::PTEX_PROTECTED)) {
+            // [ProtISA] Is this TLB entry ProtISA-protected?
+            if (mode == BaseMMU::Write && entry && !entry->protisaProtected &&
+                (req->getFlags() & Request::PROTISA_PROTECTED)) {
                 // Evict the TLB entry.
-                DPRINTF(PTeXPages, "Evicting PTeX-unprotected TLB entry for PTeX-protected write to %#x\n",
+                DPRINTF(ProtISAPages, "Evicting ProtISA-unprotected TLB entry for ProtISA-protected write to %#x\n",
                         pageAlignedVaddr);
-                ptexDemapPage(tc, pageAlignedVaddr);
+                protisaDemapPage(tc, pageAlignedVaddr);
                 entry = nullptr;
             }
 
@@ -450,11 +450,11 @@ TLB::translate(const RequestPtr &req,
                     EmulationPageTable::Entry *pte =
                         p->pTable->lookup(vaddr);
 
-                    if (pte && mode == BaseMMU::Write && (req->getFlags() & Request::PTEX_PROTECTED) &&
-                        !(pte->flags & EmulationPageTable::PTeXProtected)) {
-                        DPRINTF(PTeXPages, "Marking PTE for %#x as PTeX-protected\n", vaddr);
-                        pte->flags |= EmulationPageTable::PTeXProtected;
-                        ptexDemapPage(tc, pageAlignedVaddr);
+                    if (pte && mode == BaseMMU::Write && (req->getFlags() & Request::PROTISA_PROTECTED) &&
+                        !(pte->flags & EmulationPageTable::ProtISAProtected)) {
+                        DPRINTF(ProtISAPages, "Marking PTE for %#x as ProtISA-protected\n", vaddr);
+                        pte->flags |= EmulationPageTable::ProtISAProtected;
+                        protisaDemapPage(tc, pageAlignedVaddr);
                     }
 
                     if (!pte) {
@@ -468,7 +468,7 @@ TLB::translate(const RequestPtr &req,
                                 p->pTable->pid(), alignedVaddr, pte->paddr,
                                 pte->flags & EmulationPageTable::Uncacheable,
                                 pte->flags & EmulationPageTable::ReadOnly,
-                                pte->flags & EmulationPageTable::PTeXProtected),
+                                pte->flags & EmulationPageTable::ProtISAProtected),
                                 getPcid(tc));
                     }
                     DPRINTF(TLB, "Miss was serviced.\n");
@@ -502,20 +502,20 @@ TLB::translate(const RequestPtr &req,
             if (entry->uncacheable)
                 req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
 
-            // [PTeX] Sanity check: make sure that the PTE and TLB entry agree on the PTeX protection.
+            // [ProtISA] Sanity check: make sure that the PTE and TLB entry agree on the ProtISA protection.
 #if 0
             if (!FullSystem) {
-                const bool tlb_prot = entry->ptexProtected;
-                const bool pte_prot = tc->getProcessPtr()->pTable->lookup(vaddr)->flags & EmulationPageTable::PTeXProtected;
-                panic_if(tlb_prot != pte_prot, "Mismatch in TLB entry (%d) and PTE (%d) PTex protections for %#x\n",
+                const bool tlb_prot = entry->protisaProtected;
+                const bool pte_prot = tc->getProcessPtr()->pTable->lookup(vaddr)->flags & EmulationPageTable::ProtISAProtected;
+                panic_if(tlb_prot != pte_prot, "Mismatch in TLB entry (%d) and PTE (%d) ProtISA protections for %#x\n",
                          tlb_prot, pte_prot, vaddr);
             }
 #endif
 
-            // [PTeX] Properly set the protection flag (only needed by loads).
-            if (entry->ptexProtected) {
+            // [ProtISA] Properly set the protection flag (only needed by loads).
+            if (entry->protisaProtected) {
               auto flags = req->getFlags();
-              flags.set(Request::PTEX_PROTECTED);
+              flags.set(Request::PROTISA_PROTECTED);
               req->setFlags(flags);
             }
             
@@ -566,13 +566,13 @@ TLB::translateFunctional(const RequestPtr &req, ThreadContext *tc,
         Process *process = tc->getProcessPtr();
         auto *pte = process->pTable->lookup(vaddr);
 
-        // [PTeX] Conservatively mark all functionally translated pages
-        // as PTeX-protected, for now at least.
-        if (pte && mode == BaseMMU::Write && !(pte->flags & EmulationPageTable::PTeXProtected)) {
-            DPRINTF(PTeXPages, "Marking functionally written page %#x as PTeX-protected\n", vaddr);
-            pte->flags |= EmulationPageTable::PTeXProtected;
+        // [ProtISA] Conservatively mark all functionally translated pages
+        // as ProtISA-protected, for now at least.
+        if (pte && mode == BaseMMU::Write && !(pte->flags & EmulationPageTable::ProtISAProtected)) {
+            DPRINTF(ProtISAPages, "Marking functionally written page %#x as ProtISA-protected\n", vaddr);
+            pte->flags |= EmulationPageTable::ProtISAProtected;
             // Evict any TLB entries.
-            ptexDemapPage(tc, pageAlignVaddr(vaddr, tc));
+            protisaDemapPage(tc, pageAlignVaddr(vaddr, tc));
         }
 
         if (!pte && mode != BaseMMU::Execute) {
@@ -703,7 +703,7 @@ void
 TLB::setUnprotected(Addr addr, ThreadContext *tc)
 {
     if (TlbEntry *entry = lookup(pageAlignVaddr(addr, tc)))
-        entry->ptexProtected = false;
+        entry->protisaProtected = false;
 }
 
 } // namespace X86ISA

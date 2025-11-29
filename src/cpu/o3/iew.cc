@@ -57,7 +57,6 @@
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -1192,9 +1191,9 @@ IEW::executeInsts()
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
-            // [Mieros] Stall loads/stores with tainted inputs.
+            // [Protean] Stall loads/stores with tainted inputs.
             assert(inst->isLoad() || inst->isStore());
-            if (cpu->mieros != Mieros::None && inst->taintedXmits()) {
+            if (cpu->protean != Protean::None && inst->taintedXmits()) {
                 assert(!inst->translationStarted());
                 instQueue.deferMemInst(inst);
                 continue;
@@ -1296,14 +1295,10 @@ IEW::executeInsts()
         ThreadID tid = inst->threadNumber;
 
         if (inst->isControl() && inst->mispredicted() && inst->taintedXmits()) {
-            DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Tainted branch mispredicted detected.\n",
-                    tid, inst->seqNum);
-            if (!(toCommit->pendingMispredictInst[tid] &&
-                  inst->seqNum >= toCommit->pendingMispredictInst[tid]->seqNum)) {
-                DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Marking tainted misprediction as pending.\n",
-                        tid, inst->seqNum);
-                toCommit->pendingMispredictInst[tid] = inst;
-            }
+            DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: Tainted branch "
+                    "mispredicted detected.\n", tid, inst->seqNum);
+            inst->setPendingSquash();
+            inst->setStallTick();
         } else if (!fetchRedirect[tid] ||
             !toCommit->squash[tid] ||
             toCommit->squashedSeqNum[tid] > inst->seqNum) {
@@ -1479,6 +1474,9 @@ IEW::tick()
 
         writebackInsts();
 
+        if (cpu->protean != Protean::None)
+            wakeUntaintInsts();
+
         // Have the instruction queue try to schedule any ready instructions.
         // (In actuality, this scheduling is for instructions that will
         // be executed next cycle.)
@@ -1636,6 +1634,12 @@ IEW::checkMisprediction(const DynInstPtr& inst)
             }
         }
     }
+}
+
+void
+IEW::wakeUntaintInsts()
+{
+    instQueue.wakeUntaintInsts();
 }
 
 } // namespace o3

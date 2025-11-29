@@ -691,65 +691,75 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
         help="Override vendor string returned by CPUID instruction in X86.",
     )
 
-    # [TPE, STT, SPT] Options
+    # [Protean]
     parser.add_argument(
         "--speculation-model",
         choices=["None", "Ctrl", "CtrlSt", "Futuristic", "AtRet"],
         required=True,
-        help="[TPE, STT, SPT] Speculation model",
+        help="[Protean] Speculation model",
     )
 
-    # [PTeX] PTeX Options
+    # [Protean]
     parser.add_argument(
-        "--ptex-mem",
+        "--protean-mem",
         choices=["None", "ShadowL1", "ShadowMem"],
         default="ShadowL1",
-        help="[PTeX] Memory declassification method",
+        help="[Protean] Memory declassification method",
     )
     parser.add_argument(
-        "--ptex-pages",
+        "--protean-pages",
         action="store_true",
-        help="[PTeX] Enable page extension",
+        help="[Protean] Enable page extension",
     )
 
-    # [Mieros-Track]
+    # [Protean]
     parser.add_argument(
-        "--mieros",
+        "--protean",
         choices=["None", "Delay", "Track"],
         default="None",
-        help="[Mieros] Enable the Mieros-Delay/Track defense",
+        help="[Protean] Enable the Protean-Delay/Track defense",
     )
     parser.add_argument(
-        "--mieros-no-exp",
+        "--protean-no-exp",
         action="store_true",
-        help="[Mieros] Whether enabling defense mechanism for explicit channel",
+        help="[Protean] Whether enabling defense mechanism for explicit channel",
     )
     parser.add_argument(
-        "--mieros-no-imp",
+        "--protean-no-imp",
         action="store_true",
-        help="[Mieros] Whether enabling defense mechanism for implicit channel",
+        help="[Protean] Whether enabling defense mechanism for implicit channel",
     )
     parser.add_argument(
-        "--mieros-pred-mode",
+        "--protean-pred-mode",
         type=str,
         default="Predict",
-        help="[Mieros-Track] Access prediction mode",
+        help="[Protean] Access prediction mode",
     )
     parser.add_argument(
-        "--mieros-pred-size",
+        "--protean-pred-size",
         type=int,
         default=1024,
-        help="[Mieros-Track] Number of access predictor entries (0 = infinite)",
+        help="[Protean] Number of access predictor entries (0 = infinite)",
     )
     parser.add_argument(
-        "--mieros-pred-prot",
+        "--protean-pred-prot",
         action="store_true",
-        help="[Mieros-Track] Also predict access for protected loads",
+        help="[Protean] Also predict access for protected loads",
     )
     parser.add_argument(
-        "--mieros-delay-opt",
+        "--protean-delay-opt",
         action="store_true",
-        help="[Mieros-Track] Delay optimizations",
+        help="[Protean] Delay optimizations",
+    )
+    parser.add_argument(
+        "--protean-delay-all",
+        action="store_true",
+        help="[Protean] Delay all accesses, not just PROT-unprefixed ones",
+    )
+    parser.add_argument(
+        "--protean-delay-flags-opt",
+        action="store_true",
+        help="[Protean] ProtDelay flags optimization",
     )
 
 

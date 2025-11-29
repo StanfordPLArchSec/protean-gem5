@@ -47,7 +47,7 @@
 #include "debug/DynInst.hh"
 #include "debug/IQ.hh"
 #include "debug/O3PipeView.hh"
-#include "debug/PTeX.hh"
+#include "debug/ProtISA.hh"
 #include "cpu/op_class.hh"
 #include "debug/HFI.hh"
 #include "arch/x86/regs/misc.hh"
@@ -462,10 +462,10 @@ DynInst::writeMem(uint8_t *data, unsigned size, Addr addr,
                         const std::vector<bool> &byte_enable)
 {
     assert(byte_enable.size() == size);
-    // [PTeX] If this store is protected, then set the appropriate request
+    // [ProtISA] If this store is protected, then set the appropriate request
     // flag.
     if (storeProtection() == Protected)
-        flags.set(Request::PTEX_PROTECTED);
+        flags.set(Request::PROTISA_PROTECTED);
     return cpu->pushRequest(
         dynamic_cast<DynInstPtr::PtrType>(this),
         /* st */ false, data, size, addr, flags, res, nullptr,
@@ -497,11 +497,11 @@ DynInst::isSpeculationPrimitive() const
         return false;
 
       case SpeculationModel::Ctrl:
-        // TPE-TODO: Double-check this with STT/SPT?
+        // PROTEAN-TODO: Double-check this with STT/SPT?
         return (isCondCtrl() || isIndirectCtrl()) && (!isExecuted() || mispredicted());
 
       case SpeculationModel::CtrlSt:
-        // TPE-TODO: Double-check this with ReCon?
+        // PROTEAN-TODO: Double-check this with ReCon?
         if (isCondCtrl() || isIndirectCtrl()) {
             return !isExecuted() || mispredicted();
         } else if (isStore()) {
@@ -511,7 +511,7 @@ DynInst::isSpeculationPrimitive() const
         }
 
       case SpeculationModel::Futuristic:
-        // TPE-TODO: Double-check this with STT/SPT?
+        // PROTEAN-TODO: Double-check this with STT/SPT?
         return
             isNonSpeculative() ||
             isStoreConditional() ||
@@ -554,7 +554,8 @@ DynInst::inputProtection() const
         return Unprotected;
 
     for (size_t src_idx = 0; src_idx < numSrcs(); ++src_idx)
-        if (!srcRegIdx(src_idx).is(InvalidRegClass) &&
+        if (!staticInst->isFalseDep(src_idx) &&
+	    !srcRegIdx(src_idx).is(InvalidRegClass) &&
             srcProt(src_idx) == Protected)
             return Protected;
 
@@ -586,12 +587,38 @@ DynInst::storeProtection() const
     return inputProtection();
 }
 
+static bool
+protDelayFlagsOpt(const DynInst *inst)
+{
+    bool has_dest = false;
+    for (int dest_idx = 0; dest_idx < inst->numDests(); ++dest_idx) {
+        const RegId &dest = inst->destRegIdx(dest_idx);
+        if (dest.is(InvalidRegClass))
+            continue;
+        has_dest = true;
+        if (!dest.is(CCRegClass))
+            return false;
+    }
+
+    if (!has_dest)
+        return false;
+
+    return true;
+}
+
 Protection
 DynInst::computeDestProtection(unsigned dest_idx) const
 {
     // All outputs of PROT-prefixed instructions are protected.
     if (hasProtPrefix())
         return Protected;
+
+    // Are we running ProtDelay mode and are all of this instruction's
+    // destinations CC regs?
+    if (cpu->protean == Protean::Delay && cpu->proteanDelayFlagsOpt &&
+        protDelayFlagsOpt(this)) {
+        return Protected;
+    }
 
     const RegId &dest_reg = destRegIdx(dest_idx);
 
@@ -607,7 +634,7 @@ DynInst::computeDestProtection(unsigned dest_idx) const
             }
         }
         if (!any) {
-            DPRINTF(PTeX, "WARNING: PTEX: didn't find implicit src for partial dest %s in %s!\n",
+            DPRINTF(ProtISA, "WARNING: ProtISA: didn't find implicit src for partial dest %s in %s!\n",
                     dest_reg, staticInst->disassemble(pcState().instAddr()));
         }
     }
@@ -665,35 +692,35 @@ DynInst::isTransmitter() const
 bool
 DynInst::delayWakeup() const
 {
-    if (!cpu->mierosDelay)
+    if (!cpu->proteanDelay)
         return false;
 
-    switch (cpu->mieros) {
-      case Mieros::None:
+    switch (cpu->protean) {
+      case Protean::None:
         return false;
 
-      case Mieros::Delay:
+      case Protean::Delay:
         return delayWakeupDelay();
 
-      case Mieros::Track:
+      case Protean::Track:
         return delayWakeupTrack();
 
-      default: panic("Bad Mieros mode\n");
+      default: panic("Bad Protean mode\n");
     }
 }
 
 bool
 DynInst::delayWakeupTrack() const
 {
-    assert(cpu->mieros == Mieros::Track);
+    assert(cpu->protean == Protean::Track);
 
     if (!predictedNoAccess())
         return false;
 
     assert(isLoad());
-    // MIEROS-TODO: Need to generalize this for Mieros::Delay.
-    assert(cpu->mieros == Mieros::Track &&
-           cpu->mierosPredMode != MierosPredMode::Protected);
+    // MIEROS-TODO: Need to generalize this for Protean::Delay.
+    assert(cpu->protean == Protean::Track &&
+           cpu->proteanPredMode != ProteanPredMode::Protected);
 
     // Don't stall if it's nonspeculative.
     if (isUnsquashable())
@@ -716,13 +743,13 @@ DynInst::delayWakeupTrack() const
 bool
 DynInst::delayWakeupDelay() const
 {
-    assert(cpu->mieros == Mieros::Delay);
+    assert(cpu->protean == Protean::Delay);
 
     // If it's nonspeculative, don't delay it.
     if (isUnsquashable())
         return false;
 
-    // Compute whether this is an access instruction. 
+    // Compute whether this is an access instruction.
     const bool access = (isLoad() && !readUnprotectedMem()) ||
         inputProtection() == Protected;
 
@@ -731,7 +758,7 @@ DynInst::delayWakeupDelay() const
         return false;
 
     // If we're delaying all accesses, then delay this access.
-    if (cpu->mierosDelayAll)
+    if (cpu->proteanDelayAll)
         return true;
 
     // Otherwise, only delay if we are actually writing to an
@@ -741,15 +768,15 @@ DynInst::delayWakeupDelay() const
         return false;
     if (outputProtection() == Protected)
         return false;
-    
+
     return true;
 }
 
 bool
 DynInst::taintedXmitsTrack() const
 {
-    assert(cpu->mieros == Mieros::Track);
-    if (isUnsquashable())
+    assert(cpu->protean == Protean::Track);
+    if (cpu->speculationModel == SpeculationModel::AtRet && isUnsquashable())
         assert(yrotXmits <= cpu->untaintBroadcast);
     return yrotXmits > cpu->untaintBroadcast;
 }
@@ -757,7 +784,7 @@ DynInst::taintedXmitsTrack() const
 bool
 DynInst::taintedXmitsDelay() const
 {
-    assert(cpu->mieros == Mieros::Delay);
+    assert(cpu->protean == Protean::Delay);
 
     // If it's nonspeculative, untaint it.
     if (isUnsquashable())
@@ -769,7 +796,7 @@ DynInst::taintedXmitsDelay() const
             return true;
     return false;
 }
-    
+
 
 bool
 DynInst::taintedXmits() const
@@ -777,30 +804,30 @@ DynInst::taintedXmits() const
     // If we aren't considering explicit channels
     // (namely, loads/stores), then pretend it's not
     // tainted.
-    if (!cpu->mierosExp && isMemRef())
+    if (!cpu->proteanExp && isMemRef())
         return false;
 
     // If we're not consider implicit channels,
     // (namely, branches), then pretend it's not
     // tainted.
-    if (!cpu->mierosImp && isControl())
+    if (!cpu->proteanImp && isControl())
         return false;
 
-    switch (cpu->mieros) {
-      case Mieros::Delay:
+    switch (cpu->protean) {
+      case Protean::Delay:
         return taintedXmitsDelay();
 
-      case Mieros::Track:
+      case Protean::Track:
         return taintedXmitsTrack();
 
-      default: panic("Bad Mieros mode!\n");
+      default: panic("Bad Protean mode!\n");
     }
 }
 
 bool
 DynInst::taintedSrcs() const
 {
-    assert(cpu->mieros == Mieros::Track);
+    assert(cpu->protean == Protean::Track);
     if (isUnsquashable())
         assert(yrotSrcs <= cpu->untaintBroadcast);
     return yrotSrcs > cpu->untaintBroadcast;
@@ -811,8 +838,8 @@ DynInst::translationStarted(bool f)
 {
     instFlags[TranslationStarted] = f;
 
-    // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None && f && taintedXmits(),
+    // [Protean-Track] Sanity checks.
+    panic_if(cpu->protean != Protean::None && f && taintedXmits(),
              "translationStarted for tainted transmitter!\n");
 }
 
@@ -822,20 +849,11 @@ DynInst::setExecuted()
 {
     status.set(Executed);
 
-    // [Mieros-Track] Sanity checks.
-    panic_if(cpu->mieros != Mieros::None &&
+    // [Protean-Track] Sanity checks.
+    panic_if(cpu->protean != Protean::None &&
+             cpu->speculationModel == SpeculationModel::AtRet &&
              isMemRef() && !isSquashed() && taintedXmits(),
              "setExecuted for tainted transmitter!\n");
-}
-
-void
-DynInst::hasPendingSquash(bool f)
-{
-    instFlags[HasPendingSquash] = f;
-
-    // [Mieros] Sanity check.
-    panic_if(f && !cpu->mierosImp,
-             "hasPendingSquash() when mierosImp disabled!\n");
 }
 
 // MIEROS-TODO: Eliminate this and add a status flag instead

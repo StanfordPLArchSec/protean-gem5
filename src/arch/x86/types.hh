@@ -223,7 +223,7 @@ struct ExtMachInst
     LegacyPrefixVector legacy;
     Rex rex;
     VexInfo vex;
-    bool ptex_prot;
+    bool protisa_prot;
 
     //This holds all of the bytes of the opcode
     struct
@@ -287,7 +287,7 @@ operator << (std::ostream & os, const ExtMachInst & emi)
 inline static bool
 operator == (const ExtMachInst &emi1, const ExtMachInst &emi2)
 {
-    if (emi1.ptex_prot != emi2.ptex_prot)
+    if (emi1.protisa_prot != emi2.protisa_prot)
         return false;
     if (emi1.legacy != emi2.legacy)
         return false;

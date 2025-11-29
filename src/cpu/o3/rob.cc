@@ -49,7 +49,6 @@
 #include "debug/ROB.hh"
 #include "debug/TransmitterStallsVerbose.hh"
 #include "params/BaseO3CPU.hh"
-#include "debug/TPT.hh"
 
 namespace gem5
 {
@@ -353,7 +352,7 @@ ROB::doSquash(ThreadID tid)
         // it can drain out of the pipeline.
         (*squashIt[tid])->setSquashed();
 
-        (*squashIt[tid])->hasPendingSquash(false);
+        (*squashIt[tid])->clearPendingSquash();
 
         (*squashIt[tid])->setCanCommit();
 
@@ -567,6 +566,20 @@ ROB::updateVisibleState()
                 break;
         }
     }
+}
+
+DynInstPtr
+ROB::getResolvedPendingSquashInst(ThreadID tid)
+{
+    for (const DynInstPtr &inst : instList[tid]) {
+        if (inst->hasPendingSquash() &&
+            !inst->taintedXmits() &&
+            !inst->isSquashed()) {
+            inst->unstallTick = curTick();
+            return inst;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace o3

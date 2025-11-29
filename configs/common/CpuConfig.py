@@ -77,17 +77,20 @@ def config_etrace(cpu_cls, cpu_list, options):
         )
 
 
-# [TPE, STT, SPT] Common O3 CPU parameters.
+# [Protean] Common O3 CPU parameters.
 def config_scheme(cpu_cls, cpu_list, options):
     if issubclass(cpu_cls, m5.objects.DerivO3CPU):
         for cpu in cpu_list:
+            cpu.forwardComSize = 8
             cpu.speculationModel = options.speculation_model
-            cpu.ptexMem = options.ptex_mem
-            cpu.ptexPages = options.ptex_pages
-            cpu.mieros = options.mieros
-            cpu.mierosExp = not options.mieros_no_exp
-            cpu.mierosImp = not options.mieros_no_imp
-            cpu.mierosPredMode = options.mieros_pred_mode
-            cpu.mierosPredSize = options.mieros_pred_size
-            cpu.mierosPredProt = options.mieros_pred_prot
-            cpu.mierosDelayOpt = options.mieros_delay_opt
+            cpu.proteanMem = options.protean_mem
+            cpu.proteanPages = options.protean_pages
+            cpu.protean = options.protean
+            cpu.proteanExp = not options.protean_no_exp
+            cpu.proteanImp = not options.protean_no_imp
+            cpu.proteanPredMode = options.protean_pred_mode
+            cpu.proteanPredSize = options.protean_pred_size
+            cpu.proteanPredProt = options.protean_pred_prot
+            cpu.proteanDelayOpt = options.protean_delay_opt
+            cpu.proteanDelayAll = options.protean_delay_all
+            cpu.proteanDelayFlagsOpt = options.protean_delay_flags_opt

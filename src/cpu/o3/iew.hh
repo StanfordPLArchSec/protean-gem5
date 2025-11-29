@@ -274,6 +274,9 @@ class IEW
      */
     void writebackInsts();
 
+    /** [Protean] Wakeup stalled misc transmitter insts. */ 
+    void wakeUntaintInsts();
+
     /** Checks if any of the stall conditions are currently true. */
     bool checkStall(ThreadID tid);
 
@@ -292,7 +295,7 @@ class IEW
      */
     void tick();
 
-    /** [TPE, STT, SPT] Wake delayed-issue instructions. */
+    /** [Protean] Wake delayed-issue instructions. */
     void wakeDelayedIssueInsts();
 
   private:

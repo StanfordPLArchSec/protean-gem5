@@ -69,10 +69,10 @@ class DeclassifyMode(ScopedEnum):
     vals = ["None", "ShadowL1", "ShadowMem"]
 
 
-class Mieros(ScopedEnum):
+class Protean(ScopedEnum):
     vals = ["None", "Delay", "Track"]
 
-class MierosPredMode(ScopedEnum):
+class ProteanPredMode(ScopedEnum):
     vals = ["Protected", "Unprotected", "Predict"]
 
 class BaseO3CPU(BaseCPU):
@@ -222,26 +222,26 @@ class BaseO3CPU(BaseCPU):
     needsTSO = Param.Bool(False, "Enable TSO Memory model")
 
     speculationModel = Param.SpeculationModel(
-        "Futuristic", "[TPE, STT, SPT] Speculation model"
+        "Futuristic", "[Protean] Speculation model"
     )
-    ptexMem = Param.DeclassifyMode(
+    proteanMem = Param.DeclassifyMode(
         "ShadowL1",
-        "[PTeX] Memory declassification implementation",
+        "[ProtISA] Memory declassification implementation",
     )
-    ptexPages = Param.Bool(True, "[PTeX] Enable page extension")
+    proteanPages = Param.Bool(False, "[ProtISA] Enable page extension")
 
-    # [TPT]
-    mieros = Param.Mieros("None", "[Mieros] Enable Mieros-Delay/Track defense")
-    mierosExp = Param.Bool(True, "[Mieros] Secure explicit channels (loads, stores)")
-    mierosImp = Param.Bool(True, "[Mieros] Secure implicit channels (branches)")
-    mierosPredMode = Param.MierosPredMode("Predict", "[Mieros-Track] Access mode")
-    mierosPredSize = Param.Int(1024, "[TPT] Access predictor size")
-    mierosPredProt = Param.Bool(
-        False, "[TPT] Predict access for protected loads, too"
+    # [Protean]
+    protean = Param.Protean("None", "[Protean] Enable Protean-Delay/Track defense")
+    proteanExp = Param.Bool(True, "[Protean] Secure explicit channels (loads, stores)")
+    proteanImp = Param.Bool(True, "[Protean] Secure implicit channels (branches)")
+    proteanPredMode = Param.ProteanPredMode("Predict", "[Protean-Track] Access mode")
+    proteanPredSize = Param.Int(1024, "[ProtTrack] Access predictor size")
+    proteanPredProt = Param.Bool(
+        False, "[ProtTrack] Predict access for protected loads, too"
     )
-    mierosDelayAll = Param.Bool(False, "[Mieros-Delay] Delay all access instructions")
-    mierosDelayOpt = Param.Bool(False, "[Mieros] Enable wakeup delay optimization -- allow wakeup of protected dependents")
-
+    proteanDelayAll = Param.Bool(False, "[ProtDelay] Delay all access instructions")
+    proteanDelayOpt = Param.Bool(False, "[Protean] Enable wakeup delay optimization -- allow wakeup of protected dependents")
+    proteanDelayFlagsOpt = Param.Bool(False, "[ProtDelay] Automatically PROT-prefix all instructions with only CC reg outputs")
 
     recvRespThrottling = Param.Bool(
         False, "Enable load receive response throttling in the LSQ"

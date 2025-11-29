@@ -63,7 +63,7 @@
 #include "cpu/static_inst.hh"
 #include "cpu/translation.hh"
 #include "debug/HtmCpu.hh"
-#include "cpu/ptex.hh"
+#include "cpu/protean.hh"
 
 namespace gem5
 {
@@ -216,11 +216,13 @@ class DynInst : public ExecContext, public RefCounted
         HtmFromTransaction,
         NoCapableFU,           /// Processor does not have capability to
                                /// execute the instruction
-        Unsquashable,            /// [TPE, STT, SPT] Instruction is nonspeculative.
+        Unsquashable,            /// [Protean] Instruction is nonspeculative.
+        // [Protean] This misc. transmitter is stalled from executing.
+        InStallList, 
         HasPendingSquash,   // for branch/load, if a squash is postponed due to the tainted dependent operands
-        // [TPT]
-        ReadUnprotectedMem,      /// [TPT] An unprotected load read from unprotected memory.
-        PredictedNoAccess,         /// [TPT] We predicted this instruction is NOT an access instruction.
+        // [Protean]
+        ReadUnprotectedMem,      /// [Protean] An unprotected load read from unprotected memory.
+        PredictedNoAccess,         /// [Protean] We predicted this instruction is NOT an access instruction.
         MaxFlags
     };
 
@@ -270,10 +272,10 @@ class DynInst : public ExecContext, public RefCounted
     // Whether or not the source register is ready, one bit per register.
     uint8_t *_readySrcIdx;
 
-    // [PTeX] The protection of source registers.
+    // [ProtISA] The protection of source registers.
     Protection *_srcProt;
 
-    // [PTeX] The protection of destination registers.
+    // [ProtISA] The protection of destination registers.
     // NOTE: There may be a mixture of protected/unprotected registers
     // even if the macro-op has a PROT prefix, because special registers
     // aren't protected.
@@ -399,10 +401,10 @@ class DynInst : public ExecContext, public RefCounted
     ssize_t sqIdx = -1;
     typename LSQUnit::SQIterator sqIt;
 
-    /** [Mieros-Taint] The tainted instruction we forwarded from. */
+    /** [Protean-Taint] The tainted instruction we forwarded from. */
     DynInstPtr taintedStFwdInst;
 
-    /** [Mieros-Track] YRoT among transmitter's sensitive
+    /** [Protean-Track] YRoT among transmitter's sensitive
      * input registers.
      * If this is valid, then we need to stall the transmission
      * until this yrot is nonspec. */
@@ -440,8 +442,13 @@ class DynInst : public ExecContext, public RefCounted
     bool memOpDone() const { return instFlags[MemOpDone]; }
     void memOpDone(bool f) { instFlags[MemOpDone] = f; }
 
+    void setPendingSquash() { instFlags[HasPendingSquash] = true; }
+    void clearPendingSquash() { instFlags[HasPendingSquash] = false; }
     bool hasPendingSquash() const { return instFlags[HasPendingSquash]; }
-    void hasPendingSquash(bool f);
+
+    void addToStallList() { instFlags.set(InStallList); }
+    void removeFromStallList() { instFlags.reset(InStallList); }
+    bool isInStallList() const { return instFlags[InStallList]; }
 
     bool notAnInst() const { return instFlags[NotAnInst]; }
     void setNotAnInst() { instFlags[NotAnInst] = true; }
@@ -651,7 +658,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isHtmCancel() const { return staticInst->isHtmCancel(); }
     bool isHtmCmd() const { return staticInst->isHtmCmd(); }
 
-    // [PTeX]
+    // [ProtISA]
     bool hasProtPrefix() const { return staticInst->hasProtPrefix(); }
     Protection computeDestProtection(unsigned dest_idx) const;
     Protection outputProtection() const;
@@ -773,10 +780,10 @@ class DynInst : public ExecContext, public RefCounted
     /** Returns the logical register index of the i'th source register. */
     const RegId& srcRegIdx(int i) const { return staticInst->srcRegIdx(i); }
 
-    /** [PTeX] Get the source register's protection. */
+    /** [ProtISA] Get the source register's protection. */
     Protection srcProt(unsigned i) const;
 
-    /** [PTeX] Get the destination register's protection. */
+    /** [ProtISA] Get the destination register's protection. */
     Protection destProt(unsigned i) const;
 
     /** Return the size of the instResult queue. */
@@ -1102,6 +1109,13 @@ class DynInst : public ExecContext, public RefCounted
     Tick unstallTick = -1;
     Tick delayedWritebackTick = -1;
 
+    void
+    setStallTick()
+    {
+        if (stallTick == -1)
+            stallTick = curTick();
+    }
+
     /* Values used by LoadToUse stat */
     Tick firstIssue = -1;
     Tick lastWakeDependents = -1;
@@ -1262,21 +1276,21 @@ class DynInst : public ExecContext, public RefCounted
         setResult(reg->regClass(), val);
     }
 
-    /** [TPE, STT, SPT] Is this instruction nonspeculative? */
+    /** [Protean] Is this instruction nonspeculative? */
     bool isUnsquashable() const { return instFlags[Unsquashable]; }
 
-    /** [TPE, STT, SPT] Mark this instruction as nonspeculative. */
+    /** [Protean] Mark this instruction as nonspeculative. */
     void setUnsquashable() { instFlags[Unsquashable] = true; }
 
-    /** [TPE, STT, SPT] Is this instruction a speculation primitive? */
+    /** [Protean] Is this instruction a speculation primitive? */
     bool isSpeculationPrimitive() const;
 
     std::string disassembleWithProt() const;
 
-    /** [TPT] Is this instruction an r-taint or m-taint primitive? */
+    /** [Protean] */
     bool isProtectedTransmitter() const;
 
-    /** [TPT] Did a load read unprotected memory? */
+    /** [Protean] Did a load read unprotected memory? */
     bool readUnprotectedMem() const { return instFlags[ReadUnprotectedMem]; }
     void setReadUnprotectedMem() { instFlags[ReadUnprotectedMem] = true; }
     bool predictedNoAccess() const { return instFlags[PredictedNoAccess]; }
@@ -1289,7 +1303,7 @@ class DynInst : public ExecContext, public RefCounted
 
   public:
 
-    /** [TPT] Does this instruction transmit this source operand? */
+    /** [Protean] Does this instruction transmit this source operand? */
     bool srcTransmitted(int src_idx) const;
     bool isTransmitter() const;
     void setSrcProt(unsigned src_idx, Protection prot);

@@ -100,9 +100,9 @@ class StaticInstFlags(Enum):
         "IsHtmStop",  # Stops (commits) a HTM transaction
         "IsHtmCancel",  # Explicitely aborts a HTM transaction
         "IsInvalid",  # An invalid instruction
-        # PTeX Flags
-        "IsPTeXProtected",  # PTeX's PROT prefix
-        "IsPTeXUnprotectedOverride",
+        # ProtISA Flags
+        "IsProtISAProtected",  # ProtISA's PROT prefix
+        "IsProtISAUnprotectedOverride",
         "IsZeroIdiom",
         'IsUnrestricted',   # Unrestricted mov
         'IsHfiStructured',  # HFI structured mov

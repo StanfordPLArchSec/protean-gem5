@@ -370,7 +370,7 @@ let {{
                 " | ((log2i(%s) & AddrSizeFlagMask) << AddrSizeFlagShift)" % \
                 addressSize
             if noProt:
-                self.instFlags += " | (1ULL << StaticInst::IsPTeXUnprotectedOverride)"
+                self.instFlags += " | (1ULL << StaticInst::IsProtISAUnprotectedOverride)"
 
         def getAllocator(self, microFlags):
             allocString = '''
