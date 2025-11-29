@@ -118,7 +118,9 @@ CPU::CPU(const BaseO3CPUParams &params)
       system(params.system),
       lastRunningCycle(curCycle()),
       cpuStats(this),
-      sptBugfix(params.sptBugfix)
+      sptBugfixRename(params.sptBugfixRename),
+      sptBugfixPending(params.sptBugfixPending),
+      sptBugfixDataSize(params.sptBugfixDataSize)
 {
     fatal_if(FullSystem && params.numThreads > 1,
             "SMT is not supported in O3 in full system mode currently.");
@@ -347,7 +349,7 @@ CPU::CPU(const BaseO3CPUParams &params)
         }
     }
 
-    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 2);
+    assert(moreTransmitInsts >= 0 && moreTransmitInsts <= 3);
     if (moreTransmitInsts != 0)
         assert(spt);
 
@@ -372,7 +374,9 @@ CPU::CPU(const BaseO3CPUParams &params)
     if (enableShadowL1)
         std::cout << "Shadow L1 bottomless? " << (bottomlessShadowL1 ? "yes" : "no") << std::endl;
     std::cout << "Untaint Rounds = " << untaintRounds << std::endl;
-    cprintf("sptBugfix = %d\n", sptBugfix);
+    cprintf("sptBugfixRename = %d\n", sptBugfixRename);
+    cprintf("sptBugfixPending = %d\n", sptBugfixPending);
+    cprintf("sptBugfixDataSize = %d\n", sptBugfixDataSize);
 }
 
 void
@@ -1637,6 +1641,13 @@ CPU::untaintOtherTransmit(DynInstPtr inst) {
         moreTransmitInsts == 0 ||
         !inst->isOtherTransmit())
         return;
+    // Protean: Disabling untainting other transmitters like DIV, as
+    // doing so is unsafe. DIV only leaks a small amount of information
+    // about its inputs, not its entire input. Thus, it's not safe
+    // to untaint/unprotect the inputs to nonspeculative DIV instructions.
+    if (inst->opClass() == IntDivOp)
+        return;
+
     inst->setArgsTaint(false);
 }
 

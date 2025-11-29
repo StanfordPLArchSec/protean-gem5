@@ -688,6 +688,8 @@ class DynInst : public ExecContext, public RefCounted
             if (opClass() == IntDivOp ||
                 isFloating())
                 return true;
+        } else if (cpu->moreTransmitInsts == 3) {
+            return opClass() == IntDivOp;
         }
         return false;
     }
@@ -884,9 +886,20 @@ class DynInst : public ExecContext, public RefCounted
     /** Clears this instruction being able to issue. */
     void clearCanIssue() { status.reset(CanIssue); }
 
-    void addToStallList() { status.set(InStallList); }
+    void
+    addToStallList()
+    {
+        if (stallTick == -1)
+            stallTick = curTick();
+        status.set(InStallList);
+    }
 
-    void removeFromStallList() { status.reset(InStallList); }
+    void
+    removeFromStallList()
+    {
+        unstallTick = curTick();
+        status.reset(InStallList);
+    }
 
     bool isInStallList() const { return status[InStallList]; }
 

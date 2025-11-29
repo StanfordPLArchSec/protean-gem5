@@ -709,8 +709,12 @@ def addCommonOptions(parser, default_isa: Optional[ISA] = None):
     # [Jiyong,DDIFT] add options for DDIFT configurations
     parser.add_argument("--spt", action = "store_true",
             help="Whether using DDIFT as an optimization for InvisiSpec.")
-    parser.add_argument("--spt-bugfix", action = "store_true",
-                        help="[SPT] Enable bugfixes")
+    parser.add_argument("--spt-bugfix-rename", action = "store_true",
+                        help="[SPT] Enable bugfixes for initializing registers to untainted at rename")
+    parser.add_argument("--spt-bugfix-pending", action="store_true",
+                        help="[SPT] Enable bugfix for pending squashes")
+    parser.add_argument("--spt-bugfix-datasize", action="store_true",
+                        help="[SPT] Enable bugfix for tainting all 64-bits of a 32-bit register write (x86).")
     parser.add_argument("--configImpFlow", default="Lazy", action="store", 
             choices=["Ignore", "Lazy", "Eager"],
             help="implicit flow handling mechanism")

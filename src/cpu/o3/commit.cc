@@ -133,6 +133,7 @@ Commit::Commit(CPU *_cpu, const BaseO3CPUParams &params)
         renameMap[tid] = nullptr;
         htmStarts[tid] = 0;
         htmStops[tid] = 0;
+        pendingSquashInst[tid] = nullptr;
     }
     interrupt = NoFault;
 }
@@ -402,6 +403,7 @@ Commit::takeOverFrom()
         trapSquash[tid] = false;
         tcSquash[tid] = false;
         squashAfterInst[tid] = NULL;
+        pendingSquashInst[tid] = nullptr;
     }
     rob->takeOverFrom();
 }
@@ -820,15 +822,31 @@ Commit::commit()
         // Squashed sequence number must be older than youngest valid
         // instruction in the ROB. This prevents squashes from younger
         // instructions overriding squashes from older instructions.
+
+        // Mark pending mispredictions as having a pending squash.
+        if (DynInstPtr inst = std::move(fromIEW->pendingMispredictInst[tid])) {
+            DPRINTF(Commit, "[tid:%i] [sn:%llu] Pending mispredicted instruction received from IEW.\n",
+                    tid, inst->seqNum);
+            updatePendingMispredictInst(tid, std::move(inst));
+        }
+        
         if (fromIEW->squash[tid] &&
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
 
+            const DynInstPtr &inst_causing_squash = fromIEW->instCausingSquash[tid];
+            panic_if(cpu->sptBugfixPending && 
+                     inst_causing_squash->isCondCtrl() && 
+                     inst_causing_squash->isArgsTainted() &&
+                     !inst_causing_squash->isUnsquashable(),
+                     "Security violation during branch resolution!\n");
+
             // we must delay both branch and load squash if argsTainted
             if (cpu->spt && cpu->configImpFlow == 2 &&
-                ((fromIEW->instCausingSquash[tid]->isArgsTainted() && !fromIEW->instCausingSquash[tid]->isUnsquashable()) ||
-                 (fromIEW->instCausingSquash[tid]->isLoad() && !cpu->isSTLPublic(fromIEW->instCausingSquash[tid])))) {
+                ((inst_causing_squash->isArgsTainted() && !inst_causing_squash->isUnsquashable()) ||
+                 (inst_causing_squash->isLoad() && !cpu->isSTLPublic(inst_causing_squash)))) {
                 if (fromIEW->mispredictInst[tid]) {
+                    assert(!cpu->sptBugfixPending);
                     DPRINTF(Commit, "[tid:%i]: (Lazy) A branch mispredicInst [sn:%lli,0x%lx] PC %s is made pending.\n",
                             tid,
                             fromIEW->instCausingSquash[tid]->seqNum,
@@ -841,6 +859,9 @@ Commit::commit()
                             fromIEW->instCausingSquash[tid]->seqNum,
                             fromIEW->instCausingSquash[tid]->pcState());
                 }
+#if 0
+                panic_if(cpu->sptBugfixPending, "Shouldn't get here!\n");
+#endif
                 fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
                 DynInstPtr &inst = fromIEW->instCausingSquash[tid];
                 if (inst->stallTick == -1)
@@ -908,8 +929,9 @@ Commit::commit()
 
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
         }
+        // BUGGY
         else if (cpu->spt) {  // there is no squash signal comming
-            DynInstPtr resolvedPendingSquashInst = rob->getResolvedPendingSquashInst(tid);
+            DynInstPtr resolvedPendingSquashInst = rob->getResolvedPendingSquashInstBuggy(tid);
             if (resolvedPendingSquashInst &&
                 commitStatus[tid] != TrapPending &&
                 resolvedPendingSquashInst->seqNum <= youngestSeqNum[tid]){
@@ -917,6 +939,8 @@ Commit::commit()
                 handleSquashSignalFromROB(tid, resolvedPendingSquashInst);
             }
         }
+
+        resolvePendingSquash(tid);
 
     done:
 
@@ -1745,6 +1769,55 @@ Commit::oldestReady()
     } else {
         return InvalidThreadID;
     }
+}
+
+void
+Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
+{
+    DynInstPtr &pending = pendingSquashInst[tid];
+    if (pending && pending->seqNum <= inst->seqNum) {
+        DPRINTF(Commit, "[tid:%i] [sn:%llu] Skipping pending mispredict, "
+                "since [sn:%llu] already registered.\n",
+                tid, inst->seqNum, pending->seqNum);
+        return;
+    }
+    DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
+            tid, inst->seqNum);
+    inst->hasPendingSquash(true);
+    pending = std::move(inst);
+    pendingSquashInstCounter = 0;
+}
+
+void
+Commit::resolvePendingSquash(ThreadID tid)
+{
+    DynInstPtr &inst = pendingSquashInst[tid];
+    if (!inst)
+        return;
+
+    panic_if(++pendingSquashInstCounter >= 500e4, "braindead!\n");
+    
+    if (inst->isSquashed()) {
+        inst = nullptr;
+        return;
+    }
+
+    if (commitStatus[tid] == TrapPending ||
+        inst->seqNum > youngestSeqNum[tid])
+        return;
+
+    assert(cpu->spt);
+
+    if (inst->isArgsTainted() && !inst->isUnsquashable())
+        return;
+
+    DPRINTF(Commit, "[tid:%i] [sn:%llu] Resolving pending squash.\n",
+            tid, inst->seqNum);
+    
+    handleSquashSignalFromROB(tid, inst);
+
+    inst->hasPendingSquash(false);
+    inst = nullptr;
 }
 
 } // namespace o3
