@@ -133,7 +133,6 @@ Commit::Commit(CPU *_cpu, const BaseO3CPUParams &params)
         renameMap[tid] = nullptr;
         htmStarts[tid] = 0;
         htmStops[tid] = 0;
-        pendingSquashInst[tid] = nullptr;
     }
     interrupt = NoFault;
 }
@@ -403,7 +402,6 @@ Commit::takeOverFrom()
         trapSquash[tid] = false;
         tcSquash[tid] = false;
         squashAfterInst[tid] = NULL;
-        pendingSquashInst[tid] = nullptr;
     }
     rob->takeOverFrom();
 }
@@ -823,13 +821,6 @@ Commit::commit()
         // instruction in the ROB. This prevents squashes from younger
         // instructions overriding squashes from older instructions.
 
-        // Mark pending mispredictions as having a pending squash.
-        if (DynInstPtr inst = std::move(fromIEW->pendingMispredictInst[tid])) {
-            DPRINTF(Commit, "[tid:%i] [sn:%llu] Pending mispredicted instruction received from IEW.\n",
-                    tid, inst->seqNum);
-            updatePendingMispredictInst(tid, std::move(inst));
-        }
-        
         if (fromIEW->squash[tid] &&
             commitStatus[tid] != TrapPending &&
             fromIEW->squashedSeqNum[tid] <= youngestSeqNum[tid]) {
@@ -859,11 +850,8 @@ Commit::commit()
                             fromIEW->instCausingSquash[tid]->seqNum,
                             fromIEW->instCausingSquash[tid]->pcState());
                 }
-#if 0
-                panic_if(cpu->sptBugfixPending, "Shouldn't get here!\n");
-#endif
-                fromIEW->instCausingSquash[tid]->hasPendingSquash(true);
                 DynInstPtr &inst = fromIEW->instCausingSquash[tid];
+                inst->setPendingSquash();
                 if (inst->stallTick == -1)
                     inst->stallTick = curTick();
                 goto done;
@@ -928,19 +916,12 @@ Commit::commit()
             }
 
             set(toIEW->commitInfo[tid].pc, fromIEW->pc[tid]);
+        } else if (DynInstPtr inst = rob->getResolvedPendingSquashInst(tid);
+                   inst && commitStatus[tid] != TrapPending &&
+                   inst->seqNum <= youngestSeqNum[tid]) {
+            inst->clearPendingSquash();
+            handleSquashSignalFromROB(tid, inst);
         }
-        // BUGGY
-        else if (cpu->spt) {  // there is no squash signal comming
-            DynInstPtr resolvedPendingSquashInst = rob->getResolvedPendingSquashInstBuggy(tid);
-            if (resolvedPendingSquashInst &&
-                commitStatus[tid] != TrapPending &&
-                resolvedPendingSquashInst->seqNum <= youngestSeqNum[tid]){
-                resolvedPendingSquashInst->hasPendingSquash(false);
-                handleSquashSignalFromROB(tid, resolvedPendingSquashInst);
-            }
-        }
-
-        resolvePendingSquash(tid);
 
     done:
 
@@ -1769,55 +1750,6 @@ Commit::oldestReady()
     } else {
         return InvalidThreadID;
     }
-}
-
-void
-Commit::updatePendingMispredictInst(ThreadID tid, DynInstPtr &&inst)
-{
-    DynInstPtr &pending = pendingSquashInst[tid];
-    if (pending && pending->seqNum <= inst->seqNum) {
-        DPRINTF(Commit, "[tid:%i] [sn:%llu] Skipping pending mispredict, "
-                "since [sn:%llu] already registered.\n",
-                tid, inst->seqNum, pending->seqNum);
-        return;
-    }
-    DPRINTF(Commit, "[tid:%i] [sn:%llu] Setting pending squash\n",
-            tid, inst->seqNum);
-    inst->hasPendingSquash(true);
-    pending = std::move(inst);
-    pendingSquashInstCounter = 0;
-}
-
-void
-Commit::resolvePendingSquash(ThreadID tid)
-{
-    DynInstPtr &inst = pendingSquashInst[tid];
-    if (!inst)
-        return;
-
-    panic_if(++pendingSquashInstCounter >= 500e4, "braindead!\n");
-    
-    if (inst->isSquashed()) {
-        inst = nullptr;
-        return;
-    }
-
-    if (commitStatus[tid] == TrapPending ||
-        inst->seqNum > youngestSeqNum[tid])
-        return;
-
-    assert(cpu->spt);
-
-    if (inst->isArgsTainted() && !inst->isUnsquashable())
-        return;
-
-    DPRINTF(Commit, "[tid:%i] [sn:%llu] Resolving pending squash.\n",
-            tid, inst->seqNum);
-    
-    handleSquashSignalFromROB(tid, inst);
-
-    inst->hasPendingSquash(false);
-    inst = nullptr;
 }
 
 } // namespace o3
