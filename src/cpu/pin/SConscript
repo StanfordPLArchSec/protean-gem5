@@ -69,6 +69,7 @@ if env['CONF']['BUILD_ISA']:
     client_env = env.Clone()
     # TODO: Try extending?
     client_env.Append(CXXFLAGS = client_cxxflags)
+    client_env.Append(CCFLAGS = ["-Wno-error"])
     client_env.Append(CPPPATH = [os.path.join(pin_dir, inc) for inc in client_include_dirs])
     client_env.Append(CPPDEFINES = {
         'PIN_CRT': 1,
