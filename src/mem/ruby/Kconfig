@@ -32,11 +32,11 @@ menu "Ruby"
 
         config USE_MULTIPLE_PROTOCOLS
             bool 'Use multiple protocols'
-            default y
+            default n
 
         config PROTOCOL
             string "The 'main' protocol"
-            default "MULTIPLE" if USE_MULTIPLE_PROTOCOLS
+            default "MESI_Three_Level"
             help
                 This shows up as `buildEnv["PROTOCOL"]`` for backwards
                 compatibility, mostly in the Ruby.py config scripts.
